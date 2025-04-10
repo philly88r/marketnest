@@ -1,0 +1,18 @@
+{
+  "name": "blog-generator",
+  "version": "1.0.0",
+  "description": "AI-powered blog generator for digital marketing agency website",
+  "main": "index.js",
+  "scripts": {
+    "start": "node index.js",
+    "generate": "node generate.js",
+    "gemini": "node gemini-generator.js"
+  },
+  "dependencies": {
+    "dotenv": "^16.3.1",
+    "express": "^4.18.2",
+    "marked": "^9.1.0",
+    "cheerio": "^1.0.0-rc.12",
+    "axios": "^1.6.2"
+  }
+}

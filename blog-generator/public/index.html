@@ -1,0 +1,223 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Blog Generator - Digital Marketing Agency</title>
+  <style>
+    :root {
+      --primary-color: #0df9b6;
+      --secondary-color: #de681d;
+      --gradient: linear-gradient(90deg, var(--primary-color) 0%, var(--secondary-color) 100%);
+      --dark-bg: #121212;
+      --card-bg: #1e1e1e;
+    }
+    
+    body {
+      font-family: 'DM Sans', sans-serif;
+      background-color: var(--dark-bg);
+      color: white;
+      margin: 0;
+      padding: 0;
+      min-height: 100vh;
+    }
+    
+    .container {
+      max-width: 900px;
+      margin: 0 auto;
+      padding: 2rem;
+    }
+    
+    h1 {
+      background: var(--gradient);
+      -webkit-background-clip: text;
+      background-clip: text;
+      -webkit-text-fill-color: transparent;
+      font-size: 2.5rem;
+      margin-bottom: 1.5rem;
+    }
+    
+    .card {
+      background-color: var(--card-bg);
+      border-radius: 8px;
+      padding: 2rem;
+      margin-bottom: 2rem;
+      box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+    }
+    
+    .form-group {
+      margin-bottom: 1.5rem;
+    }
+    
+    label {
+      display: block;
+      margin-bottom: 0.5rem;
+      font-weight: 500;
+    }
+    
+    input, textarea {
+      width: 100%;
+      padding: 0.75rem;
+      border-radius: 4px;
+      border: 1px solid #333;
+      background-color: #2a2a2a;
+      color: white;
+      font-family: inherit;
+    }
+    
+    textarea {
+      min-height: 100px;
+      resize: vertical;
+    }
+    
+    button {
+      background: var(--gradient);
+      border: none;
+      color: black;
+      font-weight: bold;
+      padding: 0.75rem 1.5rem;
+      border-radius: 4px;
+      cursor: pointer;
+      transition: all 0.3s ease;
+    }
+    
+    button:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 4px 8px rgba(13, 249, 182, 0.3);
+    }
+    
+    .status {
+      margin-top: 1rem;
+      padding: 1rem;
+      border-radius: 4px;
+    }
+    
+    .status.success {
+      background-color: rgba(13, 249, 182, 0.1);
+      border: 1px solid rgba(13, 249, 182, 0.3);
+    }
+    
+    .status.error {
+      background-color: rgba(255, 66, 66, 0.1);
+      border: 1px solid rgba(255, 66, 66, 0.3);
+    }
+    
+    .status.loading {
+      background-color: rgba(255, 255, 255, 0.1);
+      border: 1px solid rgba(255, 255, 255, 0.3);
+    }
+    
+    .loading-spinner {
+      display: inline-block;
+      width: 20px;
+      height: 20px;
+      border: 3px solid rgba(255, 255, 255, 0.3);
+      border-radius: 50%;
+      border-top-color: var(--primary-color);
+      animation: spin 1s ease-in-out infinite;
+      margin-right: 10px;
+    }
+    
+    @keyframes spin {
+      to { transform: rotate(360deg); }
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <h1>Blog Generator - Digital Marketing Agency</h1>
+    
+    <div class="card">
+      <h2>Generate New Blog Post with Gemini AI + FAL AI Images</h2>
+      <form id="blogForm" action="/api/generate" method="POST">
+        <div class="form-group">
+          <label for="topic">Blog Topic or Title</label>
+          <input type="text" id="topic" name="topic" required placeholder="e.g., 'Top Digital Marketing Trends for 2025'">
+        </div>
+        
+        <div class="form-group">
+          <label for="keywords">Keywords (comma separated)</label>
+          <input type="text" id="keywords" name="keywords" placeholder="e.g., digital marketing, SEO, social media">
+        </div>
+        
+        <div class="form-group">
+          <label for="url">Target URL (optional)</label>
+          <input type="text" id="url" name="url" placeholder="e.g., /blog/digital-marketing-trends">
+        </div>
+        
+        <button type="submit" id="generateBtn">Generate Blog Post with AI Content & Image</button>
+      </form>
+      
+      <div id="status" class="status" style="display: none;"></div>
+    </div>
+    
+    <div class="card">
+      <h2>How to Use the Blog Generator</h2>
+      <ol>
+        <li>Enter a blog topic or title in the field above</li>
+        <li>Add relevant keywords separated by commas</li>
+        <li>Optionally specify a target URL for the blog post</li>
+        <li>Click "Generate Blog Post with Gemini"</li>
+        <li>Wait for the AI to generate your blog content and featured image (this may take a few minutes)</li>
+        <li>The generated blog post will be saved to your website's blog directory</li>
+      </ol>
+      <p>This tool uses the Gemini AI API to create high-quality blog content and the FAL AI Flux Schnell model to generate professional featured images for your digital marketing agency website.</p>
+      <div style="margin-top: 20px; padding: 15px; background: rgba(13, 249, 182, 0.1); border-radius: 8px;">
+        <h3 style="margin-top: 0;">AI Image Generation</h3>
+        <p>Each blog post will include a custom AI-generated featured image that matches your blog topic and digital marketing brand style. The images are created using the fal-ai/flux/schnell model for high-quality, professional results.</p>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    document.addEventListener('DOMContentLoaded', () => {
+      const blogForm = document.getElementById('blogForm');
+      const statusDiv = document.getElementById('status');
+      const generateBtn = document.getElementById('generateBtn');
+      
+      blogForm.addEventListener('submit', async (e) => {
+        e.preventDefault();
+        
+        const topic = document.getElementById('topic').value;
+        const keywords = document.getElementById('keywords').value;
+        const url = document.getElementById('url').value;
+        
+        statusDiv.className = 'status loading';
+        statusDiv.innerHTML = '<div class="loading-spinner"></div> Generating blog post... This may take a few minutes.';
+        statusDiv.style.display = 'block';
+        generateBtn.disabled = true;
+        
+        try {
+          const response = await fetch('/api/generate', {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({ topic, keywords, url })
+          });
+          
+          const data = await response.json();
+          
+          if (response.ok) {
+            statusDiv.className = 'status success';
+            let successMessage = `Blog post "${data.blog.title}" generated successfully!`;
+            if (data.blog.imagePath) {
+              successMessage += ` Featured image created at ${data.blog.imagePath}`;  
+            }
+            statusDiv.textContent = successMessage;
+          } else {
+            statusDiv.className = 'status error';
+            statusDiv.textContent = data.error || 'An error occurred while generating the blog post.';
+          }
+        } catch (error) {
+          statusDiv.className = 'status error';
+          statusDiv.textContent = 'An error occurred while generating the blog post.';
+          console.error('Error:', error);
+        } finally {
+          generateBtn.disabled = false;
+        }
+      });
+    });
+  </script>
+</body>
+</html>
