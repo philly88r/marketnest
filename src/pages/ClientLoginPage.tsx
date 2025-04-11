@@ -4,10 +4,10 @@ import { motion } from 'framer-motion';
 import { useNavigate } from 'react-router-dom';
 import Header from '../components/Header';
 import Footer from '../components/Footer';
-import { adminLogin, isLoggedIn, isAdmin } from '../utils/authService';
+import { clientLogin, isLoggedIn, isClient } from '../utils/authService';
 
-const AdminLoginPage: React.FC = () => {
-  const [email, setEmail] = useState('');
+const ClientLoginPage: React.FC = () => {
+  const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
   const [isLoading, setIsLoading] = useState(false);
@@ -15,8 +15,8 @@ const AdminLoginPage: React.FC = () => {
   
   // Check if already logged in
   useEffect(() => {
-    if (isLoggedIn() && isAdmin()) {
-      navigate('/admin-portal');
+    if (isLoggedIn() && isClient()) {
+      navigate('/client-portal');
     }
   }, [navigate]);
   
@@ -26,8 +26,8 @@ const AdminLoginPage: React.FC = () => {
     setError('');
     
     try {
-      await adminLogin(email, password);
-      navigate('/admin-portal');
+      await clientLogin(username, password);
+      navigate('/client-portal');
     } catch (err) {
       console.error('Login error:', err);
       setError(err instanceof Error ? err.message : 'Login failed. Please try again.');
@@ -46,20 +46,20 @@ const AdminLoginPage: React.FC = () => {
           transition={{ duration: 0.5 }}
         >
           <LoginHeader>
-            <h2>Admin Login</h2>
-            <p>Sign in to access the admin portal</p>
+            <h2>Client Login</h2>
+            <p>Sign in to access your client portal</p>
           </LoginHeader>
           
           {error && <ErrorMessage>{error}</ErrorMessage>}
           
           <LoginForm onSubmit={handleSubmit}>
             <FormGroup>
-              <Label>Email</Label>
+              <Label>Username</Label>
               <Input 
-                type="email" 
-                value={email}
-                onChange={(e) => setEmail(e.target.value)}
-                placeholder="Enter your email"
+                type="text" 
+                value={username}
+                onChange={(e) => setUsername(e.target.value)}
+                placeholder="Enter your username"
                 required
               />
             </FormGroup>
@@ -86,11 +86,11 @@ const AdminLoginPage: React.FC = () => {
           </LoginForm>
           
           <LoginFooter>
-            <p>Admin Access:</p>
-            <CredentialsInfo>
-              <div>Use the admin email and password you created in Supabase.</div>
-            </CredentialsInfo>
-            <Note>Note: Make sure you've set up the admin user in Supabase with the 'admin' role in metadata.</Note>
+            <p>Need help?</p>
+            <HelpText>
+              Contact your account manager or email <strong>support@marketnest.org</strong> for assistance.
+            </HelpText>
+            <Note>For demonstration, you can use the sample client credentials from the database setup.</Note>
           </LoginFooter>
         </LoginCard>
       </LoginContent>
@@ -218,22 +218,14 @@ const LoginFooter = styled.div`
   }
 `;
 
-const CredentialsInfo = styled.div`
+const HelpText = styled.div`
   background: rgba(31, 83, 255, 0.05);
   border: 1px solid rgba(31, 83, 255, 0.2);
   border-radius: 8px;
   padding: 15px;
   margin-bottom: 15px;
-  text-align: left;
-  
-  div {
-    margin-bottom: 5px;
-    font-size: 14px;
-    
-    &:last-child {
-      margin-bottom: 0;
-    }
-  }
+  text-align: center;
+  font-size: 14px;
 `;
 
 const Note = styled.div`
@@ -242,4 +234,4 @@ const Note = styled.div`
   font-style: italic;
 `;
 
-export default AdminLoginPage;
+export default ClientLoginPage;

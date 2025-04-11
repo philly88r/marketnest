@@ -1,9 +1,11 @@
 import React, { useState } from 'react';
 import styled from 'styled-components';
 import { motion } from 'framer-motion';
-import { FiArrowLeft, FiEdit, FiMail, FiPhone, FiActivity, FiCalendar, FiCheckCircle, FiClock, FiCircle } from 'react-icons/fi';
+import { FiArrowLeft, FiEdit, FiMail, FiPhone, FiActivity, FiCalendar, FiCheckCircle, FiClock, FiCircle, FiFolder, FiList } from 'react-icons/fi';
 import { mockClients } from './ClientList';
 import ProjectDashboard from './ProjectDashboard';
+import ClientFileManager from './ClientFileManager';
+import ClientChecklist from './ClientChecklist';
 
 interface ClientDashboardProps {
   clientId: string;
@@ -178,7 +180,7 @@ const clientProjects = {
 };
 
 const ClientDashboard: React.FC<ClientDashboardProps> = ({ clientId, onBack }) => {
-  const [activeTab, setActiveTab] = useState<'overview' | 'projects' | 'analytics'>('overview');
+  const [activeTab, setActiveTab] = useState<'overview' | 'projects' | 'files' | 'tasks' | 'analytics'>('overview');
   const [selectedProjectId, setSelectedProjectId] = useState<string | null>(null);
   
   const client = mockClients.find(c => c.id === clientId);
@@ -373,6 +375,20 @@ const ClientDashboard: React.FC<ClientDashboardProps> = ({ clientId, onBack }) =
             )}
           </ProjectsContent>
         );
+      case 'files':
+        return (
+          <div>
+            <h3>Client Files</h3>
+            <ClientFileManager clientId={clientId} />
+          </div>
+        );
+      case 'tasks':
+        return (
+          <div>
+            <h3>Client Tasks</h3>
+            <ClientChecklist clientId={clientId} />
+          </div>
+        );
       case 'analytics':
         return (
           <AnalyticsContent>
@@ -423,6 +439,18 @@ const ClientDashboard: React.FC<ClientDashboardProps> = ({ clientId, onBack }) =
           onClick={() => setActiveTab('projects')}
         >
           Projects
+        </TabButton>
+        <TabButton 
+          $active={activeTab === 'files'} 
+          onClick={() => setActiveTab('files')}
+        >
+          Files
+        </TabButton>
+        <TabButton 
+          $active={activeTab === 'tasks'} 
+          onClick={() => setActiveTab('tasks')}
+        >
+          Tasks
         </TabButton>
         <TabButton 
           $active={activeTab === 'analytics'} 

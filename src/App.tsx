@@ -28,6 +28,7 @@ import BlogPostPage from './pages/BlogPostPage';
 import BusinessSoftwarePage from './pages/BusinessSoftwarePage';
 import AIAgentsPage from './pages/AIAgentsPage';
 import ClientPortalPage from './pages/ClientPortalPage';
+import ClientLoginPage from './pages/ClientLoginPage';
 import AdminLoginPage from './pages/AdminLoginPage';
 import AdminPortalPage from './pages/AdminPortalPage';
 
@@ -127,6 +128,7 @@ function App() {
           <Route path="/case-studies" element={<CaseStudiesPage />} />
           <Route path="/blog" element={<BlogPage />} />
           <Route path="/blog/:slug" element={<BlogPostPage />} />
+          <Route path="/client-login" element={<ClientLoginPage />} />
           <Route path="/client-portal" element={<ClientPortalPage />} />
           <Route path="/admin-login" element={<AdminLoginPage />} />
           <Route path="/admin-portal" element={<AdminPortalPage />} />

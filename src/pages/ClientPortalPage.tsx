@@ -2,22 +2,21 @@ import React, { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import styled from 'styled-components';
 import { motion, AnimatePresence } from 'framer-motion';
-import { FiMessageSquare, FiFolder, FiBarChart2, FiPlusCircle, FiUser, FiLogOut, FiCalendar, FiPlus, FiFile, FiPaperclip, FiSend } from 'react-icons/fi';
+import { FiMessageSquare, FiFolder, FiBarChart2, FiPlusCircle, FiUser, FiLogOut, FiCalendar, FiPlus, FiFile, FiPaperclip, FiSend, FiCheckSquare } from 'react-icons/fi';
 import Header from '../components/Header';
 import Footer from '../components/Footer';
 import ProjectDashboard from '../components/ProjectDashboard';
 import ServiceRequestForm from '../components/ServiceRequestForm';
 import AnalyticsDashboard from '../components/AnalyticsDashboard';
+import ClientFileManager from '../components/ClientFileManager';
+import ClientChecklist from '../components/ClientChecklist';
 import { sendMessageToAI, generateFallbackResponse } from '../utils/aiChatService';
 import { uploadFile, formatFileSize } from '../utils/fileService';
-// import { getRecentFiles } from '../utils/fileService'; // Commented out as currently unused
-// import { supabase } from '../utils/supabaseClient'; // Commented out as currently unused
+import { isLoggedIn, isClient, getCurrentUser, logout, ClientUser } from '../utils/authService';
 
 const ClientPortalPage = (): React.ReactElement => {
-  const [isLoggedIn, setIsLoggedIn] = useState(false);
-  const [email, setEmail] = useState('');
-  const [password, setPassword] = useState('');
-  const [activeSection, setActiveSection] = useState<'chat' | 'projects' | 'analytics' | 'requests'>('chat');
+  const [clientUser, setClientUser] = useState<ClientUser | null>(null);
+  const [activeSection, setActiveSection] = useState<'chat' | 'projects' | 'files' | 'tasks' | 'analytics' | 'requests'>('chat');
   const [activeChannel, setActiveChannel] = useState('general');
   const [message, setMessage] = useState('');
   const [isAiTyping, setIsAiTyping] = useState(false);
@@ -48,21 +47,18 @@ const ClientPortalPage = (): React.ReactElement => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
   }, [messages]);
 
-  const handleLogin = (e: React.FormEvent) => {
-    e.preventDefault();
-    if (email && password) {
-      setIsLoggedIn(true);
+  // Check if user is logged in
+  useEffect(() => {
+    if (isLoggedIn() && isClient()) {
+      setClientUser(getCurrentUser() as ClientUser);
+    } else {
+      navigate('/client-login');
     }
-  };
-
-  // Commented out as currently unused
-  // const handleSignUp = () => {
-  //   if (!email || !password) return;
-  //   alert('Sign up functionality will be implemented with backend integration.');
-  // };
+  }, [navigate]);
   
-  const handleLogout = () => {
-    setIsLoggedIn(false);
+  const handleLogout = async () => {
+    await logout();
+    navigate('/client-login');
   };
   
   // Function to generate AI response based on user message
@@ -228,7 +224,7 @@ const ClientPortalPage = (): React.ReactElement => {
           Client Portal
         </PortalTitle>
         
-        {isLoggedIn && (
+        {clientUser && (
           <PortalNavigation>
             <NavItem 
               $active={activeSection === 'chat'}
@@ -243,6 +239,20 @@ const ClientPortalPage = (): React.ReactElement => {
             >
               <span>{FiFolder({ size: 20 })}</span>
               <span>Projects</span>
+            </NavItem>
+            <NavItem 
+              $active={activeSection === 'files'}
+              onClick={() => setActiveSection('files')}
+            >
+              <span>{FiFile({ size: 20 })}</span>
+              <span>Files</span>
+            </NavItem>
+            <NavItem 
+              $active={activeSection === 'tasks'}
+              onClick={() => setActiveSection('tasks')}
+            >
+              <span>{FiCheckSquare({ size: 20 })}</span>
+              <span>Tasks</span>
             </NavItem>
             <NavItem 
               $active={activeSection === 'analytics'}
@@ -261,46 +271,19 @@ const ClientPortalPage = (): React.ReactElement => {
           </PortalNavigation>
         )}
         
-        {!isLoggedIn ? (
-          <LoginContainer
-            initial={{ opacity: 0, scale: 0.9 }}
-            animate={{ opacity: 1, scale: 1 }}
-            transition={{ duration: 0.5, delay: 0.2 }}
-          >
-            <LoginForm onSubmit={handleLogin}>
-              <LoginTitle>Login to Your Client Portal</LoginTitle>
-              <FormGroup>
-                <Label htmlFor="email">Email</Label>
-                <Input 
-                  type="email" 
-                  id="email" 
-                  value={email} 
-                  onChange={(e) => setEmail(e.target.value)} 
-                  required 
-                />
-              </FormGroup>
-              <FormGroup>
-                <Label htmlFor="password">Password</Label>
-                <Input 
-                  type="password" 
-                  id="password" 
-                  value={password} 
-                  onChange={(e) => setPassword(e.target.value)} 
-                  required 
-                />
-              </FormGroup>
-              <ForgotPassword>Forgot password?</ForgotPassword>
-              <SubmitButton type="submit">Login</SubmitButton>
-              <RequestAccess>
-                Don't have an account? <RequestLink>Request access</RequestLink>
-              </RequestAccess>
-            </LoginForm>
-          </LoginContainer>
-        ) : (
+        {clientUser ? (
           activeSection === 'projects' ? (
-            <ProjectDashboard clientId={isLoggedIn ? 'client-user' : undefined} />
+            <ProjectDashboard clientId={clientUser.id} />
+          ) : activeSection === 'files' ? (
+            <div style={{ padding: '20px' }}>
+              <ClientFileManager clientId={clientUser.id} />
+            </div>
+          ) : activeSection === 'tasks' ? (
+            <div style={{ padding: '20px' }}>
+              <ClientChecklist clientId={clientUser.id} />
+            </div>
           ) : activeSection === 'analytics' ? (
-            <AnalyticsDashboard clientId={isLoggedIn ? 'client-user' : undefined} dateRange="month" />
+            <AnalyticsDashboard clientId={clientUser.id} dateRange="month" />
           ) : activeSection === 'requests' ? (
             <ServiceRequestForm
               onSubmit={(data) => {
