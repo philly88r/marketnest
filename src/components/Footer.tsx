@@ -2,22 +2,27 @@ import React from 'react';
 import styled from 'styled-components';
 
 const FooterContainer = styled.footer`
-  padding: 80px 200px 40px;
+  padding: 80px 80px 40px 60px;
   background: rgba(0, 0, 0, 0.5);
   backdrop-filter: blur(10px);
   position: relative;
   overflow: hidden;
+  max-width: 1200px;
+  margin: 0 auto 0 60px;
+  width: calc(100% - 60px);
   
   @media (max-width: 1200px) {
-    padding: 80px 100px 40px;
+    padding: 80px 60px 40px 60px;
   }
   
   @media (max-width: 992px) {
-    padding: 70px 60px 40px;
+    padding: 70px 40px 40px 40px;
   }
   
   @media (max-width: 768px) {
     padding: 60px 20px 30px;
+    margin: 0 auto;
+    width: 100%;
   }
 `;
 
@@ -213,10 +218,7 @@ const Footer: React.FC = () => {
       <FooterContent>
         <FooterColumn>
           <LogoContainer>
-            <Logo>
-              <LogoBlue />
-              <LogoPink />
-            </Logo>
+            <img src="/logo.svg" alt="MarketNest Logo" style={{ height: '60px', width: 'auto' }} />
           </LogoContainer>
           <CompanyDescription>
             We help businesses grow through data-driven marketing strategies and innovative digital solutions.
@@ -280,7 +282,7 @@ const Footer: React.FC = () => {
                   <path d="M20 10C20 14.4183 16.4183 18 12 18C10.5937 18 9.27223 17.6372 8.12398 17C7.53381 16.6879 4 18 4 18C4 18 5.3121 14.4662 5 13.876C4.36283 12.7278 4 11.4063 4 10C4 5.58172 7.58172 2 12 2C16.4183 2 20 5.58172 20 10Z" stroke="white" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
                 </svg>
               </ContactIcon>
-              <ContactText>hello@digitalagency.com</ContactText>
+              <ContactText>info@marketnest.org</ContactText>
             </ContactItem>
             <ContactItem>
               <ContactIcon>
@@ -288,7 +290,7 @@ const Footer: React.FC = () => {
                   <path d="M3 5C3 3.89543 3.89543 3 5 3H8.27924C8.70967 3 9.09181 3.27543 9.22792 3.68377L10.7257 8.17721C10.8831 8.64932 10.6694 9.16531 10.2243 9.38787L7.96701 10.5165C9.06925 12.9612 11.0388 14.9308 13.4835 16.033L14.6121 13.7757C14.8347 13.3306 15.3507 13.1169 15.8228 13.2743L20.3162 14.7721C20.7246 14.9082 21 15.2903 21 15.7208V19C21 20.1046 20.1046 21 19 21H18C9.71573 21 3 14.2843 3 6V5Z" stroke="white" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
                 </svg>
               </ContactIcon>
-              <ContactText>+1 (555) 123-4567</ContactText>
+              <ContactText>919-504-1542</ContactText>
             </ContactItem>
             <ContactItem>
               <ContactIcon>
@@ -297,7 +299,7 @@ const Footer: React.FC = () => {
                   <path d="M15 12C15 13.6569 13.6569 15 12 15C10.3431 15 9 13.6569 9 12C9 10.3431 10.3431 9 12 9C13.6569 9 15 10.3431 15 12Z" stroke="white" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
                 </svg>
               </ContactIcon>
-              <ContactText>123 Marketing St, San Francisco, CA 94103</ContactText>
+              <ContactText>Greensboro, NC</ContactText>
             </ContactItem>
           </ContactInfo>
         </FooterColumn>
@@ -306,7 +308,7 @@ const Footer: React.FC = () => {
       <Divider />
       
       <BottomFooter>
-        <Copyright> 2023 Digital Agency. All rights reserved.</Copyright>
+        <Copyright>© 2025 MarketNest. All rights reserved.</Copyright>
         <BottomLinks>
           <BottomLink href="#">Privacy Policy</BottomLink>
           <BottomLink href="#">Terms of Service</BottomLink>
