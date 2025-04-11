@@ -62,8 +62,8 @@ const ProjectDashboard: React.FC<ProjectDashboardProps> = ({ clientId }) => {
     filter === 'all' || project.status === filter
   );
   
-  // Get the currently selected project
-  const selectedProject = mockProjects.find(p => p.id === activeProject);
+  // Get the currently selected project (commented out as currently unused)
+  // const selectedProject = mockProjects.find(p => p.id === activeProject);
   
   // Calculate overall progress across all projects
   const overallProgress = Math.round(

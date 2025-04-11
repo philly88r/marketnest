@@ -1,6 +1,5 @@
 import React from 'react';
 import styled from 'styled-components';
-import { motion } from 'framer-motion';
 
 const FooterContainer = styled.footer`
   padding: 80px 200px 40px;

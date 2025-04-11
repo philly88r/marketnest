@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import styled from 'styled-components';
 import { motion } from 'framer-motion';
-import { FiGrid, FiTrendingUp, FiTarget, FiDownload, FiShare2, FiMail } from 'react-icons/fi';
+import { FiGrid, FiTrendingUp, FiTarget, FiDownload, FiMail } from 'react-icons/fi';
 
 // Mock data for analytics
 const analyticsData = {

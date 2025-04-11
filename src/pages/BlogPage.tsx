@@ -130,7 +130,7 @@ const categories = ['All', 'SEO', 'PPC', 'Social Media', 'Content Marketing', 'E
 // Blog post detail component
 const BlogPostDetail: React.FC<{ slug: string }> = ({ slug }) => {
   const [post, setPost] = useState<any>(null);
-  const [loading, setLoading] = useState(true);
+  // const [loading, setLoading] = useState(true); // Commented out as currently unused
   
   useEffect(() => {
     const fetchPost = async () => {
@@ -149,7 +149,7 @@ const BlogPostDetail: React.FC<{ slug: string }> = ({ slug }) => {
       
       // If the post is found in either sample or generated blogs
       setPost(foundPost);
-      setLoading(false);
+      // Loading state removed as it was unused
     };
     
     fetchPost();
@@ -247,7 +247,7 @@ const BlogPage: React.FC = () => {
     };
     
     loadBlogs();
-  }, []);
+  }, [searchTerm, selectedCategory]);
 
   // Filter posts based on category and search term
   useEffect(() => {

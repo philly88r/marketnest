@@ -9,8 +9,9 @@ import ProjectDashboard from '../components/ProjectDashboard';
 import ServiceRequestForm from '../components/ServiceRequestForm';
 import AnalyticsDashboard from '../components/AnalyticsDashboard';
 import { sendMessageToAI, generateFallbackResponse } from '../utils/aiChatService';
-import { uploadFile, formatFileSize, getRecentFiles } from '../utils/fileService';
-import { supabase } from '../utils/supabaseClient';
+import { uploadFile, formatFileSize } from '../utils/fileService';
+// import { getRecentFiles } from '../utils/fileService'; // Commented out as currently unused
+// import { supabase } from '../utils/supabaseClient'; // Commented out as currently unused
 
 const ClientPortalPage = (): React.ReactElement => {
   const [isLoggedIn, setIsLoggedIn] = useState(false);
@@ -54,10 +55,11 @@ const ClientPortalPage = (): React.ReactElement => {
     }
   };
 
-  const handleSignUp = () => {
-    if (!email || !password) return;
-    alert('Sign up functionality will be implemented with backend integration.');
-  };
+  // Commented out as currently unused
+  // const handleSignUp = () => {
+  //   if (!email || !password) return;
+  //   alert('Sign up functionality will be implemented with backend integration.');
+  // };
   
   const handleLogout = () => {
     setIsLoggedIn(false);
@@ -949,12 +951,13 @@ const SendButton = styled.button`
   }
 `;
 
-const EmptyMessage = styled.div`
-  padding: 20px;
-  text-align: center;
-  color: rgba(255, 255, 255, 0.6);
-  font-style: italic;
-`;
+// Commented out as currently unused
+// const EmptyMessage = styled.div`
+//   padding: 20px;
+//   text-align: center;
+//   color: rgba(255, 255, 255, 0.6);
+//   font-style: italic;
+// `;
 
 const TypingIndicator = styled.div`
   display: flex;

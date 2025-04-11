@@ -78,22 +78,23 @@ const SectionTitle = styled(motion.h2)`
   }
 `;
 
-const SectionSubtitle = styled(motion.h3)`
-  color: white;
-  font-size: 32px;
-  font-weight: 600;
-  margin-bottom: 16px;
-  
-  @media (max-width: 992px) {
-    font-size: 28px;
-    margin-bottom: 14px;
-  }
-  
-  @media (max-width: 768px) {
-    font-size: 24px;
-    margin-bottom: 12px;
-  }
-`;
+// Commented out as currently unused
+// const SectionSubtitle = styled(motion.h3)`
+//   color: white;
+//   font-size: 32px;
+//   font-weight: 600;
+//   margin-bottom: 16px;
+//   
+//   @media (max-width: 992px) {
+//     font-size: 28px;
+//     margin-bottom: 14px;
+//   }
+//   
+//   @media (max-width: 768px) {
+//     font-size: 24px;
+//     margin-bottom: 12px;
+//   }
+// `;
 
 const Paragraph = styled(motion.p)`
   color: rgba(255, 255, 255, 0.81);
