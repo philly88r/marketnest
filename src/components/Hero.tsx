@@ -7,16 +7,16 @@ const HeroContainer = styled.div`
   flex-direction: column;
   justify-content: flex-start;
   align-items: center;
-  padding: 280px 200px 100px;
+  padding: 280px 80px 100px;
   position: relative;
   overflow: hidden;
   
   @media (max-width: 1200px) {
-    padding: 260px 100px 80px;
+    padding: 260px 60px 80px;
   }
   
   @media (max-width: 992px) {
-    padding: 240px 60px 60px;
+    padding: 240px 40px 60px;
   }
   
   @media (max-width: 768px) {

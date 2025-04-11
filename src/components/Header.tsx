@@ -8,7 +8,7 @@ const HeaderContainer = styled.header`
   top: 0;
   left: 0;
   width: 100%;
-  padding: 30px 200px;
+  padding: 30px 80px;
   display: flex;
   justify-content: space-between;
   align-items: center;
@@ -17,7 +17,7 @@ const HeaderContainer = styled.header`
   backdrop-filter: blur(10px);
   
   @media (max-width: 1200px) {
-    padding: 30px 100px;
+    padding: 30px 60px;
   }
   
   @media (max-width: 992px) {
@@ -31,14 +31,14 @@ const HeaderContainer = styled.header`
 
 const Logo = styled.div`
   width: auto;
-  height: 120px;
+  height: 60px;
   display: flex;
   align-items: center;
   margin-right: 40px;
   position: relative;
   
   @media (max-width: 768px) {
-    height: 100px;
+    height: 50px;
     margin-right: 20px;
   }
 `;
@@ -296,8 +296,8 @@ const Header: React.FC = () => {
       <RouterLink to="/">
         <Logo>
           <LogoImage 
-            src="/Untitled design (1).svg" 
-            alt="Logo" 
+            src="/logo512.png" 
+            alt="MarketNest Logo" 
           />
         </Logo>
       </RouterLink>
