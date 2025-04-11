@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import styled from 'styled-components';
 import { motion } from 'framer-motion';
-import * as FiIcons from 'react-icons/fi';
+import { FiInfo, FiCheckCircle, FiCircle } from 'react-icons/fi';
 
 // Service options based on the agency's offerings
 const serviceOptions = [
@@ -209,7 +209,7 @@ const ServiceRequestForm: React.FC<ServiceRequestFormProps> = ({ onSubmit, onCan
             
             {selectedService && (
               <ServiceDescription>
-                <FiIcons.FiInfo size={16} />
+                <span>{FiInfo({ size: 16 })}</span>
                 <span>{selectedService.description}</span>
               </ServiceDescription>
             )}
@@ -259,42 +259,42 @@ const ServiceRequestForm: React.FC<ServiceRequestFormProps> = ({ onSubmit, onCan
                   $selected={selectedGoals.increase_traffic}
                   onClick={() => handleGoalToggle('increase_traffic')}
                 >
-                  {selectedGoals.increase_traffic ? <FiIcons.FiCheckCircle /> : <FiIcons.FiCircle />}
+                  {selectedGoals.increase_traffic ? <span>{FiCheckCircle({ size: 16 })}</span> : <span>{FiCircle({ size: 16 })}</span>}
                   <span>Increase Website Traffic</span>
                 </GoalOption>
                 <GoalOption
                   $selected={selectedGoals.improve_conversion}
                   onClick={() => handleGoalToggle('improve_conversion')}
                 >
-                  {selectedGoals.improve_conversion ? <FiIcons.FiCheckCircle /> : <FiIcons.FiCircle />}
+                  {selectedGoals.improve_conversion ? <span>{FiCheckCircle({ size: 16 })}</span> : <span>{FiCircle({ size: 16 })}</span>}
                   <span>Improve Conversion Rate</span>
                 </GoalOption>
                 <GoalOption
                   $selected={selectedGoals.brand_awareness}
                   onClick={() => handleGoalToggle('brand_awareness')}
                 >
-                  {selectedGoals.brand_awareness ? <FiIcons.FiCheckCircle /> : <FiIcons.FiCircle />}
+                  {selectedGoals.brand_awareness ? <span>{FiCheckCircle({ size: 16 })}</span> : <span>{FiCircle({ size: 16 })}</span>}
                   <span>Increase Brand Awareness</span>
                 </GoalOption>
                 <GoalOption
                   $selected={selectedGoals.lead_generation}
                   onClick={() => handleGoalToggle('lead_generation')}
                 >
-                  {selectedGoals.lead_generation ? <FiIcons.FiCheckCircle /> : <FiIcons.FiCircle />}
+                  {selectedGoals.lead_generation ? <span>{FiCheckCircle({ size: 16 })}</span> : <span>{FiCircle({ size: 16 })}</span>}
                   <span>Generate More Leads</span>
                 </GoalOption>
                 <GoalOption
                   $selected={selectedGoals.customer_retention}
                   onClick={() => handleGoalToggle('customer_retention')}
                 >
-                  {selectedGoals.customer_retention ? <FiIcons.FiCheckCircle /> : <FiIcons.FiCircle />}
+                  {selectedGoals.customer_retention ? <span>{FiCheckCircle({ size: 16 })}</span> : <span>{FiCircle({ size: 16 })}</span>}
                   <span>Improve Customer Retention</span>
                 </GoalOption>
                 <GoalOption
                   $selected={selectedGoals.competitive_edge}
                   onClick={() => handleGoalToggle('competitive_edge')}
                 >
-                  {selectedGoals.competitive_edge ? <FiIcons.FiCheckCircle /> : <FiIcons.FiCircle />}
+                  {selectedGoals.competitive_edge ? <span>{FiCheckCircle({ size: 16 })}</span> : <span>{FiCircle({ size: 16 })}</span>}
                   <span>Gain Competitive Edge</span>
                 </GoalOption>
               </GoalsContainer>

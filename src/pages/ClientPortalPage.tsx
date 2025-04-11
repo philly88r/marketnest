@@ -2,7 +2,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import styled from 'styled-components';
 import { motion, AnimatePresence } from 'framer-motion';
-import * as FiIcons from 'react-icons/fi';
+import { FiMessageSquare, FiFolder, FiBarChart2, FiPlusCircle, FiUser, FiLogOut, FiCalendar, FiPlus, FiFile, FiPaperclip, FiSend } from 'react-icons/fi';
 import Header from '../components/Header';
 import Footer from '../components/Footer';
 import ProjectDashboard from '../components/ProjectDashboard';
@@ -232,28 +232,28 @@ const ClientPortalPage = (): React.ReactElement => {
               $active={activeSection === 'chat'}
               onClick={() => setActiveSection('chat')}
             >
-              <FiIcons.FiMessageSquare size={20} />
+              <span>{FiMessageSquare({ size: 20 })}</span>
               <span>Messages</span>
             </NavItem>
             <NavItem 
               $active={activeSection === 'projects'}
               onClick={() => setActiveSection('projects')}
             >
-              <FiIcons.FiFolder size={20} />
+              <span>{FiFolder({ size: 20 })}</span>
               <span>Projects</span>
             </NavItem>
             <NavItem 
               $active={activeSection === 'analytics'}
               onClick={() => setActiveSection('analytics')}
             >
-              <FiIcons.FiBarChart2 size={20} />
+              <span>{FiBarChart2({ size: 20 })}</span>
               <span>Analytics</span>
             </NavItem>
             <NavItem 
               $active={activeSection === 'requests'}
               onClick={() => setActiveSection('requests')}
             >
-              <FiIcons.FiPlusCircle size={20} />
+              <span>{FiPlusCircle({ size: 20 })}</span>
               <span>New Request</span>
             </NavItem>
           </PortalNavigation>
@@ -319,11 +319,11 @@ const ClientPortalPage = (): React.ReactElement => {
             <Sidebar>
               <ClientInfo>
                 <ClientAvatar>
-                  {FiIcons.FiUser({ size: 24 })}
+                  {FiUser({ size: 24 })}
                 </ClientAvatar>
                 <ClientName>Client Name</ClientName>
                 <LogoutButton onClick={handleLogout}>
-                  {FiIcons.FiLogOut({ size: 16 })}
+                  {FiLogOut({ size: 16 })}
                   <span>Logout</span>
                 </LogoutButton>
               </ClientInfo>
@@ -334,25 +334,25 @@ const ClientPortalPage = (): React.ReactElement => {
                   $active={activeChannel === 'general'} 
                   onClick={() => setActiveChannel('general')}
                 >
-                  {FiIcons.FiMessageSquare({ size: 16 })}
+                  {FiMessageSquare({ size: 16 })}
                   <span>General</span>
                 </Channel>
                 <Channel 
                   $active={activeChannel === 'project-updates'} 
                   onClick={() => setActiveChannel('project-updates')}
                 >
-                  {FiIcons.FiCalendar({ size: 16 })}
+                  {FiCalendar({ size: 16 })}
                   <span>Project Updates</span>
                 </Channel>
                 <Channel 
                   $active={activeChannel === 'file-sharing'} 
                   onClick={() => setActiveChannel('file-sharing')}
                 >
-                  {FiIcons.FiFolder({ size: 16 })}
+                  {FiFolder({ size: 16 })}
                   <span>File Sharing</span>
                 </Channel>
                 <NewChannelButton>
-                  {FiIcons.FiPlus({ size: 14 })}
+                  {FiPlus({ size: 14 })}
                   <span>New Channel</span>
                 </NewChannelButton>
               </ChannelList>
@@ -374,7 +374,7 @@ const ClientPortalPage = (): React.ReactElement => {
                 {activeChannel === 'file-sharing' && (
                   <FilesSummary>
                     <FilesSummaryTitle>
-                      <FiIcons.FiFolder size={18} />
+                      <span>{FiFolder({ size: 18 })}</span>
                       <span>Shared Files</span>
                       <FilesSummaryToggle onClick={() => setShowFileList(!showFileList)}>
                         {showFileList ? 'Hide' : 'Show'}
@@ -392,7 +392,7 @@ const ClientPortalPage = (): React.ReactElement => {
                             {recentFiles.length > 0 ? (
                               recentFiles.map((file, index) => (
                                 <FileItem key={index}>
-                                  <FiIcons.FiFile size={14} />
+                                  <span>{FiFile({ size: 14 })}</span>
                                   <FileItemName>{file.name}</FileItemName>
                                   <FileItemSize>{formatFileSize(file.size)}</FileItemSize>
                                   <FileItemDate>{file.uploadDate.toLocaleDateString()}</FileItemDate>
@@ -416,7 +416,7 @@ const ClientPortalPage = (): React.ReactElement => {
                       <AttachmentList>
                         {msg.attachments.map((file, index) => (
                           <Attachment key={index}>
-                            {FiIcons.FiPaperclip({ size: 14 })}
+                            {FiPaperclip({ size: 14 })}
                             <span>{file}</span>
                           </Attachment>
                         ))}
@@ -439,7 +439,7 @@ const ClientPortalPage = (): React.ReactElement => {
               <MessageInputContainer onSubmit={handleSendMessage}>
                 {selectedFile && (
                   <SelectedFile>
-                    {FiIcons.FiPaperclip({ size: 14 })}
+                    {FiPaperclip({ size: 14 })}
                     <span>{selectedFile.name}</span>
                     <RemoveFileButton onClick={() => setSelectedFile(null)}>×</RemoveFileButton>
                   </SelectedFile>
@@ -449,7 +449,7 @@ const ClientPortalPage = (): React.ReactElement => {
                     {isUploading ? (
                       <LoadingSpinner />
                     ) : (
-                      FiIcons.FiPaperclip({ size: 20 })
+                      FiPaperclip({ size: 20 })
                     )}
                   </AttachButton>
                   <input
@@ -467,7 +467,7 @@ const ClientPortalPage = (): React.ReactElement => {
                     disabled={isUploading}
                   />
                   <SendButton type="submit" disabled={isUploading || (!message.trim() && !selectedFile)}>
-                    {FiIcons.FiSend({ size: 20 })}
+                    {FiSend({ size: 20 })}
                   </SendButton>
                 </MessageInputWrapper>
               </MessageInputContainer>
