@@ -140,8 +140,7 @@ const ProjectDashboard: React.FC<ProjectDashboardProps> = ({ clientId }) => {
               </StatusBadge>
             </ProjectHeader>
             
-            <ProjectProgress>
-              <ProgressBar $progress={project.progress} />
+            <ProjectProgress $progress={project.progress}>
               <ProgressLabel>{project.progress}%</ProgressLabel>
             </ProjectProgress>
             
@@ -289,6 +288,26 @@ const ProgressBar = styled.div<{ $progress: number }>`
     width: ${props => props.$progress}%;
     background: linear-gradient(90deg, #0df9b6, #0db8f9);
     border-radius: 4px;
+  }
+`;
+
+const ProjectProgress = styled.div<{ $progress: number }>`
+  height: 6px;
+  background: rgba(255, 255, 255, 0.1);
+  border-radius: 3px;
+  position: relative;
+  overflow: hidden;
+  margin: 8px 0;
+  
+  &:after {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    height: 100%;
+    width: ${props => props.$progress}%;
+    background: linear-gradient(90deg, #0df9b6, #0db8f9);
+    border-radius: 3px;
   }
 `;
 
