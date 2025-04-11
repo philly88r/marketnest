@@ -52,30 +52,7 @@ const LogoContainer = styled.div`
   margin-bottom: 20px;
 `;
 
-const Logo = styled.div`
-  width: 87px;
-  height: 68px;
-  position: relative;
-  overflow: hidden;
-`;
-
-const LogoBlue = styled.div`
-  width: 63.65px;
-  height: 40.06px;
-  left: 1.74px;
-  top: 3.49px;
-  position: absolute;
-  background: #1F53FF;
-`;
-
-const LogoPink = styled.div`
-  width: 65.39px;
-  height: 40.06px;
-  left: 19.87px;
-  top: 22.71px;
-  position: absolute;
-  background: #FF43A3;
-`;
+// Logo styled components removed - using SVG image instead
 
 const CompanyDescription = styled.p`
   color: rgba(255, 255, 255, 0.81);
