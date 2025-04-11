@@ -1,7 +1,8 @@
 import React, { useState, useEffect } from 'react';
 import styled from 'styled-components';
 import { motion, AnimatePresence } from 'framer-motion';
-import { FiCheck, FiPlus, FiTrash2, FiCalendar, FiUser } from 'react-icons/fi';
+import { FiCheck, FiTrash2, FiCalendar, FiUser } from 'react-icons/fi';
+import { FiPlus } from 'react-icons/fi';
 import {
   getChecklistItemsByClientId,
   createChecklistItem,
@@ -113,7 +114,7 @@ const ClientChecklist: React.FC<ClientChecklistProps> = ({ clientId, projectId }
       <ChecklistHeader>
         <h3>Client Tasks</h3>
         <AddItemButton onClick={() => setIsAddingItem(true)}>
-          <FiPlus /> Add Task
+          <FiPlus size={16} /> Add Task
         </AddItemButton>
       </ChecklistHeader>
       
