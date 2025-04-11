@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import styled from 'styled-components';
 import { motion } from 'framer-motion';
-import * as FiIcons from 'react-icons/fi';
+import { FiGrid, FiTrendingUp, FiTarget, FiDownload, FiShare2, FiMail } from 'react-icons/fi';
 
 // Mock data for analytics
 const analyticsData = {
@@ -142,21 +142,21 @@ const AnalyticsDashboard: React.FC<AnalyticsDashboardProps> = ({
           $active={activeTab === 'overview'} 
           onClick={() => setActiveTab('overview')}
         >
-          <FiIcons.FiGrid size={16} />
+          <FiGrid size={16} />
           <span>Overview</span>
         </TabButton>
         <TabButton 
           $active={activeTab === 'traffic'} 
           onClick={() => setActiveTab('traffic')}
         >
-          <FiIcons.FiTrendingUp size={16} />
+          <FiTrendingUp size={16} />
           <span>Traffic Sources</span>
         </TabButton>
         <TabButton 
           $active={activeTab === 'campaigns'} 
           onClick={() => setActiveTab('campaigns')}
         >
-          <FiIcons.FiTarget size={16} />
+          <FiTarget size={16} />
           <span>Campaigns</span>
         </TabButton>
       </TabsContainer>
@@ -393,11 +393,11 @@ const AnalyticsDashboard: React.FC<AnalyticsDashboardProps> = ({
       
       <ExportSection>
         <ExportButton>
-          <FiIcons.FiDownload size={16} />
+          <FiDownload size={16} />
           <span>Export Report</span>
         </ExportButton>
         <ExportButton>
-          <FiIcons.FiMail size={16} />
+          <FiMail size={16} />
           <span>Schedule Reports</span>
         </ExportButton>
       </ExportSection>
