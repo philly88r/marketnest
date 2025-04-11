@@ -51,24 +51,32 @@ const mockProjects = [
 
 interface ProjectDashboardProps {
   clientId?: string;
+  projectId?: string;
 }
 
-const ProjectDashboard: React.FC<ProjectDashboardProps> = ({ clientId }) => {
-  const [activeProject, setActiveProject] = useState<string | null>(null);
+const ProjectDashboard: React.FC<ProjectDashboardProps> = ({ clientId, projectId }) => {
+  const [activeProject, setActiveProject] = useState<string | null>(projectId || null);
   const [filter, setFilter] = useState<'all' | 'in-progress' | 'planning' | 'completed'>('all');
   
+  // Use the project data from the client if available, otherwise use mock data
+  const projects = projectId ? 
+    mockProjects.filter(p => p.id === projectId) : 
+    mockProjects;
+  
   // Filter projects based on status
-  const filteredProjects = mockProjects.filter(project => 
+  const filteredProjects = projects.filter(project => 
     filter === 'all' || project.status === filter
   );
   
-  // Get the currently selected project (commented out as currently unused)
-  // const selectedProject = mockProjects.find(p => p.id === activeProject);
+  // Get the currently selected project
+  const selectedProject = activeProject ? 
+    projects.find(p => p.id === activeProject) : 
+    null;
   
   // Calculate overall progress across all projects
-  const overallProgress = Math.round(
-    mockProjects.reduce((sum, project) => sum + project.progress, 0) / mockProjects.length
-  );
+  const overallProgress = projects.length > 0 ? 
+    Math.round(projects.reduce((sum, project) => sum + project.progress, 0) / projects.length) : 
+    0;
   
   return (
     <DashboardContainer>

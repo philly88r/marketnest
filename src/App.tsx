@@ -28,6 +28,8 @@ import BlogPostPage from './pages/BlogPostPage';
 import BusinessSoftwarePage from './pages/BusinessSoftwarePage';
 import AIAgentsPage from './pages/AIAgentsPage';
 import ClientPortalPage from './pages/ClientPortalPage';
+import AdminLoginPage from './pages/AdminLoginPage';
+import AdminPortalPage from './pages/AdminPortalPage';
 
 const GlobalStyle = createGlobalStyle`
   @import url('https://fonts.googleapis.com/css2?family=DM+Sans:wght@300;400;500;600;700;900&family=Plus+Jakarta+Sans:wght@400;500&display=swap');
@@ -126,6 +128,8 @@ function App() {
           <Route path="/blog" element={<BlogPage />} />
           <Route path="/blog/:slug" element={<BlogPostPage />} />
           <Route path="/client-portal" element={<ClientPortalPage />} />
+          <Route path="/admin-login" element={<AdminLoginPage />} />
+          <Route path="/admin-portal" element={<AdminPortalPage />} />
           <Route path="/" element={
             <ContentContainer>
               <div id="home">
