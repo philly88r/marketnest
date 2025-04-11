@@ -114,7 +114,7 @@ const ClientChecklist: React.FC<ClientChecklistProps> = ({ clientId, projectId }
       <ChecklistHeader>
         <h3>Client Tasks</h3>
         <AddItemButton onClick={() => setIsAddingItem(true)}>
-          <FiPlus size={16} /> Add Task
+          + Add Task
         </AddItemButton>
       </ChecklistHeader>
       

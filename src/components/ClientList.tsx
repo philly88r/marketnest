@@ -95,7 +95,7 @@ const ClientList: React.FC<ClientListProps> = ({ onSelectClient }) => {
           />
         </SearchContainer>
         <AddClientButton>
-          <FiPlus /> Add New Client
+          + Add New Client
         </AddClientButton>
       </ClientListHeader>
       
