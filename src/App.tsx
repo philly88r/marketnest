@@ -89,9 +89,9 @@ const AppContainer = styled.div`
 const ContentContainer = styled.div`
   position: relative;
   z-index: 1;
-  max-width: 1440px;
-  margin: 0 auto;
-  width: 100%;
+  max-width: 1200px;
+  margin: 0 auto 0 60px; /* Shifted to the left with left margin of 60px */
+  width: calc(100% - 60px);
 `;
 
 function App() {

@@ -8,24 +8,25 @@ const HeaderContainer = styled.header`
   top: 0;
   left: 0;
   width: 100%;
-  padding: 30px 80px;
+  padding: 30px 60px 30px 60px; /* Reduced right padding to shift content left */
   display: flex;
-  justify-content: space-between;
+  justify-content: flex-start; /* Changed from space-between to flex-start */
   align-items: center;
   z-index: 100;
   background: rgba(0, 0, 0, 0.5);
   backdrop-filter: blur(10px);
   
   @media (max-width: 1200px) {
-    padding: 30px 60px;
+    padding: 30px 40px 30px 60px;
   }
   
   @media (max-width: 992px) {
-    padding: 20px 40px;
+    padding: 20px 30px 20px 40px;
   }
   
   @media (max-width: 768px) {
     padding: 20px;
+    justify-content: space-between; /* Keep space-between for mobile */
   }
 `;
 
@@ -111,40 +112,16 @@ const ClientPortalButton = styled.button`
   }
 `;
 
-const IconContainer = styled.div`
-  display: flex;
-  justify-content: flex-start;
-  align-items: center;
-  gap: 21px;
+const MobileMenuContainer = styled.div`
+  display: none;
   
   @media (max-width: 768px) {
-    gap: 15px;
+    display: flex;
+    align-items: center;
   }
 `;
 
-const Icon1 = styled.div`
-  width: 31px;
-  height: 31px;
-  background: #D9D9D9;
-  cursor: pointer;
-  
-  @media (max-width: 768px) {
-    width: 25px;
-    height: 25px;
-  }
-`;
-
-const Icon2 = styled.div`
-  width: 22.21px;
-  height: 22.21px;
-  background: white;
-  cursor: pointer;
-  
-  @media (max-width: 768px) {
-    width: 18px;
-    height: 18px;
-  }
-`;
+// Mobile menu button styling
 
 const MobileMenuButton = styled.div`
   width: 30px;
@@ -477,15 +454,13 @@ const Header: React.FC = () => {
         )}
       </NavContainer>
       
-      <IconContainer>
-        <Icon1 />
-        <Icon2 />
+      <MobileMenuContainer>
         <MobileMenuButton onClick={toggleMobileMenu}>
           <span></span>
           <span></span>
           <span></span>
         </MobileMenuButton>
-      </IconContainer>
+      </MobileMenuContainer>
       
       <MobileMenu $isOpen={mobileMenuOpen}>
         <CloseButton onClick={toggleMobileMenu} />

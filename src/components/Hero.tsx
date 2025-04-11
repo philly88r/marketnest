@@ -6,21 +6,22 @@ const HeroContainer = styled.div`
   display: flex;
   flex-direction: column;
   justify-content: flex-start;
-  align-items: center;
-  padding: 280px 80px 100px;
+  align-items: flex-start; /* Changed from center to flex-start */
+  padding: 280px 80px 100px 60px; /* Adjusted left padding */
   position: relative;
   overflow: hidden;
   
   @media (max-width: 1200px) {
-    padding: 260px 60px 80px;
+    padding: 260px 60px 80px 60px;
   }
   
   @media (max-width: 992px) {
-    padding: 240px 40px 60px;
+    padding: 240px 40px 60px 40px;
   }
   
   @media (max-width: 768px) {
     padding: 220px 20px 60px;
+    align-items: center; /* Keep centered for mobile */
   }
 `;
 
@@ -28,14 +29,19 @@ const HeroContent = styled.div`
   display: flex;
   flex-direction: column;
   justify-content: flex-start;
-  align-items: center;
+  align-items: flex-start; /* Changed from center to flex-start */
   gap: 24px;
-  max-width: 100%;
+  max-width: 800px;
+  
+  @media (max-width: 768px) {
+    align-items: center; /* Keep centered for mobile */
+    max-width: 100%;
+  }
 `;
 
 const Title = styled(motion.h1)`
   color: white;
-  text-align: center;
+  text-align: left; /* Changed from center to left */
   font-size: 80px;
   font-weight: 700;
   line-height: 96px;
@@ -54,6 +60,7 @@ const Title = styled(motion.h1)`
   @media (max-width: 768px) {
     font-size: 36px;
     line-height: 44px;
+    text-align: center; /* Keep centered for mobile */
   }
 `;
 
@@ -66,7 +73,7 @@ const Highlight = styled.span`
 
 const Description = styled(motion.p)`
   color: rgba(255, 255, 255, 0.81);
-  text-align: center;
+  text-align: left; /* Changed from center to left */
   font-size: 20px;
   font-family: 'Plus Jakarta Sans', sans-serif;
   font-weight: 400;
@@ -84,12 +91,13 @@ const Description = styled(motion.p)`
     line-height: 26px;
     max-width: 100%;
     padding: 0 10px;
+    text-align: center; /* Keep centered for mobile */
   }
 `;
 
 const ButtonContainer = styled(motion.div)`
   display: flex;
-  justify-content: center;
+  justify-content: flex-start; /* Changed from center to flex-start */
   align-items: center;
   gap: 24px;
   margin-top: 24px;
@@ -98,6 +106,7 @@ const ButtonContainer = styled(motion.div)`
     flex-direction: column;
     gap: 16px;
     width: 100%;
+    justify-content: center; /* Keep centered for mobile */
   }
 `;
 
