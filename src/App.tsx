@@ -10,7 +10,7 @@ import StatsSection from './components/StatsSection';
 import DecisionAgency from './components/DecisionAgency';
 import Clients from './components/Clients';
 import AnalyticsSection from './components/AnalyticsSection';
-import PricingSection from './components/PricingSection';
+// Pricing section removed
 import ContactSection from './components/ContactSection';
 import Footer from './components/Footer';
 import AboutPage from './pages/AboutPage';
@@ -144,9 +144,7 @@ function App() {
               <div id="analytics">
                 <AnalyticsSection />
               </div>
-              <div id="pricing">
-                <PricingSection />
-              </div>
+              {/* Pricing section removed */}
               <div id="faq">
                 <ContactSection />
               </div>
