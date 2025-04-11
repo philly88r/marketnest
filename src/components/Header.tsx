@@ -273,7 +273,7 @@ const Header: React.FC = () => {
       <RouterLink to="/">
         <Logo>
           <LogoImage 
-            src="/logo512.png" 
+            src={require('../assets/images/logo.png')} 
             alt="MarketNest Logo" 
           />
         </Logo>
