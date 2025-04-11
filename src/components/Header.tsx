@@ -31,14 +31,14 @@ const HeaderContainer = styled.header`
 
 const Logo = styled.div`
   width: auto;
-  height: 80px; /* Increased from 60px to 80px */
+  height: 100px; /* Increased from 80px to 100px */
   display: flex;
   align-items: center;
-  margin-right: 60px; /* Increased from 40px to 60px for better spacing */
+  margin-right: 60px;
   position: relative;
   
   @media (max-width: 768px) {
-    height: 60px; /* Increased from 50px to 60px */
+    height: 70px; /* Increased from 60px to 70px */
     margin-right: 20px;
   }
 `;
@@ -50,7 +50,8 @@ const LogoImage = styled.img`
   position: relative;
   z-index: 2;
   background: transparent; /* Ensure no background */
-  filter: drop-shadow(0px 0px 5px rgba(31, 83, 255, 0.3)); /* Add subtle shadow with brand color */
+  filter: drop-shadow(0px 0px 8px rgba(31, 83, 255, 0.4)); /* Enhanced shadow with brand color */
+  transform: scale(1.1); /* Make the logo slightly larger */
 `;
 
 const NavContainer = styled.nav`

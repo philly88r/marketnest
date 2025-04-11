@@ -533,9 +533,9 @@ const AboutPage: React.FC = () => {
       bio: "With over 15 years of experience in digital marketing, Sarah founded the agency with a vision to help businesses achieve measurable growth through data-driven strategies."
     },
     {
-      name: "Michael Chen",
-      role: "Creative Director",
-      bio: "Michael brings his award-winning design expertise to lead our creative team, ensuring every project delivers both aesthetic excellence and strategic impact."
+      name: "Phillip Matthews",
+      role: "VP of Sales",
+      bio: "With extensive experience in strategic sales and business development, Phillip leads our sales team with a consultative approach that focuses on creating tailored solutions to meet each client's unique business objectives."
     },
     {
       name: "Emily Rodriguez",
