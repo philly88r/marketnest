@@ -1,5 +1,6 @@
-import fs from 'fs';
-import path from 'path';
+// These imports are commented out as they're not currently used
+// import fs from 'fs';
+// import path from 'path';
 
 // Interface for blog post data
 export interface BlogPost {
