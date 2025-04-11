@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import styled from 'styled-components';
 import { motion } from 'framer-motion';
-import * as FiIcons from 'react-icons/fi';
+import { FiCheckCircle, FiClock, FiCircle } from 'react-icons/fi';
 
 // Mock project data - in a real app, this would come from your backend
 const mockProjects = [
@@ -162,8 +162,8 @@ const ProjectDashboard: React.FC<ProjectDashboardProps> = ({ clientId }) => {
                 {project.tasks.map(task => (
                   <TaskItem key={task.id}>
                     <TaskStatus $status={task.status}>
-                      {task.status === 'completed' ? <FiIcons.FiCheckCircle /> : 
-                       task.status === 'in-progress' ? <FiIcons.FiClock /> : <FiIcons.FiCircle />}
+                      {task.status === 'completed' ? <span>{FiCheckCircle({ size: 16 })}</span> : 
+                       task.status === 'in-progress' ? <span>{FiClock({ size: 16 })}</span> : <span>{FiCircle({ size: 16 })}</span>}
                     </TaskStatus>
                     <TaskName>{task.name}</TaskName>
                     <TaskAssignee>{task.assignee}</TaskAssignee>
