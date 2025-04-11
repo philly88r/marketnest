@@ -50,8 +50,7 @@ const LogoImage = styled.img`
   position: relative;
   z-index: 2;
   background: transparent; /* Ensure no background */
-  filter: drop-shadow(0px 0px 5px rgba(0, 0, 0, 0.2)); /* Add subtle shadow for visibility */
-  mix-blend-mode: screen; /* Helps with transparency against dark backgrounds */
+  filter: drop-shadow(0px 0px 5px rgba(31, 83, 255, 0.3)); /* Add subtle shadow with brand color */
 `;
 
 const NavContainer = styled.nav`
@@ -281,7 +280,7 @@ const Header: React.FC = () => {
       <RouterLink to="/">
         <Logo>
           <LogoImage 
-            src={require('../assets/images/logo.png')} 
+            src="/logo.svg" 
             alt="MarketNest Logo" 
           />
         </Logo>
