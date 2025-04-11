@@ -137,7 +137,7 @@ const ClientChecklist: React.FC<ClientChecklistProps> = ({ clientId, projectId }
             />
             <NewItemDetails>
               <NewItemDateInput>
-                <FiCalendar />
+                📅
                 <input
                   type="date"
                   placeholder="Due date (optional)"
@@ -146,7 +146,7 @@ const ClientChecklist: React.FC<ClientChecklistProps> = ({ clientId, projectId }
                 />
               </NewItemDateInput>
               <NewItemAssigneeInput>
-                <FiUser />
+                👤
                 <input
                   type="text"
                   placeholder="Assignee (optional)"
@@ -183,7 +183,7 @@ const ClientChecklist: React.FC<ClientChecklistProps> = ({ clientId, projectId }
             >
               <CheckboxContainer onClick={() => handleToggleComplete(item)}>
                 <Checkbox $checked={item.is_completed}>
-                  {item.is_completed && <FiCheck />}
+                  {item.is_completed && '✓'}
                 </Checkbox>
               </CheckboxContainer>
               <ItemContent>
@@ -193,13 +193,13 @@ const ClientChecklist: React.FC<ClientChecklistProps> = ({ clientId, projectId }
                     <>
                       {item.due_date && (
                         <ItemDetail>
-                          <FiCalendar />
+                          📅
                           <span>{formatDate(item.due_date)}</span>
                         </ItemDetail>
                       )}
                       {item.assigned_to && (
                         <ItemDetail>
-                          <FiUser />
+                          👤
                           <span>{item.assigned_to}</span>
                         </ItemDetail>
                       )}
@@ -208,7 +208,7 @@ const ClientChecklist: React.FC<ClientChecklistProps> = ({ clientId, projectId }
                 </ItemDetails>
               </ItemContent>
               <DeleteButton onClick={() => handleDeleteItem(item.id)}>
-                <FiTrash2 />
+                🗑️
               </DeleteButton>
             </ChecklistItem>
           ))
