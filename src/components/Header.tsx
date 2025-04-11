@@ -32,14 +32,14 @@ const HeaderContainer = styled.header`
 
 const Logo = styled.div`
   width: auto;
-  height: 60px;
+  height: 80px; /* Increased from 60px to 80px */
   display: flex;
   align-items: center;
-  margin-right: 40px;
+  margin-right: 60px; /* Increased from 40px to 60px for better spacing */
   position: relative;
   
   @media (max-width: 768px) {
-    height: 50px;
+    height: 60px; /* Increased from 50px to 60px */
     margin-right: 20px;
   }
 `;
@@ -50,6 +50,9 @@ const LogoImage = styled.img`
   object-fit: contain;
   position: relative;
   z-index: 2;
+  background: transparent; /* Ensure no background */
+  filter: drop-shadow(0px 0px 5px rgba(0, 0, 0, 0.2)); /* Add subtle shadow for visibility */
+  mix-blend-mode: screen; /* Helps with transparency against dark backgrounds */
 `;
 
 const NavContainer = styled.nav`
