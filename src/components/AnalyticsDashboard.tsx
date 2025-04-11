@@ -142,21 +142,21 @@ const AnalyticsDashboard: React.FC<AnalyticsDashboardProps> = ({
           $active={activeTab === 'overview'} 
           onClick={() => setActiveTab('overview')}
         >
-          <FiGrid size={16} />
+          <span>{FiGrid({ size: 16 })}</span>
           <span>Overview</span>
         </TabButton>
         <TabButton 
           $active={activeTab === 'traffic'} 
           onClick={() => setActiveTab('traffic')}
         >
-          <FiTrendingUp size={16} />
+          <span>{FiTrendingUp({ size: 16 })}</span>
           <span>Traffic Sources</span>
         </TabButton>
         <TabButton 
           $active={activeTab === 'campaigns'} 
           onClick={() => setActiveTab('campaigns')}
         >
-          <FiTarget size={16} />
+          <span>{FiTarget({ size: 16 })}</span>
           <span>Campaigns</span>
         </TabButton>
       </TabsContainer>
@@ -393,11 +393,11 @@ const AnalyticsDashboard: React.FC<AnalyticsDashboardProps> = ({
       
       <ExportSection>
         <ExportButton>
-          <FiDownload size={16} />
+          <span>{FiDownload({ size: 16 })}</span>
           <span>Export Report</span>
         </ExportButton>
         <ExportButton>
-          <FiMail size={16} />
+          <span>{FiMail({ size: 16 })}</span>
           <span>Schedule Reports</span>
         </ExportButton>
       </ExportSection>
