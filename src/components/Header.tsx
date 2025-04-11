@@ -1,7 +1,6 @@
 import React, { useState } from 'react';
 import styled from 'styled-components';
-import { Link as ScrollLink } from 'react-scroll';
-import { Link as RouterLink, useLocation } from 'react-router-dom';
+import { Link as RouterLink } from 'react-router-dom';
 
 const HeaderContainer = styled.header`
   position: fixed;
@@ -261,9 +260,7 @@ const MobileSubmenuItem = styled.div`
 
 const Header: React.FC = () => {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
-  const location = useLocation();
-  // Always use the non-home page header style for all pages
-  const isHomePage = false;
+  // Always use the non-home page header style
   const [servicesDropdownOpen, setServicesDropdownOpen] = useState(false);
   const [softwareDropdownOpen, setSoftwareDropdownOpen] = useState(false);
   
@@ -291,8 +288,6 @@ const Header: React.FC = () => {
       </RouterLink>
       
       <NavContainer>
-        {/* Always use the non-home page navigation */}
-        <>
           <RouterLink to="/" style={{ textDecoration: 'none' }}>
             <RouterNavItem>Home</RouterNavItem>
           </RouterLink>
@@ -377,7 +372,6 @@ const Header: React.FC = () => {
           <RouterLink to="/client-portal" style={{ textDecoration: 'none' }}>
             <ClientPortalButton>Client Portal</ClientPortalButton>
           </RouterLink>
-        </>
       </NavContainer>
       
       <MobileMenuContainer>
