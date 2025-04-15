@@ -26,6 +26,12 @@ interface ClientFolder {
   clientId: string;
 }
 
+// Define a type for the breadcrumb folder
+interface BreadcrumbFolder {
+  id: string | null;
+  name: string;
+}
+
 // Mock service functions
 const getFilesByClientId = (clientId: string, folderId: string | null): Promise<ClientFile[]> => {
   return Promise.resolve([]);
@@ -69,7 +75,7 @@ interface ClientFileManagerProps {
 
 const ClientFileManager: React.FC<ClientFileManagerProps> = ({ clientId }) => {
   const [currentFolderId, setCurrentFolderId] = useState<string | null>(null);
-  const [folderHistory, setFolderHistory] = useState<Array<{ id: string | null; name: string }>>([
+  const [folderHistory, setFolderHistory] = useState<Array<BreadcrumbFolder>>([
     { id: null, name: 'Root' }
   ]);
   const [files, setFiles] = useState<ClientFile[]>([]);
@@ -110,16 +116,16 @@ const ClientFileManager: React.FC<ClientFileManagerProps> = ({ clientId }) => {
   }, [clientId, currentFolderId]);
   
   // Navigate to a folder
-  const navigateToFolder = (folder: ClientFolder, index: number): void => {
+  const navigateToFolder = (folder: BreadcrumbFolder, index: number): void => {
     // Find the index of the folder in the history
     const folderIndex = folderHistory.findIndex((f: { id: string | null }) => f.id === folder.id);
     
     if (folderIndex >= 0) {
       // If the folder is in the history, truncate the history to that point
-      setFolderHistory((prev: Array<{ id: string | null; name: string }>) => prev.slice(0, folderIndex + 1));
+      setFolderHistory((prev: Array<BreadcrumbFolder>) => prev.slice(0, folderIndex + 1));
     } else {
       // If it's a new folder, add it to the history
-      setFolderHistory((prev: Array<{ id: string | null; name: string }>) => [...prev, { id: folder.id, name: folder.name }]);
+      setFolderHistory((prev: Array<BreadcrumbFolder>) => [...prev, { id: folder.id, name: folder.name }]);
     }
     
     setCurrentFolderId(folder.id);
@@ -288,7 +294,7 @@ const ClientFileManager: React.FC<ClientFileManagerProps> = ({ clientId }) => {
       )}
       
       <BreadcrumbContainer>
-        {folderHistory.map((folder, index) => (
+        {folderHistory.map((folder: BreadcrumbFolder, index: number) => (
           <React.Fragment key={folder.id || 'root'}>
             {index > 0 && <BreadcrumbSeparator>/</BreadcrumbSeparator>}
             <Breadcrumb
@@ -340,7 +346,13 @@ const ClientFileManager: React.FC<ClientFileManagerProps> = ({ clientId }) => {
                     <FileItemIcon $isFolder>
                       {renderIcon(FiFolder)}
                     </FileItemIcon>
-                    <FileItemName onClick={() => navigateToFolder(folder, folderHistory.findIndex((f: { id: string | null }) => f.id === folder.id))}>
+                    <FileItemName onClick={() => navigateToFolder(
+                      { 
+                        id: folder.id, 
+                        name: folder.name 
+                      }, 
+                      folderHistory.length
+                    )}>
                       {folder.name}
                     </FileItemName>
                     <FileItemActions>
