@@ -158,7 +158,7 @@ const WorldMap = styled.div`
   }
 `;
 
-const MapDot = styled(motion.div)<{ x: string; y: string; size: string }>`
+const MapDot = styled(motion.div)<{ x: string; y: string; size: string } & React.ComponentProps<typeof motion.div>>`
   position: absolute;
   width: ${props => props.size};
   height: ${props => props.size};

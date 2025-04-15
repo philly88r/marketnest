@@ -379,7 +379,7 @@ const GraphicBar = styled(motion.div)<{ height: string; color: string }>`
   border-radius: 4px 4px 0 0;
 `;
 
-const GraphicCircle = styled(motion.div)<{ size: string; color: string }>`
+const GraphicCircle = styled(motion.div)<{ size: string; color: string } & React.ComponentProps<typeof motion.div>>`
   position: absolute;
   width: ${props => props.size};
   height: ${props => props.size};
