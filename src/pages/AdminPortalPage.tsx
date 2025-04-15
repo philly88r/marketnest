@@ -118,24 +118,24 @@ const AdminPortalPage: React.FC = () => {
                 setSelectedClientId(null);
               }}
             >
-              <FiUsers /> Clients
+              {React.createElement(FiUsers)} Clients
             </NavItem>
             <NavItem 
               $active={activeTab === 'dashboard'} 
               onClick={() => setActiveTab('dashboard')}
             >
-              <FiPieChart /> Dashboard
+              {React.createElement(FiPieChart)} Dashboard
             </NavItem>
             <NavItem 
               $active={activeTab === 'settings'} 
               onClick={() => setActiveTab('settings')}
             >
-              <FiSettings /> Settings
+              {React.createElement(FiSettings)} Settings
             </NavItem>
           </NavMenu>
           
           <LogoutButton onClick={handleLogout}>
-            <FiLogOut /> Logout
+            {React.createElement(FiLogOut)} Logout
           </LogoutButton>
         </AdminSidebar>
         

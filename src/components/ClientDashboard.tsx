@@ -210,7 +210,7 @@ const ClientDashboard: React.FC<ClientDashboardProps> = ({ clientId, onBack }) =
               <ClientInfoHeader>
                 <h3>Client Information</h3>
                 <EditButton>
-                  <FiEdit /> Edit
+                  {React.createElement(FiEdit)} Edit
                 </EditButton>
               </ClientInfoHeader>
               

@@ -85,7 +85,7 @@ const ClientList: React.FC<ClientListProps> = ({ onSelectClient }) => {
         <h2>Client Management</h2>
         <SearchContainer>
           <SearchIcon>
-            <FiSearch />
+            {React.createElement(FiSearch)}
           </SearchIcon>
           <SearchInput 
             type="text" 
@@ -145,10 +145,10 @@ const ClientList: React.FC<ClientListProps> = ({ onSelectClient }) => {
             <ClientCell width="15%">
               <ActionButtons>
                 <ActionButton onClick={() => onSelectClient(client.id)}>
-                  <FiEye /> View
+                  {React.createElement(FiEye)} View
                 </ActionButton>
                 <ActionButton>
-                  <FiEdit /> Edit
+                  {React.createElement(FiEdit)} Edit
                 </ActionButton>
               </ActionButtons>
             </ClientCell>

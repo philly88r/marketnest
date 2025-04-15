@@ -234,10 +234,10 @@ const ClientFileManager: React.FC<ClientFileManagerProps> = ({ clientId }) => {
             onClick={() => setIsCreatingFolder(true)}
             disabled={isCreatingFolder}
           >
-            <FiFolderPlus /> New Folder
+            {React.createElement(FiFolderPlus)} New Folder
           </ActionButton>
           <ActionButton onClick={() => fileInputRef.current?.click()}>
-            <FiUpload /> Upload File
+            {React.createElement(FiUpload)} Upload File
           </ActionButton>
           <input
             type="file"
@@ -287,10 +287,10 @@ const ClientFileManager: React.FC<ClientFileManagerProps> = ({ clientId }) => {
                 />
                 <NewFolderActions>
                   <NewFolderButton onClick={handleCreateFolder}>
-                    <FiCheck />
+                    {React.createElement(FiCheck)}
                   </NewFolderButton>
                   <NewFolderButton onClick={() => setIsCreatingFolder(false)}>
-                    <FiX />
+                    {React.createElement(FiX)}
                   </NewFolderButton>
                 </NewFolderActions>
               </NewFolderForm>
@@ -308,14 +308,14 @@ const ClientFileManager: React.FC<ClientFileManagerProps> = ({ clientId }) => {
                 {folders.map(folder => (
                   <FileListItem key={`folder-${folder.id}`}>
                     <FileItemIcon $isFolder>
-                      <FiFolder />
+                      {React.createElement(FiFolder)}
                     </FileItemIcon>
                     <FileItemName onClick={() => navigateToFolder(folder.id, folder.name)}>
                       {folder.name}
                     </FileItemName>
                     <FileItemActions>
                       <FileItemAction onClick={() => handleDeleteFolder(folder)}>
-                        <FiTrash2 />
+                        {React.createElement(FiTrash2)}
                       </FileItemAction>
                     </FileItemActions>
                   </FileListItem>
@@ -325,7 +325,7 @@ const ClientFileManager: React.FC<ClientFileManagerProps> = ({ clientId }) => {
                 {files.map(file => (
                   <FileListItem key={`file-${file.id}`}>
                     <FileItemIcon>
-                      <FiFile />
+                      {React.createElement(FiFile)}
                     </FileItemIcon>
                     <FileItemName>{file.name}</FileItemName>
                     <FileItemMeta>
@@ -333,10 +333,10 @@ const ClientFileManager: React.FC<ClientFileManagerProps> = ({ clientId }) => {
                     </FileItemMeta>
                     <FileItemActions>
                       <FileItemAction onClick={() => handleFileDownload(file)}>
-                        <FiDownload />
+                        {React.createElement(FiDownload)}
                       </FileItemAction>
                       <FileItemAction onClick={() => handleDeleteFile(file)}>
-                        <FiTrash2 />
+                        {React.createElement(FiTrash2)}
                       </FileItemAction>
                     </FileItemActions>
                   </FileListItem>
