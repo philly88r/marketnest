@@ -1,203 +1,223 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, ChangeEvent } from 'react';
 import styled from 'styled-components';
 import { motion, AnimatePresence } from 'framer-motion';
 import { 
   FiFolder, FiFolderPlus, FiFile, FiUpload, FiDownload, 
-  FiTrash2, FiEdit2, FiChevronLeft, FiCheck, FiX, FiPlus 
+  FiTrash2, FiCheck, FiX, FiChevronRight
 } from 'react-icons/fi';
-import { 
-  getFilesByClientId, 
-  getFoldersByClientId, 
-  createFolder, 
-  uploadFile, 
-  deleteFile, 
-  deleteFolder,
-  getFileUrl,
-  ClientFile,
-  ClientFolder
-} from '../utils/clientService';
+import { renderIcon } from '../utils/iconUtils';
+
+// Mock service functions and types for client files
+interface ClientFile {
+  id: string;
+  name: string;
+  size: number;
+  type: string;
+  folderId: string | null;
+  uploadDate: string;
+  clientId: string;
+}
+
+interface ClientFolder {
+  id: string;
+  name: string;
+  parentId: string | null;
+  clientId: string;
+}
+
+// Mock service functions
+const getFilesByClientId = (clientId: string, folderId: string | null): Promise<ClientFile[]> => {
+  return Promise.resolve([]);
+};
+
+const getFoldersByClientId = (clientId: string, parentId: string | null): Promise<ClientFolder[]> => {
+  return Promise.resolve([]);
+};
+
+const createFolder = (name: string, parentId: string | null, clientId: string): Promise<ClientFolder> => {
+  return Promise.resolve({ id: '1', name, parentId, clientId });
+};
+
+const uploadFile = (file: File, folderId: string | null, clientId: string, onProgress: (progress: number) => void): Promise<ClientFile> => {
+  return Promise.resolve({
+    id: '1',
+    name: file.name,
+    size: file.size,
+    type: file.type,
+    folderId,
+    uploadDate: new Date().toISOString(),
+    clientId
+  });
+};
+
+const deleteFile = (fileId: string): Promise<void> => {
+  return Promise.resolve();
+};
+
+const deleteFolder = (folderId: string): Promise<void> => {
+  return Promise.resolve();
+};
+
+const downloadFile = (file: ClientFile): void => {
+  // Mock implementation
+};
 
 interface ClientFileManagerProps {
   clientId: string;
 }
 
 const ClientFileManager: React.FC<ClientFileManagerProps> = ({ clientId }) => {
-  const [files, setFiles] = useState<ClientFile[]>([]);
-  const [folders, setFolders] = useState<ClientFolder[]>([]);
-  const [currentFolder, setCurrentFolder] = useState<string | null>(null);
+  const [currentFolderId, setCurrentFolderId] = useState<string | null>(null);
   const [folderHistory, setFolderHistory] = useState<Array<{ id: string | null; name: string }>>([
     { id: null, name: 'Root' }
   ]);
-  const [isLoading, setIsLoading] = useState(true);
+  const [files, setFiles] = useState<ClientFile[]>([]);
+  const [folders, setFolders] = useState<ClientFolder[]>([]);
+  const [isLoading, setIsLoading] = useState<boolean>(true);
   const [error, setError] = useState<string | null>(null);
-  const [isCreatingFolder, setIsCreatingFolder] = useState(false);
-  const [newFolderName, setNewFolderName] = useState('');
-  const [isUploading, setIsUploading] = useState(false);
-  const [uploadProgress, setUploadProgress] = useState(0);
+  const [isCreatingFolder, setIsCreatingFolder] = useState<boolean>(false);
+  const [newFolderName, setNewFolderName] = useState<string>('');
+  const [isUploading, setIsUploading] = useState<boolean>(false);
+  const [uploadProgress, setUploadProgress] = useState<number>(0);
+  
   const fileInputRef = useRef<HTMLInputElement>(null);
   
-  // Load files and folders
-  useEffect(() => {
-    const loadFilesAndFolders = async () => {
+  // Function to load files and folders
+  const loadFiles = async (folderId: string | null): Promise<void> => {
+    try {
       setIsLoading(true);
       setError(null);
       
-      try {
-        const [filesData, foldersData] = await Promise.all([
-          getFilesByClientId(clientId, currentFolder),
-          getFoldersByClientId(clientId, currentFolder)
-        ]);
-        
-        setFiles(filesData);
-        setFolders(foldersData);
-      } catch (err) {
-        console.error('Error loading files and folders:', err);
-        setError('Failed to load files and folders. Please try again.');
-      } finally {
-        setIsLoading(false);
-      }
-    };
-    
-    loadFilesAndFolders();
-  }, [clientId, currentFolder]);
+      const [filesData, foldersData] = await Promise.all([
+        getFilesByClientId(clientId, folderId),
+        getFoldersByClientId(clientId, folderId)
+      ]);
+      
+      setFiles(filesData);
+      setFolders(foldersData);
+    } catch (err) {
+      setError('Failed to load files. Please try again.');
+      console.error(err);
+    } finally {
+      setIsLoading(false);
+    }
+  };
+  
+  // Load files and folders on mount and when folder changes
+  useEffect(() => {
+    loadFiles(currentFolderId);
+  }, [clientId, currentFolderId]);
   
   // Handle folder navigation
-  const navigateToFolder = (folderId: string | null, folderName: string) => {
-    setCurrentFolder(folderId);
+  const navigateToFolder = (folderId: string | null, folderName: string): void => {
+    // Find the index of the folder in the history
+    const folderIndex = folderHistory.findIndex((f: { id: string | null }) => f.id === folderId);
     
-    if (folderId === null) {
-      // Going to root
-      setFolderHistory([{ id: null, name: 'Root' }]);
+    if (folderIndex >= 0) {
+      // If the folder is in the history, truncate the history to that point
+      setFolderHistory((prev: Array<{ id: string | null; name: string }>) => prev.slice(0, folderIndex + 1));
     } else {
-      // Find the index of the folder in history if it exists
-      const existingIndex = folderHistory.findIndex(f => f.id === folderId);
-      
-      if (existingIndex >= 0) {
-        // If navigating back, truncate the history
-        setFolderHistory(folderHistory.slice(0, existingIndex + 1));
-      } else {
-        // If navigating forward, add to history
-        setFolderHistory([...folderHistory, { id: folderId, name: folderName }]);
-      }
+      // If it's a new folder, add it to the history
+      setFolderHistory((prev: Array<{ id: string | null; name: string }>) => [...prev, { id: folderId, name: folderName }]);
     }
+    
+    setCurrentFolderId(folderId);
+    loadFiles(folderId);
   };
   
   // Handle folder creation
   const handleCreateFolder = async () => {
     if (!newFolderName.trim()) {
+      setError('Folder name cannot be empty');
       return;
     }
     
     try {
-      const newFolder = await createFolder({
-        name: newFolderName.trim(),
-        client_id: clientId,
-        parent_folder_id: currentFolder
-      });
+      setIsLoading(true);
+      setError(null);
       
-      setFolders([...folders, newFolder]);
-      setNewFolderName('');
+      const newFolder = await createFolder(newFolderName, currentFolderId, clientId);
+      
+      setFolders((prevFiles: ClientFolder[]) => [...prevFiles, newFolder]);
       setIsCreatingFolder(false);
+      setNewFolderName('');
     } catch (err) {
-      console.error('Error creating folder:', err);
       setError('Failed to create folder. Please try again.');
+      console.error(err);
+    } finally {
+      setIsLoading(false);
     }
   };
   
   // Handle file upload
-  const handleFileUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
-    const files = event.target.files;
+  const handleFileUpload = async (e: ChangeEvent<HTMLInputElement>) => {
+    const files = e.target.files;
     if (!files || files.length === 0) return;
     
-    setIsUploading(true);
-    setUploadProgress(0);
+    const file = files[0];
     
     try {
-      // For simplicity, we'll just handle the first file
-      const file = files[0];
+      setIsUploading(true);
+      setUploadProgress(0);
+      setError(null);
       
-      // Simulate upload progress
-      const progressInterval = setInterval(() => {
-        setUploadProgress(prev => {
-          const newProgress = prev + 10;
-          return newProgress >= 90 ? 90 : newProgress;
-        });
-      }, 300);
-      
-      // Upload the file
       const uploadedFile = await uploadFile(
         file,
+        currentFolderId,
         clientId,
-        currentFolder,
-        'admin' // Replace with actual user ID in production
+        (progress: number) => setUploadProgress(progress)
       );
       
-      clearInterval(progressInterval);
-      setUploadProgress(100);
-      
-      // Add the new file to the list
-      setFiles(prevFiles => [...prevFiles, uploadedFile]);
+      setFiles((prevFiles: ClientFile[]) => [...prevFiles, uploadedFile]);
       
       // Reset the file input
       if (fileInputRef.current) {
         fileInputRef.current.value = '';
       }
     } catch (err) {
-      console.error('Error uploading file:', err);
       setError('Failed to upload file. Please try again.');
+      console.error(err);
     } finally {
-      setTimeout(() => {
-        setIsUploading(false);
-        setUploadProgress(0);
-      }, 1000);
+      setIsUploading(false);
     }
   };
   
   // Handle file download
-  const handleFileDownload = async (file: ClientFile) => {
-    try {
-      const url = await getFileUrl(file.file_path);
-      
-      // Create a temporary link and trigger download
-      const a = document.createElement('a');
-      a.href = url;
-      a.download = file.name;
-      document.body.appendChild(a);
-      a.click();
-      document.body.removeChild(a);
-    } catch (err) {
-      console.error('Error downloading file:', err);
-      setError('Failed to download file. Please try again.');
-    }
+  const handleFileDownload = (file: ClientFile) => {
+    downloadFile(file);
   };
   
   // Handle file deletion
   const handleDeleteFile = async (file: ClientFile) => {
-    if (!window.confirm(`Are you sure you want to delete ${file.name}?`)) {
-      return;
-    }
-    
     try {
-      await deleteFile(file.id, file.file_path);
-      setFiles(files.filter(f => f.id !== file.id));
+      setIsLoading(true);
+      setError(null);
+      
+      await deleteFile(file.id);
+      
+      setFiles((prevFiles: ClientFile[]) => prevFiles.filter((f: ClientFile) => f.id !== file.id));
     } catch (err) {
-      console.error('Error deleting file:', err);
       setError('Failed to delete file. Please try again.');
+      console.error(err);
+    } finally {
+      setIsLoading(false);
     }
   };
   
   // Handle folder deletion
   const handleDeleteFolder = async (folder: ClientFolder) => {
-    if (!window.confirm(`Are you sure you want to delete folder ${folder.name} and all its contents?`)) {
-      return;
-    }
-    
     try {
+      setIsLoading(true);
+      setError(null);
+      
       await deleteFolder(folder.id);
-      setFolders(folders.filter(f => f.id !== folder.id));
+      
+      setFolders((prevFolders: ClientFolder[]) => prevFolders.filter((f: ClientFolder) => f.id !== folder.id));
     } catch (err) {
-      console.error('Error deleting folder:', err);
       setError('Failed to delete folder. Please try again.');
+      console.error(err);
+    } finally {
+      setIsLoading(false);
     }
   };
   
@@ -234,10 +254,10 @@ const ClientFileManager: React.FC<ClientFileManagerProps> = ({ clientId }) => {
             onClick={() => setIsCreatingFolder(true)}
             disabled={isCreatingFolder}
           >
-            {React.createElement(FiFolderPlus)} New Folder
+            {renderIcon(FiFolderPlus)} New Folder
           </ActionButton>
           <ActionButton onClick={() => fileInputRef.current?.click()}>
-            {React.createElement(FiUpload)} Upload File
+            {renderIcon(FiUpload)} Upload File
           </ActionButton>
           <input
             type="file"
@@ -287,10 +307,10 @@ const ClientFileManager: React.FC<ClientFileManagerProps> = ({ clientId }) => {
                 />
                 <NewFolderActions>
                   <NewFolderButton onClick={handleCreateFolder}>
-                    {React.createElement(FiCheck)}
+                    {renderIcon(FiCheck)}
                   </NewFolderButton>
                   <NewFolderButton onClick={() => setIsCreatingFolder(false)}>
-                    {React.createElement(FiX)}
+                    {renderIcon(FiX)}
                   </NewFolderButton>
                 </NewFolderActions>
               </NewFolderForm>
@@ -298,7 +318,7 @@ const ClientFileManager: React.FC<ClientFileManagerProps> = ({ clientId }) => {
             
             {folders.length === 0 && files.length === 0 ? (
               <EmptyStateMessage>
-                {currentFolder === null 
+                {currentFolderId === null 
                   ? "This client doesn't have any files or folders yet." 
                   : "This folder is empty."}
               </EmptyStateMessage>
@@ -308,14 +328,14 @@ const ClientFileManager: React.FC<ClientFileManagerProps> = ({ clientId }) => {
                 {folders.map(folder => (
                   <FileListItem key={`folder-${folder.id}`}>
                     <FileItemIcon $isFolder>
-                      {React.createElement(FiFolder)}
+                      {renderIcon(FiFolder)}
                     </FileItemIcon>
                     <FileItemName onClick={() => navigateToFolder(folder.id, folder.name)}>
                       {folder.name}
                     </FileItemName>
                     <FileItemActions>
                       <FileItemAction onClick={() => handleDeleteFolder(folder)}>
-                        {React.createElement(FiTrash2)}
+                        {renderIcon(FiTrash2)}
                       </FileItemAction>
                     </FileItemActions>
                   </FileListItem>
@@ -325,18 +345,18 @@ const ClientFileManager: React.FC<ClientFileManagerProps> = ({ clientId }) => {
                 {files.map(file => (
                   <FileListItem key={`file-${file.id}`}>
                     <FileItemIcon>
-                      {React.createElement(FiFile)}
+                      {renderIcon(FiFile)}
                     </FileItemIcon>
                     <FileItemName>{file.name}</FileItemName>
                     <FileItemMeta>
-                      {formatFileSize(file.size)} • {new Date(file.created_at).toLocaleDateString()}
+                      {formatFileSize(file.size)} • {new Date(file.uploadDate).toLocaleDateString()}
                     </FileItemMeta>
                     <FileItemActions>
                       <FileItemAction onClick={() => handleFileDownload(file)}>
-                        {React.createElement(FiDownload)}
+                        {renderIcon(FiDownload)}
                       </FileItemAction>
                       <FileItemAction onClick={() => handleDeleteFile(file)}>
-                        {React.createElement(FiTrash2)}
+                        {renderIcon(FiTrash2)}
                       </FileItemAction>
                     </FileItemActions>
                   </FileListItem>

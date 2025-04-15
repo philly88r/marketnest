@@ -6,6 +6,7 @@ import { mockClients } from './ClientList';
 import ProjectDashboard from './ProjectDashboard';
 import ClientFileManager from './ClientFileManager';
 import ClientChecklist from './ClientChecklist';
+import { renderIcon } from '../utils/iconUtils';
 
 interface ClientDashboardProps {
   clientId: string;
@@ -210,7 +211,7 @@ const ClientDashboard: React.FC<ClientDashboardProps> = ({ clientId, onBack }) =
               <ClientInfoHeader>
                 <h3>Client Information</h3>
                 <EditButton>
-                  {React.createElement(FiEdit)} Edit
+                  {renderIcon(FiEdit)} Edit
                 </EditButton>
               </ClientInfoHeader>
               

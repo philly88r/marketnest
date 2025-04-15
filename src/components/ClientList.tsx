@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import styled from 'styled-components';
 import { motion } from 'framer-motion';
 import { FiEdit, FiEye, FiSearch, FiPlus } from 'react-icons/fi';
+import { renderIcon } from '../utils/iconUtils';
 
 // Mock client data - in a real app, this would come from your backend
 export const mockClients = [
@@ -85,7 +86,7 @@ const ClientList: React.FC<ClientListProps> = ({ onSelectClient }) => {
         <h2>Client Management</h2>
         <SearchContainer>
           <SearchIcon>
-            {React.createElement(FiSearch)}
+            {renderIcon(FiSearch)}
           </SearchIcon>
           <SearchInput 
             type="text" 
@@ -145,10 +146,10 @@ const ClientList: React.FC<ClientListProps> = ({ onSelectClient }) => {
             <ClientCell width="15%">
               <ActionButtons>
                 <ActionButton onClick={() => onSelectClient(client.id)}>
-                  {React.createElement(FiEye)} View
+                  {renderIcon(FiEye)} View
                 </ActionButton>
                 <ActionButton>
-                  {React.createElement(FiEdit)} Edit
+                  {renderIcon(FiEdit)} Edit
                 </ActionButton>
               </ActionButtons>
             </ClientCell>

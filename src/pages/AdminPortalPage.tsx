@@ -3,6 +3,7 @@ import styled from 'styled-components';
 import { motion } from 'framer-motion';
 import { FiUsers, FiPieChart, FiSettings, FiLogOut, FiEdit, FiEye } from 'react-icons/fi';
 import { Link, useNavigate } from 'react-router-dom';
+import { renderIcon } from '../utils/iconUtils';
 import Header from '../components/Header';
 import Footer from '../components/Footer';
 import ClientList from '../components/ClientList';
@@ -118,24 +119,24 @@ const AdminPortalPage: React.FC = () => {
                 setSelectedClientId(null);
               }}
             >
-              {React.createElement(FiUsers)} Clients
+              {renderIcon(FiUsers)} Clients
             </NavItem>
             <NavItem 
               $active={activeTab === 'dashboard'} 
               onClick={() => setActiveTab('dashboard')}
             >
-              {React.createElement(FiPieChart)} Dashboard
+              {renderIcon(FiPieChart)} Dashboard
             </NavItem>
             <NavItem 
               $active={activeTab === 'settings'} 
               onClick={() => setActiveTab('settings')}
             >
-              {React.createElement(FiSettings)} Settings
+              {renderIcon(FiSettings)} Settings
             </NavItem>
           </NavMenu>
           
           <LogoutButton onClick={handleLogout}>
-            {React.createElement(FiLogOut)} Logout
+            {renderIcon(FiLogOut)} Logout
           </LogoutButton>
         </AdminSidebar>
         
