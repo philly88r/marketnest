@@ -1,6 +1,6 @@
 // Temporary module declarations to bypass missing type errors
 
-declare module 'react';
+// declare module 'react';
 declare module 'react-dom';
 declare module 'styled-components';
 declare module 'framer-motion';
