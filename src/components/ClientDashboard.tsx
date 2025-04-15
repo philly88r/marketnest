@@ -227,14 +227,14 @@ const ClientDashboard: React.FC<ClientDashboardProps> = ({ clientId, onBack }) =
                 <InfoItem>
                   <InfoLabel>Email</InfoLabel>
                   <InfoValue>
-                    <FiMail style={{ marginRight: '5px' }} />
+                    {renderIcon(FiMail, { style: { marginRight: '5px' } })}
                     {client.contactEmail}
                   </InfoValue>
                 </InfoItem>
                 <InfoItem>
                   <InfoLabel>Phone</InfoLabel>
                   <InfoValue>
-                    <FiPhone style={{ marginRight: '5px' }} />
+                    {renderIcon(FiPhone, { style: { marginRight: '5px' } })}
                     {client.contactPhone}
                   </InfoValue>
                 </InfoItem>
@@ -254,7 +254,7 @@ const ClientDashboard: React.FC<ClientDashboardProps> = ({ clientId, onBack }) =
               <MetricsGrid>
                 <MetricCard>
                   <MetricIcon>
-                    <FiActivity />
+                    {renderIcon(FiActivity)}
                   </MetricIcon>
                   <MetricInfo>
                     <MetricValue>{projects.length}</MetricValue>
@@ -264,7 +264,7 @@ const ClientDashboard: React.FC<ClientDashboardProps> = ({ clientId, onBack }) =
                 
                 <MetricCard>
                   <MetricIcon style={{ background: 'rgba(52, 199, 89, 0.15)', color: '#34c759' }}>
-                    <FiCheckCircle />
+                    {renderIcon(FiCheckCircle)}
                   </MetricIcon>
                   <MetricInfo>
                     <MetricValue>{completedTasks}</MetricValue>
@@ -274,7 +274,7 @@ const ClientDashboard: React.FC<ClientDashboardProps> = ({ clientId, onBack }) =
                 
                 <MetricCard>
                   <MetricIcon style={{ background: 'rgba(0, 122, 255, 0.15)', color: '#007aff' }}>
-                    <FiClock />
+                    {renderIcon(FiClock)}
                   </MetricIcon>
                   <MetricInfo>
                     <MetricValue>{totalTasks - completedTasks}</MetricValue>
@@ -284,7 +284,7 @@ const ClientDashboard: React.FC<ClientDashboardProps> = ({ clientId, onBack }) =
                 
                 <MetricCard>
                   <MetricIcon style={{ background: 'rgba(255, 149, 0, 0.15)', color: '#ff9500' }}>
-                    <FiCalendar />
+                    {renderIcon(FiCalendar)}
                   </MetricIcon>
                   <MetricInfo>
                     <MetricValue>{completionRate}%</MetricValue>
@@ -328,7 +328,7 @@ const ClientDashboard: React.FC<ClientDashboardProps> = ({ clientId, onBack }) =
             {selectedProjectId ? (
               <div>
                 <BackToProjectsButton onClick={() => setSelectedProjectId(null)}>
-                  <FiArrowLeft /> Back to Projects
+                  {renderIcon(FiArrowLeft)} Back to Projects
                 </BackToProjectsButton>
                 <ProjectDashboard projectId={selectedProjectId} />
               </div>
@@ -357,15 +357,15 @@ const ClientDashboard: React.FC<ClientDashboardProps> = ({ clientId, onBack }) =
                       </ProjectDates>
                       <TaskSummary>
                         <TaskStatus>
-                          <FiCheckCircle style={{ color: '#34c759' }} />
+                          {renderIcon(FiCheckCircle, { style: { color: '#34c759' } })}
                           {project.tasks.filter(t => t.status === 'completed').length} completed
                         </TaskStatus>
                         <TaskStatus>
-                          <FiClock style={{ color: '#007aff' }} />
+                          {renderIcon(FiClock, { style: { color: '#007aff' } })}
                           {project.tasks.filter(t => t.status === 'in-progress').length} in progress
                         </TaskStatus>
                         <TaskStatus>
-                          <FiCircle style={{ color: 'rgba(255, 255, 255, 0.5)' }} />
+                          {renderIcon(FiCircle, { style: { color: 'rgba(255, 255, 255, 0.5)' } })}
                           {project.tasks.filter(t => t.status === 'not-started').length} not started
                         </TaskStatus>
                       </TaskSummary>
@@ -415,7 +415,7 @@ const ClientDashboard: React.FC<ClientDashboardProps> = ({ clientId, onBack }) =
     <ClientDashboardContainer>
       <ClientHeader>
         <BackButton onClick={onBack}>
-          <FiArrowLeft /> Back to Clients
+          {renderIcon(FiArrowLeft)} Back to Clients
         </BackButton>
         <ClientHeaderInfo>
           <ClientLogo>
