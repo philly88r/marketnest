@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import styled from 'styled-components';
 import { motion } from 'framer-motion';
 import { FiInfo, FiCheckCircle, FiCircle } from 'react-icons/fi';
+import { renderIcon } from '../utils/iconUtils';
 
 // Service options based on the agency's offerings
 const serviceOptions = [
@@ -69,7 +70,7 @@ const ServiceRequestForm: React.FC<ServiceRequestFormProps> = ({ onSubmit, onCan
   
   // Handle goal selection
   const handleGoalToggle = (goalId: string) => {
-    setSelectedGoals(prev => ({
+    setSelectedGoals((prev: Record<string, boolean>) => ({
       ...prev,
       [goalId]: !prev[goalId]
     }));
@@ -79,7 +80,7 @@ const ServiceRequestForm: React.FC<ServiceRequestFormProps> = ({ onSubmit, onCan
       .filter(([_, selected]) => selected)
       .map(([id, _]) => id);
     
-    setFormData(prev => ({
+    setFormData((prev: FormData) => ({
       ...prev,
       goals: updatedGoals
     }));
@@ -104,13 +105,13 @@ const ServiceRequestForm: React.FC<ServiceRequestFormProps> = ({ onSubmit, onCan
   // Handle next step
   const handleNextStep = () => {
     if (validateStep()) {
-      setCurrentStep(prev => prev + 1);
+      setCurrentStep((prev: number) => prev + 1);
     }
   };
   
   // Handle previous step
   const handlePrevStep = () => {
-    setCurrentStep(prev => prev - 1);
+    setCurrentStep((prev: number) => prev - 1);
   };
   
   // Handle form submission
@@ -209,7 +210,7 @@ const ServiceRequestForm: React.FC<ServiceRequestFormProps> = ({ onSubmit, onCan
             
             {selectedService && (
               <ServiceDescription>
-                <span>{FiInfo({ size: 16 })}</span>
+                <span>{renderIcon(FiInfo, { size: 16 })}</span>
                 <span>{selectedService.description}</span>
               </ServiceDescription>
             )}
@@ -259,42 +260,42 @@ const ServiceRequestForm: React.FC<ServiceRequestFormProps> = ({ onSubmit, onCan
                   $selected={selectedGoals.increase_traffic}
                   onClick={() => handleGoalToggle('increase_traffic')}
                 >
-                  {selectedGoals.increase_traffic ? <span>{FiCheckCircle({ size: 16 })}</span> : <span>{FiCircle({ size: 16 })}</span>}
+                  {selectedGoals.increase_traffic ? <span>{renderIcon(FiCheckCircle, { size: 16 })}</span> : <span>{renderIcon(FiCircle, { size: 16 })}</span>}
                   <span>Increase Website Traffic</span>
                 </GoalOption>
                 <GoalOption
                   $selected={selectedGoals.improve_conversion}
                   onClick={() => handleGoalToggle('improve_conversion')}
                 >
-                  {selectedGoals.improve_conversion ? <span>{FiCheckCircle({ size: 16 })}</span> : <span>{FiCircle({ size: 16 })}</span>}
+                  {selectedGoals.improve_conversion ? <span>{renderIcon(FiCheckCircle, { size: 16 })}</span> : <span>{renderIcon(FiCircle, { size: 16 })}</span>}
                   <span>Improve Conversion Rate</span>
                 </GoalOption>
                 <GoalOption
                   $selected={selectedGoals.brand_awareness}
                   onClick={() => handleGoalToggle('brand_awareness')}
                 >
-                  {selectedGoals.brand_awareness ? <span>{FiCheckCircle({ size: 16 })}</span> : <span>{FiCircle({ size: 16 })}</span>}
+                  {selectedGoals.brand_awareness ? <span>{renderIcon(FiCheckCircle, { size: 16 })}</span> : <span>{renderIcon(FiCircle, { size: 16 })}</span>}
                   <span>Increase Brand Awareness</span>
                 </GoalOption>
                 <GoalOption
                   $selected={selectedGoals.lead_generation}
                   onClick={() => handleGoalToggle('lead_generation')}
                 >
-                  {selectedGoals.lead_generation ? <span>{FiCheckCircle({ size: 16 })}</span> : <span>{FiCircle({ size: 16 })}</span>}
+                  {selectedGoals.lead_generation ? <span>{renderIcon(FiCheckCircle, { size: 16 })}</span> : <span>{renderIcon(FiCircle, { size: 16 })}</span>}
                   <span>Generate More Leads</span>
                 </GoalOption>
                 <GoalOption
                   $selected={selectedGoals.customer_retention}
                   onClick={() => handleGoalToggle('customer_retention')}
                 >
-                  {selectedGoals.customer_retention ? <span>{FiCheckCircle({ size: 16 })}</span> : <span>{FiCircle({ size: 16 })}</span>}
+                  {selectedGoals.customer_retention ? <span>{renderIcon(FiCheckCircle, { size: 16 })}</span> : <span>{renderIcon(FiCircle, { size: 16 })}</span>}
                   <span>Improve Customer Retention</span>
                 </GoalOption>
                 <GoalOption
                   $selected={selectedGoals.competitive_edge}
                   onClick={() => handleGoalToggle('competitive_edge')}
                 >
-                  {selectedGoals.competitive_edge ? <span>{FiCheckCircle({ size: 16 })}</span> : <span>{FiCircle({ size: 16 })}</span>}
+                  {selectedGoals.competitive_edge ? <span>{renderIcon(FiCheckCircle, { size: 16 })}</span> : <span>{renderIcon(FiCircle, { size: 16 })}</span>}
                   <span>Gain Competitive Edge</span>
                 </GoalOption>
               </GoalsContainer>
@@ -362,7 +363,7 @@ const ServiceRequestForm: React.FC<ServiceRequestFormProps> = ({ onSubmit, onCan
                 <SummaryLabel>Goals:</SummaryLabel>
                 <SummaryValue>
                   {formData.goals.length > 0 
-                    ? formData.goals.map(goal => goal.replace('_', ' ')).join(', ') 
+                    ? formData.goals.map((goal: string) => goal.replace('_', ' ')).join(', ') 
                     : 'None selected'}
                 </SummaryValue>
               </SummaryItem>
@@ -410,6 +411,13 @@ const ServiceRequestForm: React.FC<ServiceRequestFormProps> = ({ onSubmit, onCan
 };
 
 // Styled Components
+interface StyledProps {
+  $active?: boolean;
+  $completed?: boolean;
+  $selected?: boolean;
+  $hasError?: boolean;
+}
+
 const FormContainer = styled.div`
   background: #1a1a2e;
   border-radius: 12px;
@@ -437,7 +445,7 @@ const StepIndicator = styled.div`
   margin-top: 16px;
 `;
 
-const StepDot = styled.div<{ $active: boolean; $completed: boolean }>`
+const StepDot = styled.div<StyledProps>`
   width: 12px;
   height: 12px;
   border-radius: 50%;
@@ -449,7 +457,7 @@ const StepDot = styled.div<{ $active: boolean; $completed: boolean }>`
   transition: all 0.3s ease;
 `;
 
-const StepLine = styled.div<{ $completed: boolean }>`
+const StepLine = styled.div<StyledProps>`
   height: 2px;
   flex: 1;
   background: ${props => props.$completed ? 'linear-gradient(90deg, #0df9b6, #0db8f9)' : 'rgba(255, 255, 255, 0.2)'};
@@ -479,7 +487,7 @@ const Label = styled.label`
   color: rgba(255, 255, 255, 0.8);
 `;
 
-const Input = styled.input<{ $hasError?: boolean }>`
+const Input = styled.input<StyledProps>`
   width: 100%;
   padding: 12px 16px;
   background: rgba(255, 255, 255, 0.05);
@@ -500,7 +508,7 @@ const Input = styled.input<{ $hasError?: boolean }>`
   }
 `;
 
-const TextArea = styled.textarea<{ $hasError?: boolean }>`
+const TextArea = styled.textarea<StyledProps>`
   width: 100%;
   padding: 12px 16px;
   background: rgba(255, 255, 255, 0.05);
@@ -524,7 +532,7 @@ const TextArea = styled.textarea<{ $hasError?: boolean }>`
   }
 `;
 
-const Select = styled.select<{ $hasError?: boolean }>`
+const Select = styled.select<StyledProps>`
   width: 100%;
   padding: 12px 16px;
   background: rgba(255, 255, 255, 0.05);
@@ -571,7 +579,7 @@ const ServiceDescription = styled.div`
   }
 `;
 
-const GoalsContainer = styled.div<{ $hasError?: boolean }>`
+const GoalsContainer = styled.div<StyledProps>`
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
   gap: 12px;
@@ -580,7 +588,7 @@ const GoalsContainer = styled.div<{ $hasError?: boolean }>`
   padding: ${props => props.$hasError ? '12px' : '0'};
 `;
 
-const GoalOption = styled.div<{ $selected: boolean }>`
+const GoalOption = styled.div<StyledProps>`
   display: flex;
   align-items: center;
   padding: 12px;

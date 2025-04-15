@@ -16,7 +16,15 @@ const HeroContainer = styled.div`
 `;
 
 // Background blob elements
-const Blob = styled(motion.div)<{ $top: string; $left: string; $width: string; $height: string; $background: string }>`
+interface BlobProps {
+  $top: string;
+  $left: string;
+  $width: string;
+  $height: string;
+  $background: string;
+}
+
+const Blob = styled(motion.div)<BlobProps>`
   position: absolute;
   width: ${props => props.$width};
   height: ${props => props.$height};
@@ -30,7 +38,14 @@ const Blob = styled(motion.div)<{ $top: string; $left: string; $width: string; $
 `;
 
 // Lava layout grid
-const LavaLayout = styled.div`
+interface StyledProps {
+  $active?: boolean;
+  $completed?: boolean;
+  $selected?: boolean;
+  $hasError?: boolean;
+}
+
+const LavaLayout = styled.div<StyledProps>`
   position: relative;
   width: 100%;
   max-width: 1400px;
@@ -53,7 +68,7 @@ const LavaLayout = styled.div`
 `;
 
 // Heading section
-const HeadingSection = styled(motion.div)`
+const HeadingSection = styled(motion.div)<StyledProps>`
   grid-column: 2 / 9;
   grid-row: 1 / 3;
   border-radius: 30px 80px 120px 20px;
@@ -90,7 +105,7 @@ const HeadingSection = styled(motion.div)`
   }
 `;
 
-const HeadingAccent = styled.div`
+const HeadingAccent = styled.div<StyledProps>`
   font-size: 1.2rem;
   font-weight: 600;
   color: rgba(255, 255, 255, 0.7);
@@ -99,7 +114,7 @@ const HeadingAccent = styled.div`
   margin-bottom: 0.5rem;
 `;
 
-const Title = styled.h1`
+const Title = styled.h1<StyledProps>`
   font-size: 3.5rem;
   font-weight: 800;
   line-height: 1.2;
@@ -115,7 +130,7 @@ const Title = styled.h1`
 `;
 
 // Image blob section
-const ImageBlob = styled(motion.div)`
+const ImageBlob = styled(motion.div)<StyledProps>`
   grid-column: 8 / 13;
   grid-row: 1 / 4;
   display: flex;
@@ -135,7 +150,7 @@ const ImageBlob = styled(motion.div)`
   }
 `;
 
-const ImageContainer = styled.div`
+const ImageContainer = styled.div<StyledProps>`
   width: 100%;
   height: 100%;
   position: relative;
@@ -144,7 +159,7 @@ const ImageContainer = styled.div`
   justify-content: center;
 `;
 
-const BlobImage = styled(motion.img)`
+const BlobImage = styled(motion.img)<StyledProps>`
   width: 90%;
   height: auto;
   object-fit: contain;
@@ -153,7 +168,7 @@ const BlobImage = styled(motion.img)`
 `;
 
 // Description section
-const DescriptionSection = styled(motion.div)`
+const DescriptionSection = styled(motion.div)<StyledProps>`
   grid-column: 2 / 8;
   grid-row: 3 / 5;
   border-radius: 80px 30px 60px 40px;
@@ -173,7 +188,7 @@ const DescriptionSection = styled(motion.div)`
   }
 `;
 
-const Description = styled.p`
+const Description = styled.p<StyledProps>`
   font-size: 1.2rem;
   line-height: 1.6;
   color: rgba(255, 255, 255, 0.8);
@@ -181,7 +196,7 @@ const Description = styled.p`
 `;
 
 // CTA section
-const CTASection = styled(motion.div)`
+const CTASection = styled(motion.div)<StyledProps>`
   grid-column: 8 / 12;
   grid-row: 4 / 6;
   border-radius: 60px 40px 30px 70px;
@@ -205,14 +220,14 @@ const CTASection = styled(motion.div)`
   }
 `;
 
-const CTAHeading = styled.div`
+const CTAHeading = styled.div<StyledProps>`
   font-size: 1.5rem;
   font-weight: 700;
   margin-bottom: 1rem;
   color: rgba(255, 255, 255, 0.9);
 `;
 
-const CTAButton = styled(motion.a)`
+const CTAButton = styled(motion.a)<StyledProps>`
   background: linear-gradient(90deg, #1F53FF, #FF43A3);
   border: none;
   color: white;
@@ -235,7 +250,7 @@ const CTAButton = styled(motion.a)`
 `;
 
 // Stats section
-const StatsSection = styled(motion.div)`
+const StatsSection = styled(motion.div)<StyledProps>`
   grid-column: 2 / 7;
   grid-row: 5 / 7;
   border-radius: 40px 90px 60px 50px;
@@ -259,7 +274,7 @@ const StatsSection = styled(motion.div)`
   }
 `;
 
-const Stat = styled.div`
+const Stat = styled.div<StyledProps>`
   text-align: center;
   padding: 0 15px;
   
@@ -269,7 +284,7 @@ const Stat = styled.div`
   }
 `;
 
-const StatValue = styled.div`
+const StatValue = styled.div<StyledProps>`
   font-size: 2.5rem;
   font-weight: 800;
   background: linear-gradient(90deg, #1F53FF, #FF43A3);
@@ -279,7 +294,7 @@ const StatValue = styled.div`
   margin-bottom: 0.5rem;
 `;
 
-const StatLabel = styled.div`
+const StatLabel = styled.div<StyledProps>`
   font-size: 0.9rem;
   color: rgba(255, 255, 255, 0.7);
 `;
@@ -404,7 +419,7 @@ const Hero: React.FC = () => {
             href="#contact" 
             whileHover={{ y: -5, boxShadow: "0 15px 30px rgba(31, 83, 255, 0.4)" }}
           >
-            Let's Flow Together
+            Let&apos;s Flow Together
           </CTAButton>
         </CTASection>
         
