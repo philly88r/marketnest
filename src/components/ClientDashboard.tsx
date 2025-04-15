@@ -396,7 +396,7 @@ const ClientDashboard: React.FC<ClientDashboardProps> = ({ clientId, onBack }) =
             <h3>Client Analytics</h3>
             <p>Detailed analytics and reporting coming soon.</p>
             <ComingSoonMessage>
-              We're building comprehensive analytics for {client.name}. This will include:
+              We're building comprehensive analytics for "{client.name}". This will include:
               <ul>
                 <li>Campaign performance metrics</li>
                 <li>Website traffic and conversion data</li>

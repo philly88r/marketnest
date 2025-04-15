@@ -6,6 +6,7 @@ import {
   FiTrash2, FiCheck, FiX, FiChevronRight
 } from 'react-icons/fi';
 import { renderIcon } from '../utils/iconUtils';
+import { IconType } from 'react-icons';
 
 // Mock service functions and types for client files
 interface ClientFile {
@@ -108,21 +109,21 @@ const ClientFileManager: React.FC<ClientFileManagerProps> = ({ clientId }) => {
     loadFiles(currentFolderId);
   }, [clientId, currentFolderId]);
   
-  // Handle folder navigation
-  const navigateToFolder = (folderId: string | null, folderName: string): void => {
+  // Navigate to a folder
+  const navigateToFolder = (folder: ClientFolder, index: number): void => {
     // Find the index of the folder in the history
-    const folderIndex = folderHistory.findIndex((f: { id: string | null }) => f.id === folderId);
+    const folderIndex = folderHistory.findIndex((f: { id: string | null }) => f.id === folder.id);
     
     if (folderIndex >= 0) {
       // If the folder is in the history, truncate the history to that point
       setFolderHistory((prev: Array<{ id: string | null; name: string }>) => prev.slice(0, folderIndex + 1));
     } else {
       // If it's a new folder, add it to the history
-      setFolderHistory((prev: Array<{ id: string | null; name: string }>) => [...prev, { id: folderId, name: folderName }]);
+      setFolderHistory((prev: Array<{ id: string | null; name: string }>) => [...prev, { id: folder.id, name: folder.name }]);
     }
     
-    setCurrentFolderId(folderId);
-    loadFiles(folderId);
+    setCurrentFolderId(folder.id);
+    loadFiles(folder.id);
   };
   
   // Handle folder creation
@@ -149,34 +150,43 @@ const ClientFileManager: React.FC<ClientFileManagerProps> = ({ clientId }) => {
     }
   };
   
-  // Handle file upload
-  const handleFileUpload = async (e: ChangeEvent<HTMLInputElement>) => {
+  // Handle file input change
+  const handleFileInputChange = async (e: React.ChangeEvent<HTMLInputElement>): Promise<void> => {
     const files = e.target.files;
     if (!files || files.length === 0) return;
     
     const file = files[0];
+    setIsUploading(true);
+    setUploadProgress(0);
     
     try {
-      setIsUploading(true);
-      setUploadProgress(0);
-      setError(null);
+      // Mock progress updates
+      const progressInterval = setInterval(() => {
+        setUploadProgress(prev => {
+          const newProgress = prev + 10;
+          if (newProgress >= 100) {
+            clearInterval(progressInterval);
+            return 100;
+          }
+          return newProgress;
+        });
+      }, 300);
       
-      const uploadedFile = await uploadFile(
-        file,
-        currentFolderId,
-        clientId,
-        (progress: number) => setUploadProgress(progress)
-      );
+      // Upload the file
+      await uploadFile(file, currentFolderId, clientId, (progress) => {
+        setUploadProgress(progress);
+      });
       
-      setFiles((prevFiles: ClientFile[]) => [...prevFiles, uploadedFile]);
+      // Reload files after upload
+      loadFiles(currentFolderId);
       
-      // Reset the file input
+      // Clear the file input
       if (fileInputRef.current) {
         fileInputRef.current.value = '';
       }
-    } catch (err) {
+    } catch (error) {
+      console.error('Error uploading file:', error);
       setError('Failed to upload file. Please try again.');
-      console.error(err);
     } finally {
       setIsUploading(false);
     }
@@ -222,24 +232,24 @@ const ClientFileManager: React.FC<ClientFileManagerProps> = ({ clientId }) => {
   };
   
   // Get file icon based on type
-  const getFileIcon = (fileType: string) => {
+  const getFileIcon = (fileType: string): IconType => {
     if (fileType.includes('image')) {
-      return '🖼️';
+      return FiFile;
     } else if (fileType.includes('pdf')) {
-      return '📄';
+      return FiFile;
     } else if (fileType.includes('word') || fileType.includes('document')) {
-      return '📝';
+      return FiFile;
     } else if (fileType.includes('excel') || fileType.includes('spreadsheet')) {
-      return '📊';
+      return FiFile;
     } else if (fileType.includes('presentation') || fileType.includes('powerpoint')) {
-      return '📑';
+      return FiFile;
     } else {
-      return '📁';
+      return FiFile;
     }
   };
   
   // Format file size
-  const formatFileSize = (bytes: number) => {
+  const formatFileSize = (bytes: number): string => {
     if (bytes < 1024) return bytes + ' B';
     if (bytes < 1024 * 1024) return (bytes / 1024).toFixed(1) + ' KB';
     return (bytes / (1024 * 1024)).toFixed(1) + ' MB';
@@ -263,7 +273,7 @@ const ClientFileManager: React.FC<ClientFileManagerProps> = ({ clientId }) => {
             type="file"
             ref={fileInputRef}
             style={{ display: 'none' }}
-            onChange={handleFileUpload}
+            onChange={handleFileInputChange}
           />
         </FileManagerActions>
       </FileManagerHeader>
@@ -282,7 +292,7 @@ const ClientFileManager: React.FC<ClientFileManagerProps> = ({ clientId }) => {
           <React.Fragment key={folder.id || 'root'}>
             {index > 0 && <BreadcrumbSeparator>/</BreadcrumbSeparator>}
             <Breadcrumb
-              onClick={() => navigateToFolder(folder.id, folder.name)}
+              onClick={() => navigateToFolder(folder, index)}
               $active={index === folderHistory.length - 1}
             >
               {folder.name}
@@ -319,18 +329,18 @@ const ClientFileManager: React.FC<ClientFileManagerProps> = ({ clientId }) => {
             {folders.length === 0 && files.length === 0 ? (
               <EmptyStateMessage>
                 {currentFolderId === null 
-                  ? "This client doesn't have any files or folders yet." 
+                  ? "This client doesn't have any files or folders yet."
                   : "This folder is empty."}
               </EmptyStateMessage>
             ) : (
               <>
                 {/* Folders */}
-                {folders.map(folder => (
+                {folders.map((folder: ClientFolder) => (
                   <FileListItem key={`folder-${folder.id}`}>
                     <FileItemIcon $isFolder>
                       {renderIcon(FiFolder)}
                     </FileItemIcon>
-                    <FileItemName onClick={() => navigateToFolder(folder.id, folder.name)}>
+                    <FileItemName onClick={() => navigateToFolder(folder, folderHistory.findIndex((f: { id: string | null }) => f.id === folder.id))}>
                       {folder.name}
                     </FileItemName>
                     <FileItemActions>
@@ -342,10 +352,10 @@ const ClientFileManager: React.FC<ClientFileManagerProps> = ({ clientId }) => {
                 ))}
                 
                 {/* Files */}
-                {files.map(file => (
+                {files.map((file: ClientFile) => (
                   <FileListItem key={`file-${file.id}`}>
                     <FileItemIcon>
-                      {renderIcon(FiFile)}
+                      {renderIcon(getFileIcon(file.type))}
                     </FileItemIcon>
                     <FileItemName>{file.name}</FileItemName>
                     <FileItemMeta>
@@ -371,7 +381,8 @@ const ClientFileManager: React.FC<ClientFileManagerProps> = ({ clientId }) => {
 };
 
 // Styled Components
-const FileManagerContainer = styled.div`
+interface FileManagerContainerProps {}
+const FileManagerContainer = styled.div<FileManagerContainerProps>`
   background: rgba(255, 255, 255, 0.03);
   border-radius: 10px;
   padding: 20px;
@@ -477,14 +488,29 @@ const ProgressText = styled.div`
 const BreadcrumbContainer = styled.div`
   display: flex;
   align-items: center;
-  flex-wrap: wrap;
-  margin-bottom: 20px;
-  padding: 10px;
-  background: rgba(255, 255, 255, 0.05);
-  border-radius: 8px;
+  margin-bottom: 15px;
+  overflow-x: auto;
+  padding-bottom: 5px;
+  
+  &::-webkit-scrollbar {
+    height: 4px;
+  }
+  
+  &::-webkit-scrollbar-track {
+    background: rgba(255, 255, 255, 0.05);
+    border-radius: 2px;
+  }
+  
+  &::-webkit-scrollbar-thumb {
+    background: rgba(255, 255, 255, 0.2);
+    border-radius: 2px;
+  }
 `;
 
-const Breadcrumb = styled.div<{ $active: boolean }>`
+interface BreadcrumbProps {
+  $active: boolean;
+}
+const Breadcrumb = styled.span<BreadcrumbProps>`
   font-size: 14px;
   color: ${props => props.$active ? 'white' : 'rgba(255, 255, 255, 0.7)'};
   font-weight: ${props => props.$active ? '600' : '400'};
@@ -601,7 +627,10 @@ const FileListItem = styled.div`
   }
 `;
 
-const FileItemIcon = styled.div<{ $isFolder?: boolean }>`
+interface FileItemIconProps {
+  $isFolder?: boolean;
+}
+const FileItemIcon = styled.div<FileItemIconProps>`
   width: 40px;
   height: 40px;
   display: flex;
@@ -674,6 +703,18 @@ const FileItemAction = styled.button`
       background: rgba(255, 67, 67, 0.1);
     }
   }
+`;
+
+interface StatusBadgeProps {
+  $status: 'uploading' | 'success' | 'error';
+}
+const StatusBadge = styled.span<StatusBadgeProps>`
+  font-size: 12px;
+  font-weight: 600;
+  padding: 4px 8px;
+  border-radius: 4px;
+  color: white;
+  background: ${props => props.$status === 'uploading' ? 'rgba(31, 83, 255, 0.2)' : props.$status === 'success' ? 'rgba(52, 199, 89, 0.2)' : 'rgba(255, 67, 67, 0.2)'};
 `;
 
 export default ClientFileManager;
