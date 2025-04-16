@@ -185,7 +185,8 @@ const blogPosts = [
 ];
 
 const BlogPostPage: React.FC = () => {
-  const { slug } = useParams<{ slug: string }>();
+  const params = useParams();
+  const slug = params.slug;
   const [post, setPost] = useState<any>(null);
   const [loading, setLoading] = useState(true);
   
