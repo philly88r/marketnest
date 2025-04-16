@@ -2,14 +2,17 @@ import React from 'react';
 import styled from 'styled-components';
 import Header from '../components/Header';
 import Footer from '../components/Footer';
+import ClientDashboard from '../components/ClientDashboard';
 
 const ClientPortalPage = () => {
+  // TODO: Replace with real client ID from auth/session or route params
+  const clientId = 'client-001';
   return (
     <>
       <Header />
       <PortalContainer>
         <h1>Client Portal</h1>
-        <p>We are currently updating the client portal. Please check back soon.</p>
+        <ClientDashboard clientId={clientId} onBack={() => {}} />
       </PortalContainer>
       <Footer />
     </>
