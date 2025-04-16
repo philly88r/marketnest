@@ -3,10 +3,15 @@ import styled from 'styled-components';
 import Header from '../components/Header';
 import Footer from '../components/Footer';
 import ClientDashboard from '../components/ClientDashboard';
+import { useParams, Navigate } from 'react-router-dom';
 
 const ClientPortalPage = () => {
-  // TODO: Replace with real client ID from auth/session or route params
-  const clientId = 'client-001';
+  // Remove type argument to fix lint: Untyped function calls may not accept type arguments.
+  const { clientId } = useParams();
+  if (!clientId) {
+    // If no clientId is present, redirect to client login
+    return <Navigate to="/client-login" replace />;
+  }
   return (
     <>
       <Header />

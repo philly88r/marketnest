@@ -129,7 +129,7 @@ function App() {
           <Route path="/blog" element={<BlogPage />} />
           <Route path="/blog/:slug" element={<BlogPostPage />} />
           <Route path="/client-login" element={<ClientLoginPage />} />
-          <Route path="/client-portal" element={<ClientPortalPage />} />
+          <Route path="/client-portal/:clientId" element={<ClientPortalPage />} />
           <Route path="/admin-login" element={<AdminLoginPage />} />
           <Route path="/admin-portal" element={<AdminPortalPage />} />
           <Route path="/" element={

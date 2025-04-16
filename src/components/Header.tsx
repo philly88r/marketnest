@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import styled from 'styled-components';
-import { Link as RouterLink } from 'react-router-dom';
+import { Link as RouterLink, useNavigate } from 'react-router-dom';
+import { isLoggedIn, isClient } from '../utils/authService';
 
 const HeaderContainer = styled.header`
   position: fixed;
@@ -275,7 +276,16 @@ const Header: React.FC = () => {
   const toggleSoftwareDropdown = () => {
     setSoftwareDropdownOpen(!softwareDropdownOpen);
   };
-  
+
+  let clientPortalLink = '/client-login';
+  if (isLoggedIn() && isClient()) {
+    const clientUser = localStorage.getItem('client-user');
+    if (clientUser) {
+      const { id } = JSON.parse(clientUser);
+      clientPortalLink = `/client-portal/${id}`;
+    }
+  }
+
   return (
     <HeaderContainer>
       <RouterLink to="/">
@@ -369,7 +379,7 @@ const Header: React.FC = () => {
           <RouterLink to="/contact" style={{ textDecoration: 'none' }}>
             <RouterNavItem>Contact</RouterNavItem>
           </RouterLink>
-          <RouterLink to="/client-portal" style={{ textDecoration: 'none' }}>
+          <RouterLink to={clientPortalLink} style={{ textDecoration: 'none' }}>
             <ClientPortalButton>Client Portal</ClientPortalButton>
           </RouterLink>
       </NavContainer>
@@ -460,7 +470,7 @@ const Header: React.FC = () => {
           <RouterLink to="/contact" style={{ textDecoration: 'none' }} onClick={toggleMobileMenu}>
             <MobileNavItem>Contact</MobileNavItem>
           </RouterLink>
-          <RouterLink to="/client-portal" style={{ textDecoration: 'none' }} onClick={toggleMobileMenu}>
+          <RouterLink to={clientPortalLink} style={{ textDecoration: 'none' }} onClick={toggleMobileMenu}>
             <MobileNavItem style={{ color: '#0df9b6' }}>Client Portal</MobileNavItem>
           </RouterLink>
         </>

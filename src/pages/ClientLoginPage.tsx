@@ -16,7 +16,12 @@ const ClientLoginPage: React.FC = () => {
   // Check if already logged in
   useEffect(() => {
     if (isLoggedIn() && isClient()) {
-      navigate('/client-portal');
+      // Get client ID from localStorage
+      const clientUser = localStorage.getItem('client-user');
+      if (clientUser) {
+        const { id } = JSON.parse(clientUser);
+        navigate(`/client-portal/${id}`);
+      }
     }
   }, [navigate]);
   
@@ -26,8 +31,9 @@ const ClientLoginPage: React.FC = () => {
     setError('');
     
     try {
-      await clientLogin(username, password);
-      navigate('/client-portal');
+      // clientLogin now returns clientUser with id
+      const clientUser = await clientLogin(username, password);
+      navigate(`/client-portal/${clientUser.id}`);
     } catch (err) {
       console.error('Login error:', err);
       setError(err instanceof Error ? err.message : 'Login failed. Please try again.');
