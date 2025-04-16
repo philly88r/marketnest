@@ -1,6 +1,5 @@
 import React from 'react';
 import { IconType } from 'react-icons';
-import { IconBaseProps } from 'react-icons/lib';
 
 /**
  * Helper function to render React Icons safely in React 19
