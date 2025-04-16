@@ -50,16 +50,17 @@ declare module 'styled-components' {
       large: string;
       pill: string;
     };
+    transitions: {
+      fast: string;
+      medium: string;
+      slow: string;
+    };
     breakpoints: {
       xs: string;
       sm: string;
       md: string;
       lg: string;
-    };
-    transitions: {
-      fast: string;
-      medium: string;
-      slow: string;
+      xl: string;
     };
   }
 }

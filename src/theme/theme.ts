@@ -1,6 +1,5 @@
-import { DefaultTheme } from 'styled-components';
-
-const theme: DefaultTheme = {
+// Define the theme without using DefaultTheme initially
+const theme = {
   colors: {
     primary: '#0df9b6',
     secondary: '#de681d',
@@ -49,16 +48,17 @@ const theme: DefaultTheme = {
     large: '16px',
     pill: '9999px'
   },
-  breakpoints: {
-    xs: '576px',
-    sm: '768px',
-    md: '992px',
-    lg: '1200px'
-  },
   transitions: {
     fast: '0.2s ease',
     medium: '0.3s ease',
     slow: '0.5s ease'
+  },
+  breakpoints: {
+    xs: '480px',
+    sm: '768px',
+    md: '992px',
+    lg: '1200px',
+    xl: '1600px'
   }
 };
 
