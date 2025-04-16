@@ -1,10 +1,11 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import styled from 'styled-components';
 import { motion } from 'framer-motion';
 import { FiEdit, FiEye, FiSearch, FiPlus } from 'react-icons/fi';
 import { renderIcon } from '../utils/iconUtils';
+import { supabase } from '../utils/supabaseClient';
 
-// Mock client data - in a real app, this would come from your backend
+// Mock client data - fallback for development or Supabase unavailability
 export const mockClients = [
   {
     id: 'client-001',
@@ -60,6 +61,20 @@ export const mockClients = [
   }
 ];
 
+interface Client {
+  id: string;
+  name: string;
+  logo?: string;
+  industry: string;
+  contactName: string;
+  contactEmail: string;
+  contactPhone: string;
+  activeProjects: number;
+  status: string;
+  username: string;
+  password: string;
+}
+
 interface ClientListProps {
   onSelectClient: (clientId: string) => void;
 }
@@ -67,19 +82,88 @@ interface ClientListProps {
 const ClientList: React.FC<ClientListProps> = ({ onSelectClient }) => {
   const [searchTerm, setSearchTerm] = useState('');
   const [showCredentials, setShowCredentials] = useState<Record<string, boolean>>({});
-  
-  const filteredClients = mockClients.filter(client => 
+  const [clients, setClients] = useState<Client[]>(mockClients);
+  const [loading, setLoading] = useState(false);
+  const [showModal, setShowModal] = useState(false);
+  const [modalMode, setModalMode] = useState<'add' | 'edit'>('add');
+  const [editingClient, setEditingClient] = useState<Client | null>(null);
+  const [form, setForm] = useState<Partial<Client>>({});
+  const [error, setError] = useState<string | null>(null);
+
+  // Fetch clients from Supabase on mount
+  useEffect(() => {
+    const fetchClients = async () => {
+      setLoading(true);
+      try {
+        const { data, error } = await supabase.from('clients').select('*');
+        if (error) throw error;
+        if (data) setClients(data);
+      } catch (err: any) {
+        // Fallback to mock data if Supabase fails
+        setClients(mockClients);
+      } finally {
+        setLoading(false);
+      }
+    };
+    fetchClients();
+  }, []);
+
+  const filteredClients = clients.filter(client => 
     client.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
     client.industry.toLowerCase().includes(searchTerm.toLowerCase())
   );
-  
+
   const toggleCredentials = (clientId: string) => {
     setShowCredentials(prev => ({
       ...prev,
       [clientId]: !prev[clientId]
     }));
   };
-  
+
+  // Modal handlers
+  const openAddModal = () => {
+    setModalMode('add');
+    setForm({});
+    setEditingClient(null);
+    setShowModal(true);
+    setError(null);
+  };
+  const openEditModal = (client: Client) => {
+    setModalMode('edit');
+    setForm(client);
+    setEditingClient(client);
+    setShowModal(true);
+    setError(null);
+  };
+  const closeModal = () => {
+    setShowModal(false);
+    setForm({});
+    setEditingClient(null);
+    setError(null);
+  };
+
+  // Add or edit client in Supabase
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setLoading(true);
+    try {
+      if (modalMode === 'add') {
+        const { data, error } = await supabase.from('clients').insert([form]);
+        if (error) throw error;
+        setClients(prev => [...prev, ...(data || [])]);
+      } else if (modalMode === 'edit' && editingClient) {
+        const { data, error } = await supabase.from('clients').update(form).eq('id', editingClient.id);
+        if (error) throw error;
+        setClients(prev => prev.map(c => c.id === editingClient.id ? { ...c, ...form } as Client : c));
+      }
+      closeModal();
+    } catch (err: any) {
+      setError(err.message || 'Failed to save client.');
+    } finally {
+      setLoading(false);
+    }
+  };
+
   return (
     <ClientListContainer>
       <ClientListHeader>
@@ -95,11 +179,10 @@ const ClientList: React.FC<ClientListProps> = ({ onSelectClient }) => {
             onChange={(e) => setSearchTerm(e.target.value)}
           />
         </SearchContainer>
-        <AddClientButton>
+        <AddClientButton onClick={openAddModal}>
           + Add New Client
         </AddClientButton>
       </ClientListHeader>
-      
       <ClientTable>
         <ClientTableHeader>
           <ClientHeaderCell width="30%">Client</ClientHeaderCell>
@@ -109,7 +192,6 @@ const ClientList: React.FC<ClientListProps> = ({ onSelectClient }) => {
           <ClientHeaderCell width="15%">Credentials</ClientHeaderCell>
           <ClientHeaderCell width="15%">Actions</ClientHeaderCell>
         </ClientTableHeader>
-        
         {filteredClients.map(client => (
           <ClientRow key={client.id}>
             <ClientCell width="30%">
@@ -139,23 +221,71 @@ const ClientList: React.FC<ClientListProps> = ({ onSelectClient }) => {
                   </PasswordField>
                 </CredentialsInfo>
                 <ShowPasswordButton onClick={() => toggleCredentials(client.id)}>
-                  {showCredentials[client.id] ? 'Hide' : 'Show'}
+                  {renderIcon(FiEye)}
                 </ShowPasswordButton>
               </CredentialsContainer>
             </ClientCell>
             <ClientCell width="15%">
-              <ActionButtons>
-                <ActionButton onClick={() => onSelectClient(client.id)}>
-                  {renderIcon(FiEye)} View
-                </ActionButton>
-                <ActionButton>
-                  {renderIcon(FiEdit)} Edit
-                </ActionButton>
-              </ActionButtons>
+              <ActionButton onClick={() => openEditModal(client)}>{renderIcon(FiEdit)} Edit</ActionButton>
+              <ActionButton onClick={() => onSelectClient(client.id)}>{renderIcon(FiEye)} View</ActionButton>
             </ClientCell>
           </ClientRow>
         ))}
       </ClientTable>
+      {/* Modal for Add/Edit Client */}
+      {showModal && (
+        <ModalOverlay>
+          <ModalContent as={motion.div} initial={{ scale: 0.9, opacity: 0 }} animate={{ scale: 1, opacity: 1 }}>
+            <ModalTitle>{modalMode === 'add' ? 'Add New Client' : 'Edit Client'}</ModalTitle>
+            <form onSubmit={handleSubmit}>
+              <ModalFormGroup>
+                <label>Name</label>
+                <input type="text" required value={form.name || ''} onChange={e => setForm(f => ({ ...f, name: e.target.value }))} />
+              </ModalFormGroup>
+              <ModalFormGroup>
+                <label>Industry</label>
+                <input type="text" required value={form.industry || ''} onChange={e => setForm(f => ({ ...f, industry: e.target.value }))} />
+              </ModalFormGroup>
+              <ModalFormGroup>
+                <label>Contact Name</label>
+                <input type="text" required value={form.contactName || ''} onChange={e => setForm(f => ({ ...f, contactName: e.target.value }))} />
+              </ModalFormGroup>
+              <ModalFormGroup>
+                <label>Contact Email</label>
+                <input type="email" required value={form.contactEmail || ''} onChange={e => setForm(f => ({ ...f, contactEmail: e.target.value }))} />
+              </ModalFormGroup>
+              <ModalFormGroup>
+                <label>Contact Phone</label>
+                <input type="text" required value={form.contactPhone || ''} onChange={e => setForm(f => ({ ...f, contactPhone: e.target.value }))} />
+              </ModalFormGroup>
+              <ModalFormGroup>
+                <label>Username</label>
+                <input type="text" required value={form.username || ''} onChange={e => setForm(f => ({ ...f, username: e.target.value }))} />
+              </ModalFormGroup>
+              <ModalFormGroup>
+                <label>Password</label>
+                <input type="text" required value={form.password || ''} onChange={e => setForm(f => ({ ...f, password: e.target.value }))} />
+              </ModalFormGroup>
+              <ModalFormGroup>
+                <label>Status</label>
+                <select required value={form.status || ''} onChange={e => setForm(f => ({ ...f, status: e.target.value }))}>
+                  <option value="active">Active</option>
+                  <option value="inactive">Inactive</option>
+                </select>
+              </ModalFormGroup>
+              <ModalFormGroup>
+                <label>Active Projects</label>
+                <input type="number" required value={form.activeProjects || 0} onChange={e => setForm(f => ({ ...f, activeProjects: parseInt(e.target.value, 10) }))} />
+              </ModalFormGroup>
+              {error && <ErrorText>{error}</ErrorText>}
+              <ModalButtonGroup>
+                <ModalButton type="submit" disabled={loading}>{modalMode === 'add' ? 'Add Client' : 'Save Changes'}</ModalButton>
+                <ModalButton type="button" onClick={closeModal}>Cancel</ModalButton>
+              </ModalButtonGroup>
+            </form>
+          </ModalContent>
+        </ModalOverlay>
+      )}
     </ClientListContainer>
   );
 };
@@ -397,6 +527,60 @@ const ActionButton = styled.button`
       background: rgba(31, 83, 255, 0.25);
     }
   }
+`;
+
+const ModalOverlay = styled.div`
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background: rgba(0, 0, 0, 0.5);
+  display: flex;
+  justify-content: center;
+  align-items: center;
+`;
+
+const ModalContent = styled.div`
+  background: #1F1F1F;
+  padding: 20px;
+  border-radius: 10px;
+  width: 500px;
+  max-width: 90%;
+`;
+
+const ModalTitle = styled.h2`
+  font-size: 20px;
+  margin-bottom: 10px;
+`;
+
+const ModalFormGroup = styled.div`
+  margin-bottom: 15px;
+`;
+
+const ModalButtonGroup = styled.div`
+  display: flex;
+  gap: 10px;
+  margin-top: 10px;
+`;
+
+const ModalButton = styled.button`
+  padding: 10px 20px;
+  border: none;
+  border-radius: 6px;
+  font-size: 15px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  
+  &:hover {
+    transform: translateY(-2px);
+  }
+`;
+
+const ErrorText = styled.div`
+  color: red;
+  font-size: 14px;
+  margin-bottom: 10px;
 `;
 
 export default ClientList;
