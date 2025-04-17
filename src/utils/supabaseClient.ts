@@ -1,9 +1,10 @@
 import { createClient } from '@supabase/supabase-js';
 
-// Initialize the Supabase client with environment variables
+// Initialize the Supabase client with direct credentials
 const supabaseUrl = 'https://dvuiiloynbrtdrabtzsg.supabase.co';
 const supabaseAnonKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImR2dWlpbG95bmJydGRyYWJ0enNnIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDQzMDM1MDksImV4cCI6MjA1OTg3OTUwOX0.aef4QCYboLzhyw8im1pGZe7v0tweAnQ3haN1T0mVLmE';
 
+// Create the Supabase client
 const supabase = createClient(supabaseUrl, supabaseAnonKey);
 
 // Add direct client login method to avoid using RPC
@@ -98,25 +99,18 @@ export interface Message {
   id: string;
   created_at: string;
   user_id: string;
-  channel: string;
   content: string;
-  attachments: string[];
-  sender_name: string;
+  read: boolean;
 }
 
-export interface Channel {
+export interface Profile {
   id: string;
-  name: string;
-  description: string;
   created_at: string;
-}
-
-export interface ClientUser {
-  id: string;
-  email: string;
+  username: string;
   full_name: string;
+  avatar_url: string;
+  website: string;
   company: string;
-  avatar_url?: string;
 }
 
 export { supabase };
