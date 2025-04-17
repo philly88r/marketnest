@@ -7,7 +7,7 @@ import {
   createChecklistItem,
   updateChecklistItem,
   deleteChecklistItem,
-  ChecklistItem
+  type ChecklistItem
 } from '../utils/clientService';
 import { getCurrentUser } from '../utils/authService';
 
@@ -59,7 +59,7 @@ const ClientChecklist: React.FC<ClientChecklistProps> = ({ clientId, projectId }
         client_id: clientId,
         project_id: projectId || null,
         due_date: newItemDueDate || null,
-        assignee: newItemAssignee || null,
+        assigned_to: newItemAssignee || null,
         created_by: userId
       });
       
@@ -168,7 +168,7 @@ const ClientChecklist: React.FC<ClientChecklistProps> = ({ clientId, projectId }
           ) : (
             <>
               {checklist.map(item => (
-                <ChecklistItem key={item.id}>
+                <ChecklistItemRow key={item.id}>
                   <CheckboxContainer onClick={() => handleToggleItem(item)}>
                     <Checkbox $checked={item.is_completed}>
                       {item.is_completed && <FiCheck />}
@@ -183,16 +183,16 @@ const ClientChecklist: React.FC<ClientChecklistProps> = ({ clientId, projectId }
                         <FiCalendar /> {formatDate(item.due_date)}
                       </ItemDetail>
                     )}
-                    {item.assignee && (
+                    {item.assigned_to && (
                       <ItemDetail>
-                        <FiUser /> {item.assignee}
+                        <FiUser /> {item.assigned_to}
                       </ItemDetail>
                     )}
                     <DeleteButton onClick={() => handleDeleteItem(item.id)}>
                       <FiTrash2 />
                     </DeleteButton>
                   </ItemDetails>
-                </ChecklistItem>
+                </ChecklistItemRow>
               ))}
             </>
           )}
@@ -328,7 +328,7 @@ const ChecklistItems = styled.div`
   gap: 10px;
 `;
 
-const ChecklistItem = styled.div`
+const ChecklistItemRow = styled.div`
   display: flex;
   justify-content: space-between;
   align-items: center;

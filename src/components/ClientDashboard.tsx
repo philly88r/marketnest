@@ -317,24 +317,24 @@ const ClientDashboard: React.FC<ClientDashboardProps> = ({ clientId, onBack }) =
                   <InfoLabel>Contact Name</InfoLabel>
                   {isEditing ? (
                     <EditInput 
-                      value={editForm.contact_name || editForm.contactName || ''} 
+                      value={editForm.contact_name || ''} 
                       onChange={(e) => handleInputChange('contact_name', e.target.value)} 
                     />
                   ) : (
-                    <InfoValue>{client.contact_name || client.contactName}</InfoValue>
+                    <InfoValue>{client.contact_name}</InfoValue>
                   )}
                 </InfoItem>
                 <InfoItem>
                   <InfoLabel>Email</InfoLabel>
                   {isEditing ? (
                     <EditInput 
-                      value={editForm.contact_email || editForm.contactEmail || ''} 
+                      value={editForm.contact_email || ''} 
                       onChange={(e) => handleInputChange('contact_email', e.target.value)} 
                     />
                   ) : (
                     <InfoValue>
                       {renderIcon(FiMail, { style: { marginRight: '5px' } })}
-                      {client.contact_email || client.contactEmail}
+                      {client.contact_email}
                     </InfoValue>
                   )}
                 </InfoItem>
@@ -342,13 +342,13 @@ const ClientDashboard: React.FC<ClientDashboardProps> = ({ clientId, onBack }) =
                   <InfoLabel>Phone</InfoLabel>
                   {isEditing ? (
                     <EditInput 
-                      value={editForm.contact_phone || editForm.contactPhone || ''} 
+                      value={editForm.contact_phone || ''} 
                       onChange={(e) => handleInputChange('contact_phone', e.target.value)} 
                     />
                   ) : (
                     <InfoValue>
                       {renderIcon(FiPhone, { style: { marginRight: '5px' } })}
-                      {client.contact_phone || client.contactPhone}
+                      {client.contact_phone}
                     </InfoValue>
                   )}
                 </InfoItem>

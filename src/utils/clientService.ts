@@ -42,6 +42,7 @@ export interface ChecklistItem {
   created_at: string;
   due_date: string | null;
   assigned_to: string | null;
+  created_by?: string;
 }
 
 // Client CRUD operations
