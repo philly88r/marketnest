@@ -1,7 +1,7 @@
 import React from 'react';
 import styled, { ThemeProvider, createGlobalStyle } from 'styled-components';
 import { motion } from 'framer-motion';
-import { BrowserRouter as Router, Routes, Route } from 'react-router-dom';
+import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
 import theme from './theme/theme';
 import GlobalStyles from './theme/GlobalStyles';
 import Header from './components/Header';
@@ -31,6 +31,7 @@ import ClientPortalPage from './pages/ClientPortalPage';
 import ClientLoginPage from './pages/ClientLoginPage';
 import AdminLoginPage from './pages/AdminLoginPage';
 import AdminPortalPage from './pages/AdminPortalPage';
+import DirectAdminPage from './pages/DirectAdminPage';
 
 const GlobalStyle = createGlobalStyle`
   @import url('https://fonts.googleapis.com/css2?family=DM+Sans:wght@300;400;500;600;700;900&family=Plus+Jakarta+Sans:wght@400;500&display=swap');
@@ -132,6 +133,7 @@ function App() {
           <Route path="/client-portal/:clientId" element={<ClientPortalPage />} />
           <Route path="/admin-login" element={<AdminLoginPage />} />
           <Route path="/admin-portal" element={<AdminPortalPage />} />
+          <Route path="/admin" element={<DirectAdminPage />} />
           <Route path="/" element={
             <ContentContainer>
               <div id="home">

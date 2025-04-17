@@ -1,4 +1,4 @@
-import { supabase } from './supabaseClient';
+import { supabase, clientLogin as supabaseClientLogin } from './supabaseClient';
 
 export interface AdminUser {
   id: string;
@@ -49,33 +49,34 @@ export const adminLogin = async (email: string, password: string): Promise<Admin
   return adminUser;
 };
 
-// Client authentication (using custom RPC function)
+// Client authentication (using direct table query instead of RPC)
 export const clientLogin = async (username: string, password: string): Promise<ClientUser> => {
-  const { data, error } = await supabase
-    .rpc('client_login', { client_username: username, client_password: password });
+  try {
+    // Use the direct query method from supabaseClient.ts
+    const data = await supabaseClientLogin(username, password);
     
-  if (error) {
-    throw error;
+    if (!data || !data.client) {
+      throw new Error('Invalid username or password');
+    }
+    
+    // Store the token and client data
+    localStorage.setItem('user-type', 'client');
+    localStorage.setItem('client-token', data.access_token);
+    
+    const clientUser: ClientUser = {
+      id: data.client.id,
+      name: data.client.name,
+      username: data.client.username,
+      role: 'client'
+    };
+    
+    localStorage.setItem('client-user', JSON.stringify(clientUser));
+    
+    return clientUser;
+  } catch (error) {
+    console.error('Client login error:', error);
+    throw new Error('Invalid username or password');
   }
-  
-  if (data.error) {
-    throw new Error(data.error);
-  }
-  
-  // Store the token and client data
-  localStorage.setItem('user-type', 'client');
-  localStorage.setItem('client-token', data.access_token);
-  
-  const clientUser: ClientUser = {
-    id: data.client.id,
-    name: data.client.name,
-    username: data.client.username,
-    role: 'client'
-  };
-  
-  localStorage.setItem('client-user', JSON.stringify(clientUser));
-  
-  return clientUser;
 };
 
 // Get current user (admin or client)
