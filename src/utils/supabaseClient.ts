@@ -1,53 +1,10 @@
 import { createClient } from '@supabase/supabase-js';
 
-// Get environment variables with validation
-const supabaseUrl = process.env.REACT_APP_SUPABASE_URL;
-const supabaseAnonKey = process.env.REACT_APP_SUPABASE_ANON_KEY;
+// Initialize the Supabase client with environment variables
+const supabaseUrl = 'https://dvuiiloynbrtdrabtzsg.supabase.co';
+const supabaseAnonKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImR2dWlpbG95bmJydGRyYWJ0enNnIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDQzMDM1MDksImV4cCI6MjA1OTg3OTUwOX0.aef4QCYboLzhyw8im1pGZe7v0tweAnQ3haN1T0mVLmE';
 
-// Initialize Supabase client
-let supabase;
-
-if (!supabaseUrl) {
-  console.error('Supabase URL is missing. Please check your environment variables.');
-} else if (!supabaseAnonKey) {
-  console.error('Supabase Anon Key is missing. Please check your environment variables.');
-} else {
-  try {
-    // Validate URL format
-    new URL(supabaseUrl); // This will throw if URL is invalid
-    supabase = createClient(supabaseUrl, supabaseAnonKey);
-  } catch (error) {
-    console.error('Error initializing Supabase client:', error);
-  }
-}
-
-// If supabase client wasn't initialized, create a minimal mock for development
-// This should never be used in production
-if (!supabase) {
-  console.warn('Using mock Supabase client. This should only happen in development.');
-  supabase = {
-    from: () => ({
-      select: () => ({ data: null, error: new Error('Supabase client not initialized properly') }),
-      insert: () => ({ data: null, error: new Error('Supabase client not initialized properly') }),
-      update: () => ({ data: null, error: new Error('Supabase client not initialized properly') }),
-      delete: () => ({ data: null, error: new Error('Supabase client not initialized properly') }),
-      eq: () => ({ data: null, error: new Error('Supabase client not initialized properly') }),
-      single: () => ({ data: null, error: new Error('Supabase client not initialized properly') }),
-    }),
-    auth: {
-      signInWithPassword: () => Promise.reject(new Error('Supabase client not initialized properly')),
-      signOut: () => Promise.reject(new Error('Supabase client not initialized properly')),
-      onAuthStateChange: () => ({ data: null, error: null, unsubscribe: () => {} }),
-    },
-    storage: {
-      from: () => ({
-        upload: () => Promise.reject(new Error('Supabase client not initialized properly')),
-        getPublicUrl: () => ({ data: null }),
-        remove: () => Promise.reject(new Error('Supabase client not initialized properly')),
-      }),
-    },
-  };
-}
+const supabase = createClient(supabaseUrl, supabaseAnonKey);
 
 // Add direct client login method to avoid using RPC
 export const clientLogin = async (username: string, password: string) => {
@@ -136,8 +93,6 @@ export const clientLogin = async (username: string, password: string) => {
   }
 };
 
-export { supabase };
-
 // Types for database tables
 export interface Message {
   id: string;
@@ -163,3 +118,5 @@ export interface ClientUser {
   company: string;
   avatar_url?: string;
 }
+
+export { supabase };
