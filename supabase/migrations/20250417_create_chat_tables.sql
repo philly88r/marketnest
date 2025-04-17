@@ -1,8 +1,8 @@
 -- Create chat_messages table
 CREATE TABLE IF NOT EXISTS public.chat_messages (
     id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
-    client_id UUID NOT NULL REFERENCES public.clients(id) ON DELETE CASCADE,
-    admin_id UUID,
+    client_id TEXT NOT NULL REFERENCES public.clients(id) ON DELETE CASCADE,
+    admin_id TEXT,
     content TEXT NOT NULL,
     sender_type TEXT NOT NULL CHECK (sender_type IN ('client', 'admin')),
     read BOOLEAN DEFAULT FALSE,
@@ -21,7 +21,7 @@ ALTER TABLE public.chat_messages ENABLE ROW LEVEL SECURITY;
 -- Policy for clients to view and insert their own messages
 CREATE POLICY client_chat_policy ON public.chat_messages 
     FOR ALL 
-    USING (client_id::text = auth.uid() OR sender_type = 'admin');
+    USING (client_id = auth.uid() OR sender_type = 'admin');
 
 -- Policy for admins to view and manage all messages
 CREATE POLICY admin_chat_policy ON public.chat_messages 
