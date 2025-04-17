@@ -4,13 +4,17 @@ import { supabase } from './supabaseClient';
 export interface Client {
   id: string;
   name: string;
+  logo?: string;
   industry: string;
-  contact_name: string;
-  contact_email: string;
-  contact_phone: string;
+  contactname?: string;
+  contactemail?: string;
+  contactphone?: string;
+  contact_name?: string; // For compatibility with our code
+  contact_email?: string; // For compatibility with our code
+  contact_phone?: string; // For compatibility with our code
   username: string;
   password: string;
-  created_at: string;
+  created_at?: string;
 }
 
 export interface ClientFolder {
@@ -50,8 +54,7 @@ export const getClients = async (): Promise<Client[]> => {
   const { data, error } = await supabase
     .from('clients')
     .select('*')
-    .order('name');
-    
+  
   if (error) {
     console.error('Error fetching clients:', error);
     throw error;
@@ -66,9 +69,25 @@ export const getClientById = async (id: string): Promise<Client | null> => {
     .select('*')
     .eq('id', id)
     .single();
-    
+  
   if (error) {
-    console.error(`Error fetching client with ID ${id}:`, error);
+    console.error('Error fetching client:', error);
+    return null;
+  }
+  
+  return data;
+};
+
+export const updateClient = async (id: string, updates: Partial<Client>): Promise<Client | null> => {
+  const { data, error } = await supabase
+    .from('clients')
+    .update(updates)
+    .eq('id', id)
+    .select()
+    .single();
+  
+  if (error) {
+    console.error('Error updating client:', error);
     throw error;
   }
   
@@ -84,22 +103,6 @@ export const createClient = async (client: Omit<Client, 'id' | 'created_at'>): P
     
   if (error) {
     console.error('Error creating client:', error);
-    throw error;
-  }
-  
-  return data;
-};
-
-export const updateClient = async (id: string, updates: Partial<Client>): Promise<Client> => {
-  const { data, error } = await supabase
-    .from('clients')
-    .update(updates)
-    .eq('id', id)
-    .select()
-    .single();
-    
-  if (error) {
-    console.error(`Error updating client with ID ${id}:`, error);
     throw error;
   }
   

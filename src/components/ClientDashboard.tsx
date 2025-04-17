@@ -6,6 +6,7 @@ import { mockClients } from './ClientList';
 import ProjectDashboard from './ProjectDashboard';
 import ClientFileManager from './ClientFileManager';
 import ClientChecklist from './ClientChecklist';
+import ClientChat from './ClientChat';
 import { renderIcon } from '../utils/iconUtils';
 import { getClientById, updateClient, Client } from '../utils/clientService';
 import { supabase } from '../utils/supabaseClient';
@@ -190,13 +191,15 @@ const ClientDashboard: React.FC<ClientDashboardProps> = ({ clientId, onBack }) =
   const [error, setError] = useState<string | null>(null);
   const [isEditing, setIsEditing] = useState(false);
   const [editForm, setEditForm] = useState<Partial<Client>>({});
-  
+  const [saveError, setSaveError] = useState<string | null>(null);
+  const [saveSuccess, setSaveSuccess] = useState(false);
+
   // Fetch client data
   useEffect(() => {
     const fetchClient = async () => {
       setIsLoading(true);
       setError(null);
-      
+
       try {
         const clientData = await getClientById(clientId);
         if (clientData) {
@@ -215,7 +218,7 @@ const ClientDashboard: React.FC<ClientDashboardProps> = ({ clientId, onBack }) =
       } catch (err) {
         console.error('Error fetching client:', err);
         setError('Failed to load client data');
-        
+
         // Fallback to mock data
         const mockClient = mockClients.find(c => c.id === clientId);
         if (mockClient) {
@@ -226,57 +229,74 @@ const ClientDashboard: React.FC<ClientDashboardProps> = ({ clientId, onBack }) =
         setIsLoading(false);
       }
     };
-    
+
     fetchClient();
   }, [clientId]);
-  
+
   const projects = clientProjects[clientId as keyof typeof clientProjects] || [];
-  
+
   if (isLoading) {
     return <LoadingContainer>Loading client data...</LoadingContainer>;
   }
-  
+
   if (error && !client) {
     return <ErrorContainer>{error}</ErrorContainer>;
   }
-  
+
   if (!client) {
     return <div>Client not found</div>;
   }
-  
+
   // Calculate metrics
   const completedTasks = projects.reduce((sum, project) => {
     return sum + project.tasks.filter(task => task.status === 'completed').length;
   }, 0);
-  
+
   const totalTasks = projects.reduce((sum, project) => {
     return sum + project.tasks.length;
   }, 0);
-  
+
   const completionRate = totalTasks > 0 ? Math.round((completedTasks / totalTasks) * 100) : 0;
-  
-  // Handle form input changes
+
+  // Handle input changes in the edit form
   const handleInputChange = (field: string, value: string) => {
-    setEditForm(prev => ({
-      ...prev,
-      [field]: value
-    }));
+    setEditForm(prev => ({ ...prev, [field]: value }));
   };
-  
-  // Handle save client info
-  const handleSaveClientInfo = async () => {
+
+  // Handle save changes
+  const handleSaveChanges = async () => {
     try {
-      if (client.id) {
-        await updateClient(client.id, editForm);
-        setClient({...client, ...editForm});
+      if (!client) return;
+
+      setSaveError(null);
+      setSaveSuccess(false);
+
+      // Update client in database
+      const updatedClient = await updateClient(client.id, editForm);
+
+      if (updatedClient) {
+        setClient(updatedClient);
         setIsEditing(false);
+        setSaveSuccess(true);
+
+        // Hide success message after 3 seconds
+        setTimeout(() => {
+          setSaveSuccess(false);
+        }, 3000);
       }
     } catch (err) {
-      console.error('Error updating client:', err);
-      alert('Failed to update client information. Please try again.');
+      console.error('Error saving client changes:', err);
+      setSaveError('Failed to save changes. Please try again.');
     }
   };
-  
+
+  // Handle cancel edit
+  const handleCancelEdit = () => {
+    setEditForm(client || {});
+    setIsEditing(false);
+    setSaveError(null);
+  };
+
   const renderContent = () => {
     switch (activeTab) {
       case 'overview':
@@ -286,28 +306,31 @@ const ClientDashboard: React.FC<ClientDashboardProps> = ({ clientId, onBack }) =
               <ClientInfoHeader>
                 <h3>Client Information</h3>
                 {isEditing ? (
-                  <ActionButtons>
-                    <SaveButton onClick={handleSaveClientInfo}>
+                  <EditActions>
+                    <SaveButton onClick={handleSaveChanges}>
                       {renderIcon(FiSave)} Save
                     </SaveButton>
-                    <CancelButton onClick={() => setIsEditing(false)}>
+                    <CancelButton onClick={handleCancelEdit}>
                       {renderIcon(FiX)} Cancel
                     </CancelButton>
-                  </ActionButtons>
+                  </EditActions>
                 ) : (
                   <EditButton onClick={() => setIsEditing(true)}>
                     {renderIcon(FiEdit)} Edit
                   </EditButton>
                 )}
               </ClientInfoHeader>
-              
+
+              {saveError && <ErrorMessage>{saveError}</ErrorMessage>}
+              {saveSuccess && <SuccessMessage>Changes saved successfully!</SuccessMessage>}
+
               <ClientInfoGrid>
                 <InfoItem>
                   <InfoLabel>Industry</InfoLabel>
                   {isEditing ? (
-                    <EditInput 
-                      value={editForm.industry || ''} 
-                      onChange={(e) => handleInputChange('industry', e.target.value)} 
+                    <EditInput
+                      value={editForm.industry || ''}
+                      onChange={(e) => handleInputChange('industry', e.target.value)}
                     />
                   ) : (
                     <InfoValue>{client.industry}</InfoValue>
@@ -316,48 +339,48 @@ const ClientDashboard: React.FC<ClientDashboardProps> = ({ clientId, onBack }) =
                 <InfoItem>
                   <InfoLabel>Contact Name</InfoLabel>
                   {isEditing ? (
-                    <EditInput 
-                      value={editForm.contact_name || ''} 
-                      onChange={(e) => handleInputChange('contact_name', e.target.value)} 
+                    <EditInput
+                      value={editForm.contactname || editForm.contact_name || ''}
+                      onChange={(e) => handleInputChange('contactname', e.target.value)}
                     />
                   ) : (
-                    <InfoValue>{client.contact_name}</InfoValue>
+                    <InfoValue>{client.contactname || client.contact_name}</InfoValue>
                   )}
                 </InfoItem>
                 <InfoItem>
                   <InfoLabel>Email</InfoLabel>
                   {isEditing ? (
-                    <EditInput 
-                      value={editForm.contact_email || ''} 
-                      onChange={(e) => handleInputChange('contact_email', e.target.value)} 
+                    <EditInput
+                      value={editForm.contactemail || editForm.contact_email || ''}
+                      onChange={(e) => handleInputChange('contactemail', e.target.value)}
                     />
                   ) : (
                     <InfoValue>
                       {renderIcon(FiMail, { style: { marginRight: '5px' } })}
-                      {client.contact_email}
+                      {client.contactemail || client.contact_email}
                     </InfoValue>
                   )}
                 </InfoItem>
                 <InfoItem>
                   <InfoLabel>Phone</InfoLabel>
                   {isEditing ? (
-                    <EditInput 
-                      value={editForm.contact_phone || ''} 
-                      onChange={(e) => handleInputChange('contact_phone', e.target.value)} 
+                    <EditInput
+                      value={editForm.contactphone || editForm.contact_phone || ''}
+                      onChange={(e) => handleInputChange('contactphone', e.target.value)}
                     />
                   ) : (
                     <InfoValue>
                       {renderIcon(FiPhone, { style: { marginRight: '5px' } })}
-                      {client.contact_phone}
+                      {client.contactphone || client.contact_phone}
                     </InfoValue>
                   )}
                 </InfoItem>
                 <InfoItem>
                   <InfoLabel>Username</InfoLabel>
                   {isEditing ? (
-                    <EditInput 
-                      value={editForm.username || ''} 
-                      onChange={(e) => handleInputChange('username', e.target.value)} 
+                    <EditInput
+                      value={editForm.username || ''}
+                      onChange={(e) => handleInputChange('username', e.target.value)}
                     />
                   ) : (
                     <InfoValue>{client.username}</InfoValue>
@@ -366,9 +389,9 @@ const ClientDashboard: React.FC<ClientDashboardProps> = ({ clientId, onBack }) =
                 <InfoItem>
                   <InfoLabel>Password</InfoLabel>
                   {isEditing ? (
-                    <EditInput 
-                      value={editForm.password || ''} 
-                      onChange={(e) => handleInputChange('password', e.target.value)} 
+                    <EditInput
+                      value={editForm.password || ''}
+                      onChange={(e) => handleInputChange('password', e.target.value)}
                     />
                   ) : (
                     <InfoValue>{client.password}</InfoValue>
@@ -376,7 +399,7 @@ const ClientDashboard: React.FC<ClientDashboardProps> = ({ clientId, onBack }) =
                 </InfoItem>
               </ClientInfoGrid>
             </ClientInfoCard>
-            
+
             <MetricsSection>
               <h3>Project Metrics</h3>
               <MetricsGrid>
@@ -389,7 +412,7 @@ const ClientDashboard: React.FC<ClientDashboardProps> = ({ clientId, onBack }) =
                     <MetricLabel>Active Projects</MetricLabel>
                   </MetricInfo>
                 </MetricCard>
-                
+
                 <MetricCard>
                   <MetricIcon style={{ background: 'rgba(52, 199, 89, 0.15)', color: '#34c759' }}>
                     {renderIcon(FiCheckCircle)}
@@ -399,7 +422,7 @@ const ClientDashboard: React.FC<ClientDashboardProps> = ({ clientId, onBack }) =
                     <MetricLabel>Completed Tasks</MetricLabel>
                   </MetricInfo>
                 </MetricCard>
-                
+
                 <MetricCard>
                   <MetricIcon style={{ background: 'rgba(0, 122, 255, 0.15)', color: '#007aff' }}>
                     {renderIcon(FiClock)}
@@ -409,7 +432,7 @@ const ClientDashboard: React.FC<ClientDashboardProps> = ({ clientId, onBack }) =
                     <MetricLabel>Pending Tasks</MetricLabel>
                   </MetricInfo>
                 </MetricCard>
-                
+
                 <MetricCard>
                   <MetricIcon style={{ background: 'rgba(255, 149, 0, 0.15)', color: '#ff9500' }}>
                     {renderIcon(FiCalendar)}
@@ -421,7 +444,7 @@ const ClientDashboard: React.FC<ClientDashboardProps> = ({ clientId, onBack }) =
                 </MetricCard>
               </MetricsGrid>
             </MetricsSection>
-            
+
             <RecentProjectsSection>
               <h3>Recent Projects</h3>
               <ProjectsGrid>
@@ -433,8 +456,8 @@ const ClientDashboard: React.FC<ClientDashboardProps> = ({ clientId, onBack }) =
                     <ProjectHeader>
                       <ProjectTitle>{project.name}</ProjectTitle>
                       <StatusBadge $status={project.status}>
-                        {project.status === 'completed' ? 'Completed' : 
-                         project.status === 'in-progress' ? 'In Progress' : 'Planning'}
+                        {project.status === 'completed' ? 'Completed' :
+                          project.status === 'in-progress' ? 'In Progress' : 'Planning'}
                       </StatusBadge>
                     </ProjectHeader>
                     <ProjectProgress $progress={project.progress}>
@@ -465,15 +488,15 @@ const ClientDashboard: React.FC<ClientDashboardProps> = ({ clientId, onBack }) =
                 <h3>All Projects</h3>
                 <AllProjectsGrid>
                   {projects.map(project => (
-                    <ProjectCard 
-                      key={project.id} 
+                    <ProjectCard
+                      key={project.id}
                       onClick={() => setSelectedProjectId(project.id)}
                     >
                       <ProjectHeader>
                         <ProjectTitle>{project.name}</ProjectTitle>
                         <StatusBadge $status={project.status}>
-                          {project.status === 'completed' ? 'Completed' : 
-                           project.status === 'in-progress' ? 'In Progress' : 'Planning'}
+                          {project.status === 'completed' ? 'Completed' :
+                            project.status === 'in-progress' ? 'In Progress' : 'Planning'}
                         </StatusBadge>
                       </ProjectHeader>
                       <ProjectProgress $progress={project.progress}>
@@ -538,7 +561,7 @@ const ClientDashboard: React.FC<ClientDashboardProps> = ({ clientId, onBack }) =
         return null;
     }
   };
-  
+
   return (
     <ClientDashboardContainer>
       <ClientHeader>
@@ -546,50 +569,50 @@ const ClientDashboard: React.FC<ClientDashboardProps> = ({ clientId, onBack }) =
           {renderIcon(FiArrowLeft)} Back to Clients
         </BackButton>
         <ClientHeaderInfo>
-          <ClientLogo>
-            {client.name.charAt(0)}
-          </ClientLogo>
+          <ClientLogo src={client.logo || '/default-client-logo.png'} alt={client.name} />
           <div>
             <ClientName>{client.name}</ClientName>
-            <ClientIndustry>{client.industry}</ClientIndustry>
           </div>
         </ClientHeaderInfo>
       </ClientHeader>
-      
+
       <TabsContainer>
-        <TabButton 
-          $active={activeTab === 'overview'} 
+        <TabButton
+          $active={activeTab === 'overview'}
           onClick={() => setActiveTab('overview')}
         >
           Overview
         </TabButton>
-        <TabButton 
-          $active={activeTab === 'projects'} 
+        <TabButton
+          $active={activeTab === 'projects'}
           onClick={() => setActiveTab('projects')}
         >
           Projects
         </TabButton>
-        <TabButton 
-          $active={activeTab === 'files'} 
+        <TabButton
+          $active={activeTab === 'files'}
           onClick={() => setActiveTab('files')}
         >
           Files
         </TabButton>
-        <TabButton 
-          $active={activeTab === 'tasks'} 
+        <TabButton
+          $active={activeTab === 'tasks'}
           onClick={() => setActiveTab('tasks')}
         >
           Tasks
         </TabButton>
-        <TabButton 
-          $active={activeTab === 'analytics'} 
+        <TabButton
+          $active={activeTab === 'analytics'}
           onClick={() => setActiveTab('analytics')}
         >
           Analytics
         </TabButton>
       </TabsContainer>
-      
+
       {renderContent()}
+      
+      {/* Add ClientChat component */}
+      <ClientChat clientId={clientId} />
     </ClientDashboardContainer>
   );
 };
@@ -616,7 +639,7 @@ const BackButton = styled.button`
   gap: 8px;
   margin-right: 20px;
   transition: all 0.2s ease;
-  
+
   &:hover {
     background: rgba(255, 255, 255, 0.15);
   }
@@ -667,7 +690,7 @@ const TabButton = styled.button<{ $active: boolean }>`
   cursor: pointer;
   position: relative;
   transition: all 0.2s ease;
-  
+
   &:after {
     content: '';
     position: absolute;
@@ -678,7 +701,7 @@ const TabButton = styled.button<{ $active: boolean }>`
     background: ${props => props.$active ? 'linear-gradient(90deg, #1F53FF, #FF43A3)' : 'transparent'};
     transition: all 0.2s ease;
   }
-  
+
   &:hover {
     color: white;
   }
@@ -698,7 +721,7 @@ const ClientInfoHeader = styled.div`
   justify-content: space-between;
   align-items: center;
   margin-bottom: 20px;
-  
+
   h3 {
     margin: 0;
     font-size: 18px;
@@ -717,13 +740,13 @@ const EditButton = styled.button`
   align-items: center;
   gap: 5px;
   transition: all 0.2s ease;
-  
+
   &:hover {
     background: rgba(255, 255, 255, 0.15);
   }
 `;
 
-const ActionButtons = styled.div`
+const EditActions = styled.div`
   display: flex;
   gap: 10px;
 `;
@@ -740,7 +763,7 @@ const SaveButton = styled.button`
   align-items: center;
   gap: 5px;
   transition: all 0.2s ease;
-  
+
   &:hover {
     background: rgba(255, 255, 255, 0.15);
   }
@@ -758,7 +781,7 @@ const CancelButton = styled.button`
   align-items: center;
   gap: 5px;
   transition: all 0.2s ease;
-  
+
   &:hover {
     background: rgba(255, 255, 255, 0.15);
   }
@@ -793,15 +816,27 @@ const EditInput = styled.input`
   font-size: 15px;
   width: 100%;
   transition: all 0.2s ease;
-  
+
   &:focus {
     border-bottom-color: white;
   }
 `;
 
+const ErrorMessage = styled.div`
+  color: #ff0000;
+  font-size: 14px;
+  margin-bottom: 10px;
+`;
+
+const SuccessMessage = styled.div`
+  color: #34c759;
+  font-size: 14px;
+  margin-bottom: 10px;
+`;
+
 const MetricsSection = styled.div`
   margin-bottom: 30px;
-  
+
   h3 {
     margin-top: 0;
     margin-bottom: 20px;
@@ -869,7 +904,7 @@ const ProjectCard = styled.div`
   padding: 20px;
   cursor: pointer;
   transition: all 0.2s ease;
-  
+
   &:hover {
     background: rgba(255, 255, 255, 0.05);
     transform: translateY(-2px);
@@ -893,7 +928,7 @@ const StatusBadge = styled.span<{ $status: string }>`
   padding: 4px 8px;
   border-radius: 12px;
   font-weight: 500;
-  
+
   ${props => {
     if (props.$status === 'completed') {
       return `
@@ -921,7 +956,7 @@ const ProjectProgress = styled.div<{ $progress: number }>`
   position: relative;
   overflow: hidden;
   margin: 8px 0 15px;
-  
+
   &:after {
     content: '';
     position: absolute;
@@ -992,7 +1027,7 @@ const BackToProjectsButton = styled.button`
   gap: 8px;
   margin-bottom: 20px;
   transition: all 0.2s ease;
-  
+
   &:hover {
     background: rgba(255, 255, 255, 0.15);
   }
@@ -1004,7 +1039,7 @@ const AnalyticsContent = styled.div`
     margin-bottom: 20px;
     font-size: 18px;
   }
-  
+
   p {
     color: rgba(255, 255, 255, 0.7);
     margin-bottom: 20px;
@@ -1017,11 +1052,11 @@ const ComingSoonMessage = styled.div`
   border-radius: 10px;
   padding: 20px;
   color: rgba(255, 255, 255, 0.9);
-  
+
   ul {
     margin-top: 15px;
     padding-left: 20px;
-    
+
     li {
       margin-bottom: 8px;
       color: rgba(255, 255, 255, 0.7);

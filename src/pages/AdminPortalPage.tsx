@@ -8,6 +8,7 @@ import Header from '../components/Header';
 import Footer from '../components/Footer';
 import ClientList from '../components/ClientList';
 import ClientDashboard from '../components/ClientDashboard';
+import AdminChat from '../components/AdminChat';
 
 // Mock admin data - in a real app, this would come from your backend
 const adminUser = {
@@ -145,6 +146,9 @@ const AdminPortalPage: React.FC = () => {
         </MainContent>
       </AdminContent>
       <Footer />
+      
+      {/* Add AdminChat component */}
+      <AdminChat />
     </AdminPortalContainer>
   );
 };
