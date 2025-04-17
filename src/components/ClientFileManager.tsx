@@ -7,24 +7,18 @@ import {
 } from 'react-icons/fi';
 import { renderIcon } from '../utils/iconUtils';
 import { IconType } from 'react-icons';
-
-// Mock service functions and types for client files
-interface ClientFile {
-  id: string;
-  name: string;
-  size: number;
-  type: string;
-  folderId: string | null;
-  uploadDate: string;
-  clientId: string;
-}
-
-interface ClientFolder {
-  id: string;
-  name: string;
-  parentId: string | null;
-  clientId: string;
-}
+import { 
+  ClientFile, 
+  ClientFolder, 
+  getFoldersByClientId, 
+  getFilesByClientId, 
+  createFolder, 
+  uploadFile, 
+  deleteFolder, 
+  deleteFile, 
+  getFileUrl 
+} from '../utils/clientService';
+import { getCurrentUser } from '../utils/authService';
 
 // Define a type for the breadcrumb folder
 interface BreadcrumbFolder {
@@ -32,233 +26,198 @@ interface BreadcrumbFolder {
   name: string;
 }
 
-// Mock service functions
-const getFilesByClientId = (clientId: string, folderId: string | null): Promise<ClientFile[]> => {
-  return Promise.resolve([]);
-};
-
-const getFoldersByClientId = (clientId: string, parentId: string | null): Promise<ClientFolder[]> => {
-  return Promise.resolve([]);
-};
-
-const createFolder = (name: string, parentId: string | null, clientId: string): Promise<ClientFolder> => {
-  return Promise.resolve({ id: '1', name, parentId, clientId });
-};
-
-const uploadFile = (file: File, folderId: string | null, clientId: string, onProgress: (progress: number) => void): Promise<ClientFile> => {
-  return Promise.resolve({
-    id: '1',
-    name: file.name,
-    size: file.size,
-    type: file.type,
-    folderId,
-    uploadDate: new Date().toISOString(),
-    clientId
-  });
-};
-
-const deleteFile = (fileId: string): Promise<void> => {
-  return Promise.resolve();
-};
-
-const deleteFolder = (folderId: string): Promise<void> => {
-  return Promise.resolve();
-};
-
-const downloadFile = (file: ClientFile): void => {
-  // Mock implementation
-};
-
 interface ClientFileManagerProps {
   clientId: string;
 }
 
 const ClientFileManager: React.FC<ClientFileManagerProps> = ({ clientId }) => {
-  const [currentFolderId, setCurrentFolderId] = useState<string | null>(null);
-  const [folderHistory, setFolderHistory] = useState<Array<BreadcrumbFolder>>([
-    { id: null, name: 'Root' }
-  ]);
-  const [files, setFiles] = useState<ClientFile[]>([]);
   const [folders, setFolders] = useState<ClientFolder[]>([]);
-  const [isLoading, setIsLoading] = useState<boolean>(true);
+  const [files, setFiles] = useState<ClientFile[]>([]);
+  const [currentFolder, setCurrentFolder] = useState<string | null>(null);
+  const [breadcrumbs, setBreadcrumbs] = useState<BreadcrumbFolder[]>([{ id: null, name: 'Root' }]);
+  const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [isCreatingFolder, setIsCreatingFolder] = useState<boolean>(false);
-  const [newFolderName, setNewFolderName] = useState<string>('');
-  const [isUploading, setIsUploading] = useState<boolean>(false);
-  const [uploadProgress, setUploadProgress] = useState<number>(0);
-  
+  const [isCreatingFolder, setIsCreatingFolder] = useState(false);
+  const [newFolderName, setNewFolderName] = useState('');
+  const [uploadProgress, setUploadProgress] = useState<Record<string, number>>({});
+  const [uploadStatus, setUploadStatus] = useState<Record<string, 'uploading' | 'success' | 'error'>>({});
   const fileInputRef = useRef<HTMLInputElement>(null);
   
-  // Function to load files and folders
-  const loadFiles = async (folderId: string | null): Promise<void> => {
-    try {
+  // Load folders and files
+  useEffect(() => {
+    const loadFoldersAndFiles = async () => {
       setIsLoading(true);
       setError(null);
       
-      const [filesData, foldersData] = await Promise.all([
-        getFilesByClientId(clientId, folderId),
-        getFoldersByClientId(clientId, folderId)
-      ]);
-      
-      setFiles(filesData);
-      setFolders(foldersData);
-    } catch (err) {
-      setError('Failed to load files. Please try again.');
-      console.error(err);
-    } finally {
-      setIsLoading(false);
+      try {
+        const [folderData, fileData] = await Promise.all([
+          getFoldersByClientId(clientId, currentFolder),
+          getFilesByClientId(clientId, currentFolder)
+        ]);
+        
+        setFolders(folderData);
+        setFiles(fileData);
+      } catch (err) {
+        console.error('Error loading files and folders:', err);
+        setError('Failed to load files and folders. Please try again.');
+      } finally {
+        setIsLoading(false);
+      }
+    };
+    
+    loadFoldersAndFiles();
+  }, [clientId, currentFolder]);
+  
+  // Handle folder navigation
+  const navigateToFolder = async (folderId: string | null, folderName: string) => {
+    // If navigating to root, reset breadcrumbs
+    if (folderId === null) {
+      setBreadcrumbs([{ id: null, name: 'Root' }]);
+    } else {
+      // Add the folder to breadcrumbs
+      setBreadcrumbs(prev => [...prev, { id: folderId, name: folderName }]);
     }
+    
+    setCurrentFolder(folderId);
   };
   
-  // Load files and folders on mount and when folder changes
-  useEffect(() => {
-    loadFiles(currentFolderId);
-  }, [clientId, currentFolderId]);
-  
-  // Navigate to a folder
-  const navigateToFolder = (folder: BreadcrumbFolder, index: number): void => {
-    // Find the index of the folder in the history
-    const folderIndex = folderHistory.findIndex((f: { id: string | null }) => f.id === folder.id);
-    
-    if (folderIndex >= 0) {
-      // If the folder is in the history, truncate the history to that point
-      setFolderHistory((prev: Array<BreadcrumbFolder>) => prev.slice(0, folderIndex + 1));
-    } else {
-      // If it's a new folder, add it to the history
-      setFolderHistory((prev: Array<BreadcrumbFolder>) => [...prev, { id: folder.id, name: folder.name }]);
-    }
-    
-    setCurrentFolderId(folder.id);
-    loadFiles(folder.id);
+  // Handle breadcrumb navigation
+  const navigateToBreadcrumb = (index: number) => {
+    const newBreadcrumbs = breadcrumbs.slice(0, index + 1);
+    setBreadcrumbs(newBreadcrumbs);
+    setCurrentFolder(newBreadcrumbs[newBreadcrumbs.length - 1].id);
   };
   
   // Handle folder creation
   const handleCreateFolder = async () => {
-    if (!newFolderName.trim()) {
-      setError('Folder name cannot be empty');
-      return;
-    }
+    if (!newFolderName.trim()) return;
     
     try {
-      setIsLoading(true);
-      setError(null);
-      
-      const newFolder = await createFolder(newFolderName, currentFolderId, clientId);
-      
-      setFolders((prevFiles: ClientFolder[]) => [...prevFiles, newFolder]);
-      setIsCreatingFolder(false);
-      setNewFolderName('');
-    } catch (err) {
-      setError('Failed to create folder. Please try again.');
-      console.error(err);
-    } finally {
-      setIsLoading(false);
-    }
-  };
-  
-  // Handle file input change
-  const handleFileInputChange = async (e: React.ChangeEvent<HTMLInputElement>): Promise<void> => {
-    const files = e.target.files;
-    if (!files || files.length === 0) return;
-    
-    const file = files[0];
-    setIsUploading(true);
-    setUploadProgress(0);
-    
-    try {
-      // Mock progress updates
-      const progressInterval = setInterval(() => {
-        setUploadProgress(prev => {
-          const newProgress = prev + 10;
-          if (newProgress >= 100) {
-            clearInterval(progressInterval);
-            return 100;
-          }
-          return newProgress;
-        });
-      }, 300);
-      
-      // Upload the file
-      await uploadFile(file, currentFolderId, clientId, (progress) => {
-        setUploadProgress(progress);
+      const newFolder = await createFolder({
+        name: newFolderName,
+        client_id: clientId,
+        parent_folder_id: currentFolder
       });
       
-      // Reload files after upload
-      loadFiles(currentFolderId);
-      
-      // Clear the file input
-      if (fileInputRef.current) {
-        fileInputRef.current.value = '';
-      }
-    } catch (error) {
-      console.error('Error uploading file:', error);
-      setError('Failed to upload file. Please try again.');
-    } finally {
-      setIsUploading(false);
+      setFolders(prev => [...prev, newFolder]);
+      setNewFolderName('');
+      setIsCreatingFolder(false);
+    } catch (err) {
+      console.error('Error creating folder:', err);
+      setError('Failed to create folder. Please try again.');
     }
   };
   
-  // Handle file download
-  const handleFileDownload = (file: ClientFile) => {
-    downloadFile(file);
-  };
-  
-  // Handle file deletion
-  const handleDeleteFile = async (file: ClientFile) => {
-    try {
-      setIsLoading(true);
-      setError(null);
+  // Handle file upload
+  const handleFileUpload = async (event: ChangeEvent<HTMLInputElement>) => {
+    const files = event.target.files;
+    if (!files || files.length === 0) return;
+    
+    const user = getCurrentUser();
+    const userId = user?.id || 'anonymous';
+    
+    // Process each file
+    Array.from(files).forEach(async (file) => {
+      const fileId = `${Date.now()}-${file.name}`;
       
-      await deleteFile(file.id);
+      // Set initial progress and status
+      setUploadProgress(prev => ({ ...prev, [fileId]: 0 }));
+      setUploadStatus(prev => ({ ...prev, [fileId]: 'uploading' }));
       
-      setFiles((prevFiles: ClientFile[]) => prevFiles.filter((f: ClientFile) => f.id !== file.id));
-    } catch (err) {
-      setError('Failed to delete file. Please try again.');
-      console.error(err);
-    } finally {
-      setIsLoading(false);
+      try {
+        // Upload the file
+        const uploadedFile = await uploadFile(
+          file,
+          clientId,
+          currentFolder,
+          userId
+        );
+        
+        // Update progress and status
+        setUploadProgress(prev => ({ ...prev, [fileId]: 100 }));
+        setUploadStatus(prev => ({ ...prev, [fileId]: 'success' }));
+        
+        // Add the file to the list
+        setFiles(prev => [...prev, uploadedFile]);
+        
+        // Clear progress and status after a delay
+        setTimeout(() => {
+          setUploadProgress(prev => {
+            const newProgress = { ...prev };
+            delete newProgress[fileId];
+            return newProgress;
+          });
+          
+          setUploadStatus(prev => {
+            const newStatus = { ...prev };
+            delete newStatus[fileId];
+            return newStatus;
+          });
+        }, 3000);
+      } catch (err) {
+        console.error('Error uploading file:', err);
+        setUploadStatus(prev => ({ ...prev, [fileId]: 'error' }));
+      }
+    });
+    
+    // Reset the file input
+    if (fileInputRef.current) {
+      fileInputRef.current.value = '';
     }
   };
   
   // Handle folder deletion
-  const handleDeleteFolder = async (folder: ClientFolder) => {
+  const handleDeleteFolder = async (folderId: string) => {
     try {
-      setIsLoading(true);
-      setError(null);
-      
-      await deleteFolder(folder.id);
-      
-      setFolders((prevFolders: ClientFolder[]) => prevFolders.filter((f: ClientFolder) => f.id !== folder.id));
+      await deleteFolder(folderId);
+      setFolders(prev => prev.filter(folder => folder.id !== folderId));
     } catch (err) {
+      console.error('Error deleting folder:', err);
       setError('Failed to delete folder. Please try again.');
-      console.error(err);
-    } finally {
-      setIsLoading(false);
     }
   };
   
-  // Get file icon based on type
-  const getFileIcon = (fileType: string): IconType => {
-    if (fileType.includes('image')) {
-      return FiFile;
-    } else if (fileType.includes('pdf')) {
-      return FiFile;
-    } else if (fileType.includes('word') || fileType.includes('document')) {
-      return FiFile;
-    } else if (fileType.includes('excel') || fileType.includes('spreadsheet')) {
-      return FiFile;
-    } else if (fileType.includes('presentation') || fileType.includes('powerpoint')) {
-      return FiFile;
-    } else {
-      return FiFile;
+  // Handle file deletion
+  const handleDeleteFile = async (fileId: string, filePath: string) => {
+    try {
+      await deleteFile(fileId, filePath);
+      setFiles(prev => prev.filter(file => file.id !== fileId));
+    } catch (err) {
+      console.error('Error deleting file:', err);
+      setError('Failed to delete file. Please try again.');
+    }
+  };
+  
+  // Handle file download
+  const handleDownloadFile = async (file: ClientFile) => {
+    try {
+      const url = await getFileUrl(file.file_path);
+      
+      // Create a temporary anchor element and trigger download
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = file.name;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+    } catch (err) {
+      console.error('Error downloading file:', err);
+      setError('Failed to download file. Please try again.');
     }
   };
   
   // Format file size
   const formatFileSize = (bytes: number): string => {
-    if (bytes < 1024) return bytes + ' B';
-    if (bytes < 1024 * 1024) return (bytes / 1024).toFixed(1) + ' KB';
-    return (bytes / (1024 * 1024)).toFixed(1) + ' MB';
+    if (bytes < 1024) return `${bytes} B`;
+    if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`;
+    if (bytes < 1024 * 1024 * 1024) return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
+    return `${(bytes / (1024 * 1024 * 1024)).toFixed(1)} GB`;
+  };
+  
+  // Get file icon based on type
+  const getFileIcon = (fileType: string): IconType => {
+    // You can add more file type icons here
+    return FiFile;
   };
   
   return (
@@ -266,135 +225,143 @@ const ClientFileManager: React.FC<ClientFileManagerProps> = ({ clientId }) => {
       <FileManagerHeader>
         <h3>File Manager</h3>
         <FileManagerActions>
-          <ActionButton 
-            onClick={() => setIsCreatingFolder(true)}
-            disabled={isCreatingFolder}
-          >
+          <ActionButton onClick={() => setIsCreatingFolder(true)}>
             {renderIcon(FiFolderPlus)} New Folder
           </ActionButton>
           <ActionButton onClick={() => fileInputRef.current?.click()}>
-            {renderIcon(FiUpload)} Upload File
+            {renderIcon(FiUpload)} Upload Files
           </ActionButton>
           <input
             type="file"
             ref={fileInputRef}
             style={{ display: 'none' }}
-            onChange={handleFileInputChange}
+            onChange={handleFileUpload}
+            multiple
           />
         </FileManagerActions>
       </FileManagerHeader>
       
       {error && <ErrorMessage>{error}</ErrorMessage>}
       
-      {isUploading && (
-        <UploadProgressContainer>
-          <ProgressBar $progress={uploadProgress} />
-          <ProgressText>{uploadProgress}% Uploading...</ProgressText>
-        </UploadProgressContainer>
-      )}
-      
-      <BreadcrumbContainer>
-        {folderHistory.map((folder: BreadcrumbFolder, index: number) => (
-          <React.Fragment key={folder.id || 'root'}>
-            {index > 0 && <BreadcrumbSeparator>/</BreadcrumbSeparator>}
+      <BreadcrumbsContainer>
+        {breadcrumbs.map((breadcrumb, index) => (
+          <React.Fragment key={index}>
+            {index > 0 && <BreadcrumbSeparator>{renderIcon(FiChevronRight)}</BreadcrumbSeparator>}
             <Breadcrumb
-              onClick={() => navigateToFolder(folder, index)}
-              $active={index === folderHistory.length - 1}
+              $active={index === breadcrumbs.length - 1}
+              onClick={() => navigateToBreadcrumb(index)}
             >
-              {folder.name}
+              {breadcrumb.name}
             </Breadcrumb>
           </React.Fragment>
         ))}
-      </BreadcrumbContainer>
+      </BreadcrumbsContainer>
       
-      <FileListContainer>
-        {isLoading ? (
-          <LoadingMessage>Loading files and folders...</LoadingMessage>
-        ) : (
-          <>
-            {isCreatingFolder && (
-              <NewFolderForm>
-                <NewFolderInput
-                  type="text"
-                  placeholder="Enter folder name"
-                  value={newFolderName}
-                  onChange={(e) => setNewFolderName(e.target.value)}
-                  autoFocus
-                />
-                <NewFolderActions>
-                  <NewFolderButton onClick={handleCreateFolder}>
-                    {renderIcon(FiCheck)}
-                  </NewFolderButton>
-                  <NewFolderButton onClick={() => setIsCreatingFolder(false)}>
-                    {renderIcon(FiX)}
-                  </NewFolderButton>
-                </NewFolderActions>
-              </NewFolderForm>
-            )}
-            
+      {isLoading ? (
+        <LoadingMessage>Loading files and folders...</LoadingMessage>
+      ) : (
+        <>
+          {isCreatingFolder ? (
+            <NewFolderForm>
+              <input
+                type="text"
+                placeholder="Folder name"
+                value={newFolderName}
+                onChange={(e) => setNewFolderName(e.target.value)}
+                autoFocus
+              />
+              <NewFolderActions>
+                <NewFolderButton onClick={handleCreateFolder}>
+                  {renderIcon(FiCheck)}
+                </NewFolderButton>
+                <NewFolderButton onClick={() => {
+                  setIsCreatingFolder(false);
+                  setNewFolderName('');
+                }}>
+                  {renderIcon(FiX)}
+                </NewFolderButton>
+              </NewFolderActions>
+            </NewFolderForm>
+          ) : null}
+          
+          <FileListContainer>
             {folders.length === 0 && files.length === 0 ? (
               <EmptyStateMessage>
-                {currentFolderId === null 
-                  ? "This client doesn't have any files or folders yet."
-                  : "This folder is empty."}
+                This folder is empty. Upload files or create a new folder.
               </EmptyStateMessage>
             ) : (
               <>
-                {/* Folders */}
-                {folders.map((folder: ClientFolder) => (
-                  <FileListItem key={`folder-${folder.id}`}>
+                {folders.map(folder => (
+                  <FileItem key={folder.id}>
                     <FileItemIcon $isFolder>
                       {renderIcon(FiFolder)}
                     </FileItemIcon>
-                    <FileItemName onClick={() => navigateToFolder(
-                      { 
-                        id: folder.id, 
-                        name: folder.name 
-                      }, 
-                      folderHistory.length
-                    )}>
-                      {folder.name}
-                    </FileItemName>
+                    <FileItemInfo onClick={() => navigateToFolder(folder.id, folder.name)}>
+                      <FileItemName>{folder.name}</FileItemName>
+                      <FileItemMeta>Folder</FileItemMeta>
+                    </FileItemInfo>
                     <FileItemActions>
-                      <FileItemAction onClick={() => handleDeleteFolder(folder)}>
+                      <FileItemAction onClick={(e) => {
+                        e.stopPropagation();
+                        handleDeleteFolder(folder.id);
+                      }}>
                         {renderIcon(FiTrash2)}
                       </FileItemAction>
                     </FileItemActions>
-                  </FileListItem>
+                  </FileItem>
                 ))}
                 
-                {/* Files */}
-                {files.map((file: ClientFile) => (
-                  <FileListItem key={`file-${file.id}`}>
+                {files.map(file => (
+                  <FileItem key={file.id}>
                     <FileItemIcon>
-                      {renderIcon(getFileIcon(file.type))}
+                      {renderIcon(getFileIcon(file.file_type))}
                     </FileItemIcon>
-                    <FileItemName>{file.name}</FileItemName>
-                    <FileItemMeta>
-                      {formatFileSize(file.size)} • {new Date(file.uploadDate).toLocaleDateString()}
-                    </FileItemMeta>
+                    <FileItemInfo>
+                      <FileItemName>{file.name}</FileItemName>
+                      <FileItemMeta>
+                        {formatFileSize(file.size)} • {new Date(file.created_at).toLocaleDateString()}
+                      </FileItemMeta>
+                    </FileItemInfo>
                     <FileItemActions>
-                      <FileItemAction onClick={() => handleFileDownload(file)}>
+                      <FileItemAction onClick={() => handleDownloadFile(file)}>
                         {renderIcon(FiDownload)}
                       </FileItemAction>
-                      <FileItemAction onClick={() => handleDeleteFile(file)}>
+                      <FileItemAction onClick={() => handleDeleteFile(file.id, file.file_path)}>
                         {renderIcon(FiTrash2)}
                       </FileItemAction>
                     </FileItemActions>
-                  </FileListItem>
+                  </FileItem>
                 ))}
               </>
             )}
-          </>
-        )}
-      </FileListContainer>
+            
+            {/* Show upload progress */}
+            {Object.keys(uploadProgress).map(fileId => (
+              <UploadProgressItem key={fileId}>
+                <UploadProgressInfo>
+                  <UploadFileName>{fileId.split('-').slice(1).join('-')}</UploadFileName>
+                  <UploadProgressBar>
+                    <UploadProgressFill style={{ width: `${uploadProgress[fileId]}%` }} />
+                  </UploadProgressBar>
+                </UploadProgressInfo>
+                <StatusBadge $status={uploadStatus[fileId]}>
+                  {uploadStatus[fileId] === 'uploading' && 'Uploading...'}
+                  {uploadStatus[fileId] === 'success' && 'Uploaded'}
+                  {uploadStatus[fileId] === 'error' && 'Failed'}
+                </StatusBadge>
+              </UploadProgressItem>
+            ))}
+          </FileListContainer>
+        </>
+      )}
     </FileManagerContainer>
   );
 };
 
+export default ClientFileManager;
+
 // Styled Components
-interface FileManagerContainerProps {}
-const FileManagerContainer = styled.div<FileManagerContainerProps>`
+const FileManagerContainer = styled.div`
   background: rgba(255, 255, 255, 0.03);
   border-radius: 10px;
   padding: 20px;
@@ -408,126 +375,48 @@ const FileManagerHeader = styled.div`
   margin-bottom: 20px;
   
   h3 {
-    margin: 0;
     font-size: 18px;
-  }
-  
-  @media (max-width: 768px) {
-    flex-direction: column;
-    align-items: flex-start;
-    gap: 15px;
+    font-weight: 600;
+    margin: 0;
   }
 `;
 
 const FileManagerActions = styled.div`
   display: flex;
   gap: 10px;
-  
-  @media (max-width: 768px) {
-    width: 100%;
-    justify-content: space-between;
-  }
 `;
 
 const ActionButton = styled.button`
+  background: rgba(13, 249, 182, 0.1);
+  border: 1px solid rgba(13, 249, 182, 0.3);
+  color: #0df9b6;
+  border-radius: 6px;
+  padding: 8px 12px;
+  font-size: 14px;
+  font-weight: 500;
   display: flex;
   align-items: center;
-  gap: 8px;
-  padding: 8px 12px;
-  background: rgba(31, 83, 255, 0.1);
-  color: white;
-  border: none;
-  border-radius: 6px;
-  font-size: 14px;
+  gap: 6px;
   cursor: pointer;
   transition: all 0.2s ease;
   
   &:hover {
-    background: rgba(31, 83, 255, 0.2);
-  }
-  
-  &:disabled {
-    opacity: 0.5;
-    cursor: not-allowed;
-  }
-  
-  @media (max-width: 768px) {
-    flex: 1;
-    justify-content: center;
+    background: rgba(13, 249, 182, 0.2);
   }
 `;
 
-const ErrorMessage = styled.div`
-  background: rgba(255, 67, 67, 0.1);
-  border: 1px solid rgba(255, 67, 67, 0.3);
-  color: #ff4343;
-  padding: 12px;
-  border-radius: 8px;
-  margin-bottom: 20px;
-  font-size: 14px;
-`;
-
-const UploadProgressContainer = styled.div`
-  margin-bottom: 20px;
-`;
-
-const ProgressBar = styled.div<{ $progress: number }>`
-  height: 6px;
-  background: rgba(255, 255, 255, 0.1);
-  border-radius: 3px;
-  position: relative;
-  overflow: hidden;
-  margin-bottom: 8px;
-  
-  &:after {
-    content: '';
-    position: absolute;
-    top: 0;
-    left: 0;
-    height: 100%;
-    width: ${props => props.$progress}%;
-    background: linear-gradient(90deg, #1F53FF, #FF43A3);
-    border-radius: 3px;
-    transition: width 0.3s ease;
-  }
-`;
-
-const ProgressText = styled.div`
-  font-size: 14px;
-  color: rgba(255, 255, 255, 0.7);
-`;
-
-const BreadcrumbContainer = styled.div`
+const BreadcrumbsContainer = styled.div`
   display: flex;
   align-items: center;
   margin-bottom: 15px;
-  overflow-x: auto;
-  padding-bottom: 5px;
-  
-  &::-webkit-scrollbar {
-    height: 4px;
-  }
-  
-  &::-webkit-scrollbar-track {
-    background: rgba(255, 255, 255, 0.05);
-    border-radius: 2px;
-  }
-  
-  &::-webkit-scrollbar-thumb {
-    background: rgba(255, 255, 255, 0.2);
-    border-radius: 2px;
-  }
+  flex-wrap: wrap;
 `;
 
-interface BreadcrumbProps {
-  $active: boolean;
-}
-const Breadcrumb = styled.span<BreadcrumbProps>`
+const Breadcrumb = styled.span<{ $active: boolean }>`
   font-size: 14px;
   color: ${props => props.$active ? 'white' : 'rgba(255, 255, 255, 0.7)'};
   font-weight: ${props => props.$active ? '600' : '400'};
   cursor: pointer;
-  transition: color 0.2s ease;
   
   &:hover {
     color: white;
@@ -536,50 +425,121 @@ const Breadcrumb = styled.span<BreadcrumbProps>`
 `;
 
 const BreadcrumbSeparator = styled.span`
-  margin: 0 8px;
   color: rgba(255, 255, 255, 0.4);
+  margin: 0 8px;
+  display: flex;
+  align-items: center;
 `;
 
 const FileListContainer = styled.div`
   display: flex;
   flex-direction: column;
+  gap: 10px;
 `;
 
-const LoadingMessage = styled.div`
-  text-align: center;
-  padding: 30px;
-  color: rgba(255, 255, 255, 0.7);
+const FileItem = styled.div`
+  display: flex;
+  align-items: center;
+  padding: 10px;
+  border-radius: 8px;
+  background: rgba(255, 255, 255, 0.05);
+  transition: background 0.2s ease;
+  
+  &:hover {
+    background: rgba(255, 255, 255, 0.08);
+  }
+`;
+
+const FileItemIcon = styled.div<{ $isFolder?: boolean }>`
+  width: 40px;
+  height: 40px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: ${props => props.$isFolder ? 'rgba(255, 149, 0, 0.1)' : 'rgba(0, 122, 255, 0.1)'};
+  color: ${props => props.$isFolder ? '#ff9500' : '#007aff'};
+  border-radius: 8px;
+  margin-right: 12px;
+  font-size: 20px;
+`;
+
+const FileItemInfo = styled.div`
+  flex: 1;
+  cursor: pointer;
+`;
+
+const FileItemName = styled.div`
+  font-weight: 500;
+  margin-bottom: 4px;
+`;
+
+const FileItemMeta = styled.div`
+  font-size: 12px;
+  color: rgba(255, 255, 255, 0.5);
+`;
+
+const FileItemActions = styled.div`
+  display: flex;
+  gap: 8px;
+`;
+
+const FileItemAction = styled.button`
+  background: none;
+  border: none;
+  color: rgba(255, 255, 255, 0.6);
+  font-size: 16px;
+  cursor: pointer;
+  padding: 4px;
+  border-radius: 4px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.2s ease;
+  
+  &:hover {
+    background: rgba(255, 255, 255, 0.1);
+    color: white;
+  }
 `;
 
 const EmptyStateMessage = styled.div`
   text-align: center;
-  padding: 40px 20px;
+  padding: 30px;
   color: rgba(255, 255, 255, 0.5);
-  background: rgba(255, 255, 255, 0.02);
-  border-radius: 8px;
-  font-size: 15px;
+`;
+
+const LoadingMessage = styled.div`
+  text-align: center;
+  padding: 20px;
+  color: rgba(255, 255, 255, 0.7);
+`;
+
+const ErrorMessage = styled.div`
+  background: rgba(255, 59, 48, 0.1);
+  border: 1px solid rgba(255, 59, 48, 0.3);
+  color: #ff3b30;
+  padding: 10px;
+  border-radius: 6px;
+  margin-bottom: 15px;
 `;
 
 const NewFolderForm = styled.div`
   display: flex;
   margin-bottom: 15px;
-  background: rgba(31, 83, 255, 0.05);
-  border-radius: 8px;
-  padding: 10px;
-  border: 1px dashed rgba(31, 83, 255, 0.3);
-`;
-
-const NewFolderInput = styled.input`
-  flex: 1;
-  background: rgba(255, 255, 255, 0.1);
-  border: none;
-  border-radius: 4px;
-  padding: 8px 12px;
-  color: white;
-  font-size: 14px;
   
-  &:focus {
-    outline: none;
+  input {
+    flex: 1;
+    background: rgba(255, 255, 255, 0.1);
+    border: 1px solid rgba(255, 255, 255, 0.2);
+    border-radius: 6px;
+    padding: 8px 12px;
+    color: white;
+    font-size: 14px;
+    
+    &:focus {
+      outline: none;
+      border-color: rgba(13, 249, 182, 0.5);
+    }
   }
 `;
 
@@ -590,143 +550,67 @@ const NewFolderActions = styled.div`
 `;
 
 const NewFolderButton = styled.button`
-  display: flex;
-  align-items: center;
-  justify-content: center;
+  background: rgba(255, 255, 255, 0.1);
+  border: none;
+  color: white;
   width: 30px;
   height: 30px;
   border-radius: 4px;
-  border: none;
-  background: rgba(255, 255, 255, 0.1);
-  color: white;
+  display: flex;
+  align-items: center;
+  justify-content: center;
   cursor: pointer;
-  transition: all 0.2s ease;
   
   &:hover {
     background: rgba(255, 255, 255, 0.2);
   }
-  
-  &:first-child {
-    background: rgba(52, 199, 89, 0.2);
-    color: #34c759;
-    
-    &:hover {
-      background: rgba(52, 199, 89, 0.3);
-    }
-  }
-  
-  &:last-child {
-    background: rgba(255, 67, 67, 0.2);
-    color: #ff4343;
-    
-    &:hover {
-      background: rgba(255, 67, 67, 0.3);
-    }
-  }
 `;
 
-const FileListItem = styled.div`
+const UploadProgressItem = styled.div`
   display: flex;
   align-items: center;
-  padding: 12px 15px;
-  border-radius: 8px;
-  margin-bottom: 8px;
-  background: rgba(255, 255, 255, 0.03);
-  transition: background 0.2s ease;
-  
-  &:hover {
-    background: rgba(255, 255, 255, 0.05);
-  }
-`;
-
-interface FileItemIconProps {
-  $isFolder?: boolean;
-}
-const FileItemIcon = styled.div<FileItemIconProps>`
-  width: 40px;
-  height: 40px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  border-radius: 8px;
-  background: ${props => props.$isFolder 
-    ? 'rgba(255, 149, 0, 0.1)' 
-    : 'rgba(31, 83, 255, 0.1)'};
-  color: ${props => props.$isFolder ? '#ff9500' : '#1F53FF'};
-  margin-right: 15px;
-  font-size: 18px;
-`;
-
-const FileItemName = styled.div`
-  flex: 1;
-  font-size: 15px;
-  cursor: pointer;
-  
-  &:hover {
-    text-decoration: underline;
-  }
-`;
-
-const FileItemMeta = styled.div`
-  font-size: 13px;
-  color: rgba(255, 255, 255, 0.5);
-  margin-right: 15px;
-  
-  @media (max-width: 768px) {
-    display: none;
-  }
-`;
-
-const FileItemActions = styled.div`
-  display: flex;
-  gap: 8px;
-`;
-
-const FileItemAction = styled.button`
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  width: 30px;
-  height: 30px;
-  border-radius: 4px;
-  border: none;
+  justify-content: space-between;
+  padding: 10px;
   background: rgba(255, 255, 255, 0.05);
-  color: rgba(255, 255, 255, 0.7);
-  cursor: pointer;
-  transition: all 0.2s ease;
-  
-  &:hover {
-    background: rgba(255, 255, 255, 0.1);
-    color: white;
-  }
-  
-  &:first-child {
-    color: #1F53FF;
-    
-    &:hover {
-      background: rgba(31, 83, 255, 0.1);
-    }
-  }
-  
-  &:last-child {
-    color: #ff4343;
-    
-    &:hover {
-      background: rgba(255, 67, 67, 0.1);
-    }
-  }
+  border-radius: 8px;
 `;
 
-interface StatusBadgeProps {
-  $status: 'uploading' | 'success' | 'error';
-}
-const StatusBadge = styled.span<StatusBadgeProps>`
+const UploadProgressInfo = styled.div`
+  flex: 1;
+  margin-right: 10px;
+`;
+
+const UploadFileName = styled.div`
+  font-size: 14px;
+  margin-bottom: 5px;
+`;
+
+const UploadProgressBar = styled.div`
+  height: 4px;
+  background: rgba(255, 255, 255, 0.1);
+  border-radius: 2px;
+  overflow: hidden;
+`;
+
+const UploadProgressFill = styled.div`
+  height: 100%;
+  background: #0df9b6;
+  transition: width 0.3s ease;
+`;
+
+const StatusBadge = styled.span<{ $status: 'uploading' | 'success' | 'error' }>`
   font-size: 12px;
   font-weight: 600;
   padding: 4px 8px;
   border-radius: 4px;
-  color: white;
-  background: ${props => props.$status === 'uploading' ? 'rgba(31, 83, 255, 0.2)' : props.$status === 'success' ? 'rgba(52, 199, 89, 0.2)' : 'rgba(255, 67, 67, 0.2)'};
+  background: ${props => 
+    props.$status === 'uploading' ? 'rgba(0, 122, 255, 0.1)' :
+    props.$status === 'success' ? 'rgba(52, 199, 89, 0.1)' :
+    'rgba(255, 59, 48, 0.1)'
+  };
+  color: ${props => 
+    props.$status === 'uploading' ? '#007aff' :
+    props.$status === 'success' ? '#34c759' :
+    '#ff3b30'
+  };
 `;
-
-export default ClientFileManager;

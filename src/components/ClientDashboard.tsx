@@ -1,12 +1,14 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import styled from 'styled-components';
 import { motion } from 'framer-motion';
-import { FiArrowLeft, FiEdit, FiMail, FiPhone, FiActivity, FiCalendar, FiCheckCircle, FiClock, FiCircle, FiFolder, FiList } from 'react-icons/fi';
+import { FiArrowLeft, FiEdit, FiMail, FiPhone, FiActivity, FiCalendar, FiCheckCircle, FiClock, FiCircle, FiFolder, FiList, FiSave, FiX } from 'react-icons/fi';
 import { mockClients } from './ClientList';
 import ProjectDashboard from './ProjectDashboard';
 import ClientFileManager from './ClientFileManager';
 import ClientChecklist from './ClientChecklist';
 import { renderIcon } from '../utils/iconUtils';
+import { getClientById, updateClient, Client } from '../utils/clientService';
+import { supabase } from '../utils/supabaseClient';
 
 interface ClientDashboardProps {
   clientId: string;
@@ -183,9 +185,60 @@ const clientProjects = {
 const ClientDashboard: React.FC<ClientDashboardProps> = ({ clientId, onBack }) => {
   const [activeTab, setActiveTab] = useState<'overview' | 'projects' | 'files' | 'tasks' | 'analytics'>('overview');
   const [selectedProjectId, setSelectedProjectId] = useState<string | null>(null);
+  const [client, setClient] = useState<Client | null>(null);
+  const [isLoading, setIsLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+  const [isEditing, setIsEditing] = useState(false);
+  const [editForm, setEditForm] = useState<Partial<Client>>({});
   
-  const client = mockClients.find(c => c.id === clientId);
+  // Fetch client data
+  useEffect(() => {
+    const fetchClient = async () => {
+      setIsLoading(true);
+      setError(null);
+      
+      try {
+        const clientData = await getClientById(clientId);
+        if (clientData) {
+          setClient(clientData);
+          setEditForm(clientData);
+        } else {
+          // Fallback to mock data if client not found in database
+          const mockClient = mockClients.find(c => c.id === clientId);
+          if (mockClient) {
+            setClient(mockClient as unknown as Client);
+            setEditForm(mockClient as unknown as Client);
+          } else {
+            setError('Client not found');
+          }
+        }
+      } catch (err) {
+        console.error('Error fetching client:', err);
+        setError('Failed to load client data');
+        
+        // Fallback to mock data
+        const mockClient = mockClients.find(c => c.id === clientId);
+        if (mockClient) {
+          setClient(mockClient as unknown as Client);
+          setEditForm(mockClient as unknown as Client);
+        }
+      } finally {
+        setIsLoading(false);
+      }
+    };
+    
+    fetchClient();
+  }, [clientId]);
+  
   const projects = clientProjects[clientId as keyof typeof clientProjects] || [];
+  
+  if (isLoading) {
+    return <LoadingContainer>Loading client data...</LoadingContainer>;
+  }
+  
+  if (error && !client) {
+    return <ErrorContainer>{error}</ErrorContainer>;
+  }
   
   if (!client) {
     return <div>Client not found</div>;
@@ -202,6 +255,28 @@ const ClientDashboard: React.FC<ClientDashboardProps> = ({ clientId, onBack }) =
   
   const completionRate = totalTasks > 0 ? Math.round((completedTasks / totalTasks) * 100) : 0;
   
+  // Handle form input changes
+  const handleInputChange = (field: string, value: string) => {
+    setEditForm(prev => ({
+      ...prev,
+      [field]: value
+    }));
+  };
+  
+  // Handle save client info
+  const handleSaveClientInfo = async () => {
+    try {
+      if (client.id) {
+        await updateClient(client.id, editForm);
+        setClient({...client, ...editForm});
+        setIsEditing(false);
+      }
+    } catch (err) {
+      console.error('Error updating client:', err);
+      alert('Failed to update client information. Please try again.');
+    }
+  };
+  
   const renderContent = () => {
     switch (activeTab) {
       case 'overview':
@@ -210,41 +285,94 @@ const ClientDashboard: React.FC<ClientDashboardProps> = ({ clientId, onBack }) =
             <ClientInfoCard>
               <ClientInfoHeader>
                 <h3>Client Information</h3>
-                <EditButton>
-                  {renderIcon(FiEdit)} Edit
-                </EditButton>
+                {isEditing ? (
+                  <ActionButtons>
+                    <SaveButton onClick={handleSaveClientInfo}>
+                      {renderIcon(FiSave)} Save
+                    </SaveButton>
+                    <CancelButton onClick={() => setIsEditing(false)}>
+                      {renderIcon(FiX)} Cancel
+                    </CancelButton>
+                  </ActionButtons>
+                ) : (
+                  <EditButton onClick={() => setIsEditing(true)}>
+                    {renderIcon(FiEdit)} Edit
+                  </EditButton>
+                )}
               </ClientInfoHeader>
               
               <ClientInfoGrid>
                 <InfoItem>
                   <InfoLabel>Industry</InfoLabel>
-                  <InfoValue>{client.industry}</InfoValue>
+                  {isEditing ? (
+                    <EditInput 
+                      value={editForm.industry || ''} 
+                      onChange={(e) => handleInputChange('industry', e.target.value)} 
+                    />
+                  ) : (
+                    <InfoValue>{client.industry}</InfoValue>
+                  )}
                 </InfoItem>
                 <InfoItem>
                   <InfoLabel>Contact Name</InfoLabel>
-                  <InfoValue>{client.contactName}</InfoValue>
+                  {isEditing ? (
+                    <EditInput 
+                      value={editForm.contact_name || editForm.contactName || ''} 
+                      onChange={(e) => handleInputChange('contact_name', e.target.value)} 
+                    />
+                  ) : (
+                    <InfoValue>{client.contact_name || client.contactName}</InfoValue>
+                  )}
                 </InfoItem>
                 <InfoItem>
                   <InfoLabel>Email</InfoLabel>
-                  <InfoValue>
-                    {renderIcon(FiMail, { style: { marginRight: '5px' } })}
-                    {client.contactEmail}
-                  </InfoValue>
+                  {isEditing ? (
+                    <EditInput 
+                      value={editForm.contact_email || editForm.contactEmail || ''} 
+                      onChange={(e) => handleInputChange('contact_email', e.target.value)} 
+                    />
+                  ) : (
+                    <InfoValue>
+                      {renderIcon(FiMail, { style: { marginRight: '5px' } })}
+                      {client.contact_email || client.contactEmail}
+                    </InfoValue>
+                  )}
                 </InfoItem>
                 <InfoItem>
                   <InfoLabel>Phone</InfoLabel>
-                  <InfoValue>
-                    {renderIcon(FiPhone, { style: { marginRight: '5px' } })}
-                    {client.contactPhone}
-                  </InfoValue>
+                  {isEditing ? (
+                    <EditInput 
+                      value={editForm.contact_phone || editForm.contactPhone || ''} 
+                      onChange={(e) => handleInputChange('contact_phone', e.target.value)} 
+                    />
+                  ) : (
+                    <InfoValue>
+                      {renderIcon(FiPhone, { style: { marginRight: '5px' } })}
+                      {client.contact_phone || client.contactPhone}
+                    </InfoValue>
+                  )}
                 </InfoItem>
                 <InfoItem>
                   <InfoLabel>Username</InfoLabel>
-                  <InfoValue>{client.username}</InfoValue>
+                  {isEditing ? (
+                    <EditInput 
+                      value={editForm.username || ''} 
+                      onChange={(e) => handleInputChange('username', e.target.value)} 
+                    />
+                  ) : (
+                    <InfoValue>{client.username}</InfoValue>
+                  )}
                 </InfoItem>
                 <InfoItem>
                   <InfoLabel>Password</InfoLabel>
-                  <InfoValue>{client.password}</InfoValue>
+                  {isEditing ? (
+                    <EditInput 
+                      value={editForm.password || ''} 
+                      onChange={(e) => handleInputChange('password', e.target.value)} 
+                    />
+                  ) : (
+                    <InfoValue>{client.password}</InfoValue>
+                  )}
                 </InfoItem>
               </ClientInfoGrid>
             </ClientInfoCard>
@@ -595,6 +723,47 @@ const EditButton = styled.button`
   }
 `;
 
+const ActionButtons = styled.div`
+  display: flex;
+  gap: 10px;
+`;
+
+const SaveButton = styled.button`
+  background: rgba(255, 255, 255, 0.1);
+  border: none;
+  border-radius: 6px;
+  padding: 8px 12px;
+  color: white;
+  font-size: 13px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  transition: all 0.2s ease;
+  
+  &:hover {
+    background: rgba(255, 255, 255, 0.15);
+  }
+`;
+
+const CancelButton = styled.button`
+  background: rgba(255, 255, 255, 0.1);
+  border: none;
+  border-radius: 6px;
+  padding: 8px 12px;
+  color: white;
+  font-size: 13px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  transition: all 0.2s ease;
+  
+  &:hover {
+    background: rgba(255, 255, 255, 0.15);
+  }
+`;
+
 const ClientInfoGrid = styled.div`
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(250px, 1fr));
@@ -613,6 +782,21 @@ const InfoValue = styled.div`
   font-size: 15px;
   display: flex;
   align-items: center;
+`;
+
+const EditInput = styled.input`
+  background: transparent;
+  border: none;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+  padding: 10px 0;
+  color: white;
+  font-size: 15px;
+  width: 100%;
+  transition: all 0.2s ease;
+  
+  &:focus {
+    border-bottom-color: white;
+  }
 `;
 
 const MetricsSection = styled.div`
@@ -843,6 +1027,24 @@ const ComingSoonMessage = styled.div`
       color: rgba(255, 255, 255, 0.7);
     }
   }
+`;
+
+const LoadingContainer = styled.div`
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  height: 100vh;
+  font-size: 18px;
+  color: rgba(255, 255, 255, 0.7);
+`;
+
+const ErrorContainer = styled.div`
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  height: 100vh;
+  font-size: 18px;
+  color: rgba(255, 255, 255, 0.7);
 `;
 
 export default ClientDashboard;
