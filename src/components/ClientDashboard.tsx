@@ -349,8 +349,8 @@ const ClientDashboard: React.FC<ClientDashboardProps> = ({ clientId, onBack }) =
                       <ProgressLabel>{project.progress}%</ProgressLabel>
                     </ProjectProgress>
                     <ProjectDates>
-                      <span>Start: {project.startDate ? project.startDate.toLocaleDateString() : new Date(project.start_date || '').toLocaleDateString()}</span>
-                      <span>Due: {project.dueDate ? project.dueDate.toLocaleDateString() : new Date(project.due_date || '').toLocaleDateString()}</span>
+                      <span>Start: {new Date(project.start_date || '').toLocaleDateString()}</span>
+                      <span>Due: {new Date(project.due_date || '').toLocaleDateString()}</span>
                     </ProjectDates>
                   </ProjectCard>
                 ))}
@@ -388,8 +388,8 @@ const ClientDashboard: React.FC<ClientDashboardProps> = ({ clientId, onBack }) =
                         <ProgressLabel>{project.progress}%</ProgressLabel>
                       </ProjectProgress>
                       <ProjectDates>
-                        <span>Start: {project.startDate ? project.startDate.toLocaleDateString() : new Date(project.start_date || '').toLocaleDateString()}</span>
-                        <span>Due: {project.dueDate ? project.dueDate.toLocaleDateString() : new Date(project.due_date || '').toLocaleDateString()}</span>
+                        <span>Start: {new Date(project.start_date || '').toLocaleDateString()}</span>
+                        <span>Due: {new Date(project.due_date || '').toLocaleDateString()}</span>
                       </ProjectDates>
                       <TaskSummary>
                         <TaskStatus>

@@ -76,10 +76,8 @@ export const getProjectsByClientId = async (clientId: string): Promise<Project[]
         
         return { 
           ...project, 
-          tasks: tasks || [],
-          // Convert string dates to Date objects if needed
-          startDate: project.start_date ? new Date(project.start_date) : new Date(),
-          dueDate: project.due_date ? new Date(project.due_date) : new Date()
+          tasks: tasks || []
+          // Use start_date and due_date directly from the database
         };
       })
     );
