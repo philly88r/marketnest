@@ -8,7 +8,23 @@ const supabaseAnonKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYm
 console.log('Supabase URL:', supabaseUrl);
 console.log('Supabase Anon Key (first 10 chars):', supabaseAnonKey.substring(0, 10) + '...');
 
-// Create the Supabase client with proper configuration
+// Create custom fetch function that always includes the API key
+const customFetch = (url: RequestInfo | URL, options: RequestInit = {}) => {
+  // Ensure headers object exists
+  options.headers = options.headers || {};
+  
+  // Add the API key to headers
+  options.headers = {
+    ...options.headers,
+    'apikey': supabaseAnonKey,
+    'Authorization': `Bearer ${supabaseAnonKey}`
+  };
+  
+  console.log('Making Supabase request with headers:', JSON.stringify(options.headers));
+  return fetch(url, options);
+};
+
+// Create the Supabase client with proper configuration and custom fetch
 const supabase = createClient(supabaseUrl, supabaseAnonKey, {
   auth: {
     autoRefreshToken: true,
@@ -16,13 +32,15 @@ const supabase = createClient(supabaseUrl, supabaseAnonKey, {
   },
   global: {
     headers: {
-      apikey: supabaseAnonKey
-    }
+      apikey: supabaseAnonKey,
+      Authorization: `Bearer ${supabaseAnonKey}`
+    },
+    fetch: customFetch
   }
 });
 
 // Verify the client has been created with the API key
-console.log('Supabase client created with API key in headers');
+console.log('Supabase client created with custom fetch and API key in headers');
 
 // Add direct client login method to avoid using RPC
 export const clientLogin = async (username: string, password: string) => {
