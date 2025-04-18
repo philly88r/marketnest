@@ -524,9 +524,9 @@ const ClientDashboard: React.FC<ClientDashboardProps> = ({ clientId, onBack }) =
           <FiArrowLeft /> Back to Clients
         </BackToListButton>
         <ClientHeaderInfo>
-          <ClientLogo src={client.logo || '/default-client-logo.png'} alt={client.name} />
+          <ClientLogo src={client?.logo || '/default-client-logo.png'} alt={client?.name || 'Client'} />
           <div>
-            <ClientName>{client.name.includes('Liberty Beans') ? `${client.name} $$$` : client.name}</ClientName>
+            <ClientName>{client?.name && client.name.includes('Liberty Beans') ? `${client.name} $$$` : client?.name || 'Client'}</ClientName>
           </div>
         </ClientHeaderInfo>
       </ClientHeader>
