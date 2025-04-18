@@ -207,15 +207,26 @@ const ClientList: React.FC<ClientListProps> = ({ onSelectClient }) => {
                   </ActionButton>
                   <ActionButton 
                     onClick={() => {
-                      console.log('Liberty Beans View clicked', client);
+                      console.log('Liberty Beans View clicked');
                       try {
-                        // Always use client-liberty-beans ID for Liberty Beans Coffee
-                        onSelectClient('client-liberty-beans');
+                        // Call onSelectClient directly with the Liberty Beans ID
+                        // Add a delay to ensure the state update completes
+                        setTimeout(() => {
+                          onSelectClient('client-liberty-beans');
+                        }, 100);
                       } catch (err) {
                         console.error('Error selecting client:', err);
                       }
                     }}
-                    style={{ background: 'rgba(31, 83, 255, 0.25)', cursor: 'pointer' }}
+                    style={{ 
+                      background: 'rgba(255, 0, 0, 0.25)', 
+                      cursor: 'pointer',
+                      padding: '10px 15px',
+                      fontWeight: 'bold',
+                      fontSize: '15px',
+                      boxShadow: '0 4px 8px rgba(0, 0, 0, 0.2)',
+                      transform: 'scale(1.05)'
+                    }}
                   >
                     {renderIcon(FiEye)} View
                   </ActionButton>

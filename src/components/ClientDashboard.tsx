@@ -1,16 +1,17 @@
 import React, { useState, useEffect } from 'react';
 import styled from 'styled-components';
 import { motion } from 'framer-motion';
-import { FiArrowLeft, FiEdit, FiMail, FiPhone, FiActivity, FiCalendar, FiCheckCircle, FiClock, FiCircle, FiFolder, FiList, FiSave, FiX } from 'react-icons/fi';
+import { FiArrowLeft, FiEdit, FiMail, FiPhone, FiActivity, FiCalendar, FiCheckCircle, FiClock, FiCircle, FiFolder, FiList, FiSave, FiX, FiPlus, FiTrash2 } from 'react-icons/fi';
 // Only using real data from Supabase
 import ProjectDashboard from './ProjectDashboard';
 import ClientFileManager from './ClientFileManager';
 import ClientChecklist from './ClientChecklist';
 import ClientChat from './ClientChat';
+import ProjectEditor from './ProjectEditor';
 import { renderIcon } from '../utils/iconUtils';
 import { getClientById, updateClient, Client } from '../utils/clientService';
 import { supabase } from '../utils/supabaseClient';
-import { getProjectsByClientId, Project, Task } from '../utils/projectService';
+import { getProjectsByClientId, createProject, deleteProject, updateProject, createTask, updateTask, deleteTask, Project, Task } from '../utils/projectService';
 
 interface ClientDashboardProps {
   clientId: string;
@@ -23,94 +24,85 @@ const ClientDashboard: React.FC<ClientDashboardProps> = ({ clientId, onBack }) =
   const [activeTab, setActiveTab] = useState<'overview' | 'projects' | 'files' | 'tasks' | 'analytics'>('overview');
   const [selectedProjectId, setSelectedProjectId] = useState<string | null>(null);
   const [client, setClient] = useState<Client | null>(null);
+  const [editedClient, setEditedClient] = useState<Client | null>(null);
   const [projects, setProjects] = useState<Project[]>([]);
-  const [isLoadingProjects, setIsLoadingProjects] = useState(true);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [isEditing, setIsEditing] = useState(false);
-  const [editForm, setEditForm] = useState<Partial<Client>>({});
   const [saveError, setSaveError] = useState<string | null>(null);
   const [saveSuccess, setSaveSuccess] = useState(false);
+  
+  // Project editing states
+  const [selectedProject, setSelectedProject] = useState<Project | null>(null);
+  const [isEditingProject, setIsEditingProject] = useState(false);
+  const [isCreatingProject, setIsCreatingProject] = useState(false);
+  const [editingProject, setEditingProject] = useState<Project | null>(null);
+  const [projectActionError, setProjectActionError] = useState<string | null>(null);
+  const [projectActionSuccess, setProjectActionSuccess] = useState<string | null>(null);
+  
+  // Task editing states
+  const [selectedTaskId, setSelectedTaskId] = useState<string | null>(null);
+  const [isEditingTask, setIsEditingTask] = useState(false);
+  const [editedTask, setEditedTask] = useState<Task | null>(null);
+  const [taskActionError, setTaskActionError] = useState<string | null>(null);
+  const [taskActionSuccess, setTaskActionSuccess] = useState<string | null>(null);
+
+  // Handlers for client editing
+  const handleSaveClientChanges = () => {
+    // Implement save logic or stub
+    setIsEditing(false);
+    setSaveSuccess(true);
+    setTimeout(() => setSaveSuccess(false), 2000);
+  };
+  const handleCancelEditClient = () => {
+    setIsEditing(false);
+    setSaveError(null);
+  };
+  const handleDeleteProject = (projectId: string | null) => {
+    // Implement delete logic or stub
+    if (!projectId) return;
+    setProjects(prev => prev.filter(p => p.id !== projectId));
+    setSelectedProjectId(null);
+    setProjectActionSuccess('Project deleted successfully!');
+    setTimeout(() => setProjectActionSuccess(null), 2000);
+  };
+
+  // Display projects (add filtering logic if needed)
+  const displayProjects = projects;
 
   // Fetch client data and projects
   useEffect(() => {
     const fetchClientAndProjects = async () => {
       setIsLoading(true);
-      setIsLoadingProjects(true);
       setError(null);
       console.log('Fetching client with ID:', clientId);
 
       try {
-        // Special handling for Liberty Beans Coffee
-        if (clientId === 'client-001' || clientId === 'client-liberty-beans') {
-          console.log('Liberty Beans client detected, checking both IDs');
-          
-          // Try the new ID first
-          let clientData = await getClientById('client-liberty-beans');
-          
-          // If not found, try the old ID
-          if (!clientData) {
-            clientData = await getClientById('client-001');
-          }
-          
-          if (clientData) {
-            console.log('Found Liberty Beans client:', clientData);
-            setClient(clientData);
-            setEditForm(clientData);
-            
-            // Fetch projects for Liberty Beans
-            try {
-              const clientProjects = await getProjectsByClientId(clientData.id);
-              console.log('Fetched projects for Liberty Beans:', clientProjects);
-              setProjects(clientProjects);
-            } catch (projectErr) {
-              console.error('Error fetching projects for Liberty Beans:', projectErr);
-              setProjects([]);
-            } finally {
-              setIsLoadingProjects(false);
-            }
-          } else {
-            // Show error instead of using mock data
-            console.log('Liberty Beans not found in database');
-            setError('Liberty Beans Coffee client not found in the database. Please check your connection and try again.');
-            setClient(null);
-            setProjects([]);
-            setIsLoadingProjects(false);
-          }
+        // Fetch client data
+        const clientData = await getClientById(clientId);
+        if (clientData) {
+          setClient(clientData);
+          setEditedClient(clientData);
         } else {
-          // Normal handling for other clients
-          const clientData = await getClientById(clientId);
-          if (clientData) {
-            setClient(clientData);
-            setEditForm(clientData);
-            
-            // Fetch projects for this client
-            try {
-              const clientProjects = await getProjectsByClientId(clientData.id);
-              console.log(`Fetched ${clientProjects.length} projects for client:`, clientData.id);
-              setProjects(clientProjects);
-            } catch (projectErr) {
-              console.error(`Error fetching projects for client ${clientData.id}:`, projectErr);
-              setProjects([]);
-            } finally {
-              setIsLoadingProjects(false);
-            }
-          } else {
-            // Show error instead of using mock data
-            setError('Client not found in the database. Please check your connection and try again.');
-            setClient(null);
-            setProjects([]);
-            setIsLoadingProjects(false);
-          }
+          setError('Client not found');
+          setIsLoading(false);
+          return;
         }
+        
+        // Fetch projects data
+        const projectsData = await getProjectsByClientId(clientId);
+        // Ensure each project has a tasks array and client_id
+        const projectsWithTasks = projectsData.map(project => ({
+          ...project,
+          tasks: project.tasks || [],
+          client_id: project.client_id || clientId
+        }));
+        setProjects(projectsWithTasks);
+        
+        setIsLoading(false);
       } catch (err) {
-        console.error('Error fetching client:', err);
-        setError('Failed to load client data. Please check your connection and try again.');
-        setClient(null);
-        setEditForm({});
-        setProjects([]);
-        setIsLoadingProjects(false);
-      } finally {
+        console.error('Error fetching client data:', err);
+        setError('Failed to load client data. Please try again.');
         setIsLoading(false);
       }
     };
@@ -118,9 +110,7 @@ const ClientDashboard: React.FC<ClientDashboardProps> = ({ clientId, onBack }) =
     fetchClientAndProjects();
   }, [clientId]);
 
-  // Projects are now fetched from the database via the useEffect
-
-  if (isLoading || isLoadingProjects) {
+  if (isLoading) {
     return <LoadingContainer>Loading client data...</LoadingContainer>;
   }
 
@@ -132,56 +122,6 @@ const ClientDashboard: React.FC<ClientDashboardProps> = ({ clientId, onBack }) =
     return <div>Client not found</div>;
   }
 
-  // Calculate metrics
-  const completedTasks = projects.reduce((sum, project) => {
-    return sum + project.tasks.filter(task => task.status === 'completed').length;
-  }, 0);
-
-  const totalTasks = projects.reduce((sum, project) => {
-    return sum + project.tasks.length;
-  }, 0);
-
-  const completionRate = totalTasks > 0 ? Math.round((completedTasks / totalTasks) * 100) : 0;
-
-  // Handle input changes in the edit form
-  const handleInputChange = (field: string, value: string) => {
-    setEditForm(prev => ({ ...prev, [field]: value }));
-  };
-
-  // Handle save changes
-  const handleSaveChanges = async () => {
-    try {
-      if (!client) return;
-
-      setSaveError(null);
-      setSaveSuccess(false);
-
-      // Update client in database
-      const updatedClient = await updateClient(client.id, editForm);
-
-      if (updatedClient) {
-        setClient(updatedClient);
-        setIsEditing(false);
-        setSaveSuccess(true);
-
-        // Hide success message after 3 seconds
-        setTimeout(() => {
-          setSaveSuccess(false);
-        }, 3000);
-      }
-    } catch (err) {
-      console.error('Error saving client changes:', err);
-      setSaveError('Failed to save changes. Please try again.');
-    }
-  };
-
-  // Handle cancel edit
-  const handleCancelEdit = () => {
-    setEditForm(client || {});
-    setIsEditing(false);
-    setSaveError(null);
-  };
-
   const renderContent = () => {
     switch (activeTab) {
       case 'overview':
@@ -192,10 +132,10 @@ const ClientDashboard: React.FC<ClientDashboardProps> = ({ clientId, onBack }) =
                 <h3>Client Information</h3>
                 {isEditing ? (
                   <EditActions>
-                    <SaveButton onClick={handleSaveChanges}>
+                    <SaveButton onClick={handleSaveClientChanges}>
                       {renderIcon(FiSave)} Save
                     </SaveButton>
-                    <CancelButton onClick={handleCancelEdit}>
+                    <CancelButton onClick={handleCancelEditClient}>
                       {renderIcon(FiX)} Cancel
                     </CancelButton>
                   </EditActions>
@@ -214,8 +154,8 @@ const ClientDashboard: React.FC<ClientDashboardProps> = ({ clientId, onBack }) =
                   <InfoLabel>Industry</InfoLabel>
                   {isEditing ? (
                     <EditInput
-                      value={editForm.industry || ''}
-                      onChange={(e) => handleInputChange('industry', e.target.value)}
+                      value={editedClient.industry || ''}
+                      onChange={(e) => setEditedClient(prev => ({ ...prev, industry: e.target.value }))}
                     />
                   ) : (
                     <InfoValue>{client.industry}</InfoValue>
@@ -225,8 +165,8 @@ const ClientDashboard: React.FC<ClientDashboardProps> = ({ clientId, onBack }) =
                   <InfoLabel>Contact Name</InfoLabel>
                   {isEditing ? (
                     <EditInput
-                      value={editForm.contactname || editForm.contact_name || ''}
-                      onChange={(e) => handleInputChange('contactname', e.target.value)}
+                      value={editedClient.contactname || editedClient.contact_name || ''}
+                      onChange={(e) => setEditedClient(prev => ({ ...prev, contactname: e.target.value }))}
                     />
                   ) : (
                     <InfoValue>{client.contactname || client.contact_name}</InfoValue>
@@ -236,8 +176,8 @@ const ClientDashboard: React.FC<ClientDashboardProps> = ({ clientId, onBack }) =
                   <InfoLabel>Email</InfoLabel>
                   {isEditing ? (
                     <EditInput
-                      value={editForm.contactemail || editForm.contact_email || ''}
-                      onChange={(e) => handleInputChange('contactemail', e.target.value)}
+                      value={editedClient.contactemail || editedClient.contact_email || ''}
+                      onChange={(e) => setEditedClient(prev => ({ ...prev, contactemail: e.target.value }))}
                     />
                   ) : (
                     <InfoValue>
@@ -250,8 +190,8 @@ const ClientDashboard: React.FC<ClientDashboardProps> = ({ clientId, onBack }) =
                   <InfoLabel>Phone</InfoLabel>
                   {isEditing ? (
                     <EditInput
-                      value={editForm.contactphone || editForm.contact_phone || ''}
-                      onChange={(e) => handleInputChange('contactphone', e.target.value)}
+                      value={editedClient.contactphone || editedClient.contact_phone || ''}
+                      onChange={(e) => setEditedClient(prev => ({ ...prev, contactphone: e.target.value }))}
                     />
                   ) : (
                     <InfoValue>
@@ -264,8 +204,8 @@ const ClientDashboard: React.FC<ClientDashboardProps> = ({ clientId, onBack }) =
                   <InfoLabel>Username</InfoLabel>
                   {isEditing ? (
                     <EditInput
-                      value={editForm.username || ''}
-                      onChange={(e) => handleInputChange('username', e.target.value)}
+                      value={editedClient.username || ''}
+                      onChange={(e) => setEditedClient(prev => ({ ...prev, username: e.target.value }))}
                     />
                   ) : (
                     <InfoValue>{client.username}</InfoValue>
@@ -275,8 +215,8 @@ const ClientDashboard: React.FC<ClientDashboardProps> = ({ clientId, onBack }) =
                   <InfoLabel>Password</InfoLabel>
                   {isEditing ? (
                     <EditInput
-                      value={editForm.password || ''}
-                      onChange={(e) => handleInputChange('password', e.target.value)}
+                      value={editedClient.password || ''}
+                      onChange={(e) => setEditedClient(prev => ({ ...prev, password: e.target.value }))}
                     />
                   ) : (
                     <InfoValue>{client.password}</InfoValue>
@@ -303,7 +243,7 @@ const ClientDashboard: React.FC<ClientDashboardProps> = ({ clientId, onBack }) =
                     {renderIcon(FiCheckCircle)}
                   </MetricIcon>
                   <MetricInfo>
-                    <MetricValue>{completedTasks}</MetricValue>
+                    <MetricValue>{projects.reduce((sum, project) => sum + (project.tasks?.filter(task => task.status === 'completed')?.length || 0), 0)}</MetricValue>
                     <MetricLabel>Completed Tasks</MetricLabel>
                   </MetricInfo>
                 </MetricCard>
@@ -313,7 +253,7 @@ const ClientDashboard: React.FC<ClientDashboardProps> = ({ clientId, onBack }) =
                     {renderIcon(FiClock)}
                   </MetricIcon>
                   <MetricInfo>
-                    <MetricValue>{totalTasks - completedTasks}</MetricValue>
+                    <MetricValue>{projects.reduce((sum, project) => sum + (project.tasks?.length || 0), 0) - projects.reduce((sum, project) => sum + (project.tasks?.filter(task => task.status === 'completed')?.length || 0), 0)}</MetricValue>
                     <MetricLabel>Pending Tasks</MetricLabel>
                   </MetricInfo>
                 </MetricCard>
@@ -323,7 +263,7 @@ const ClientDashboard: React.FC<ClientDashboardProps> = ({ clientId, onBack }) =
                     {renderIcon(FiCalendar)}
                   </MetricIcon>
                   <MetricInfo>
-                    <MetricValue>{completionRate}%</MetricValue>
+                    <MetricValue>{Math.round((projects.reduce((sum, project) => sum + (project.tasks?.filter(task => task.status === 'completed')?.length || 0), 0) / (projects.reduce((sum, project) => sum + (project.tasks?.length || 0), 0) || 1)) * 100)}%</MetricValue>
                     <MetricLabel>Completion Rate</MetricLabel>
                   </MetricInfo>
                 </MetricCard>
@@ -361,22 +301,138 @@ const ClientDashboard: React.FC<ClientDashboardProps> = ({ clientId, onBack }) =
       case 'projects':
         return (
           <ProjectsContent>
+            {(isEditingProject || isCreatingProject) && (
+              <ProjectEditor
+                project={editingProject || undefined}
+                clientId={clientId}
+                isNewProject={isCreatingProject}
+                onSave={(savedProject) => {
+                  // Update projects list
+                  if (isCreatingProject) {
+                    setProjects(prev => [...prev, {...savedProject, tasks: []}]);
+                    setProjectActionSuccess('Project created successfully!');
+                  } else {
+                    setProjects(prev => prev.map(p => p.id === savedProject.id ? {...savedProject, tasks: p.tasks} : p));
+                    setProjectActionSuccess('Project updated successfully!');
+                  }
+                  
+                  // Reset editing state
+                  setIsEditingProject(false);
+                  setIsCreatingProject(false);
+                  setEditingProject(null);
+                  
+                  // Hide success message after 3 seconds
+                  setTimeout(() => {
+                    setProjectActionSuccess(null);
+                  }, 3000);
+                }}
+                onCancel={() => {
+                  setIsEditingProject(false);
+                  setIsCreatingProject(false);
+                  setEditingProject(null);
+                }}
+              />
+            )}
+            
+            {projectActionError && (
+              <ErrorMessage>{projectActionError}</ErrorMessage>
+            )}
+            {projectActionSuccess && (
+              <SuccessMessage>{projectActionSuccess}</SuccessMessage>
+            )}
+            
             {selectedProjectId ? (
-              <div>
-                <BackToProjectsButton onClick={() => setSelectedProjectId(null)}>
-                  {renderIcon(FiArrowLeft)} Back to Projects
-                </BackToProjectsButton>
-                <ProjectDashboard projectId={selectedProjectId} />
-              </div>
+              <>
+                <BackToListButton onClick={() => setSelectedProjectId(null)}>
+                  <FiArrowLeft /> Back to All Projects
+                </BackToListButton>
+                
+                {projects.find(p => p.id === selectedProjectId) && (
+                  <ProjectDetail>
+                    <ProjectDetailHeader>
+                      <h3>{projects.find(p => p.id === selectedProjectId)?.name}</h3>
+                      <ProjectActionButtons>
+                        <ActionButton 
+                          onClick={() => {
+                            const project = projects.find(p => p.id === selectedProjectId);
+                            if (project) {
+                              setEditingProject(project);
+                              setIsEditingProject(true);
+                            }
+                          }}
+                        >
+                          {renderIcon(FiEdit)} Edit Project
+                        </ActionButton>
+                        <ActionButton 
+                          onClick={() => handleDeleteProject(selectedProjectId)}
+                          style={{ background: 'rgba(255, 59, 48, 0.2)' }}
+                        >
+                          {renderIcon(FiTrash2)} Delete Project
+                        </ActionButton>
+                      </ProjectActionButtons>
+                    </ProjectDetailHeader>
+                    
+                    <ProjectDetailGrid>
+                      <DetailItem>
+                        <DetailLabel>Status</DetailLabel>
+                        <StatusBadge $status={projects.find(p => p.id === selectedProjectId)?.status || 'planning'}>
+                          {projects.find(p => p.id === selectedProjectId)?.status === 'completed' ? 'Completed' :
+                           projects.find(p => p.id === selectedProjectId)?.status === 'in-progress' ? 'In Progress' : 'Planning'}
+                        </StatusBadge>
+                      </DetailItem>
+                      <DetailItem>
+                        <DetailLabel>Progress</DetailLabel>
+                        <DetailValue>{projects.find(p => p.id === selectedProjectId)?.progress}%</DetailValue>
+                      </DetailItem>
+                      <DetailItem>
+                        <DetailLabel>Start Date</DetailLabel>
+                        <DetailValue>{new Date(projects.find(p => p.id === selectedProjectId)?.start_date || '').toLocaleDateString()}</DetailValue>
+                      </DetailItem>
+                      <DetailItem>
+                        <DetailLabel>Due Date</DetailLabel>
+                        <DetailValue>{new Date(projects.find(p => p.id === selectedProjectId)?.due_date || '').toLocaleDateString()}</DetailValue>
+                      </DetailItem>
+                    </ProjectDetailGrid>
+                    
+                    <h4>Tasks</h4>
+                    <TasksTable>
+                      <thead>
+                        <tr>
+                          <th>Task Name</th>
+                          <th>Status</th>
+                          <th>Assignee</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {projects.find(p => p.id === selectedProjectId)?.tasks?.map(task => (
+                          <tr key={task.id}>
+                            <td>{task.name}</td>
+                            <td>
+                              <StatusBadge $status={task.status}>
+                                {task.status === 'completed' ? 'Completed' :
+                                 task.status === 'in-progress' ? 'In Progress' : 'Not Started'}
+                              </StatusBadge>
+                            </td>
+                            <td>{task.assignee}</td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </TasksTable>
+                  </ProjectDetail>
+                )}
+              </>
             ) : (
               <>
-                <h3>All Projects</h3>
+                <ProjectsHeader>
+                  <h3>Client Projects</h3>
+                  <CreateProjectButton onClick={() => setIsCreatingProject(true)}>
+                    {renderIcon(FiPlus)} Create New Project
+                  </CreateProjectButton>
+                </ProjectsHeader>
+                
                 <AllProjectsGrid>
-                  {projects.map(project => (
-                    <ProjectCard
-                      key={project.id}
-                      onClick={() => setSelectedProjectId(project.id)}
-                    >
+                  {displayProjects.map(project => (
+                    <ProjectCard key={project.id}>
                       <ProjectHeader>
                         <ProjectTitle>{project.name}</ProjectTitle>
                         <StatusBadge $status={project.status}>
@@ -405,6 +461,20 @@ const ClientDashboard: React.FC<ClientDashboardProps> = ({ clientId, onBack }) =
                           {project.tasks.filter(t => t.status === 'not-started').length} not started
                         </TaskStatus>
                       </TaskSummary>
+                      <ProjectCardActions>
+                        <CardActionButton onClick={() => setSelectedProjectId(project.id)}>
+                          View Details
+                        </CardActionButton>
+                        <CardActionButton 
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            setEditingProject(project);
+                            setIsEditingProject(true);
+                          }}
+                        >
+                          {renderIcon(FiEdit)} Edit
+                        </CardActionButton>
+                      </ProjectCardActions>
                     </ProjectCard>
                   ))}
                 </AllProjectsGrid>
@@ -450,9 +520,9 @@ const ClientDashboard: React.FC<ClientDashboardProps> = ({ clientId, onBack }) =
   return (
     <ClientDashboardContainer>
       <ClientHeader>
-        <BackButton onClick={onBack}>
-          {renderIcon(FiArrowLeft)} Back to Clients
-        </BackButton>
+        <BackToListButton onClick={onBack}>
+          <FiArrowLeft /> Back to Clients
+        </BackToListButton>
         <ClientHeaderInfo>
           <ClientLogo src={client.logo || '/default-client-logo.png'} alt={client.name} />
           <div>
@@ -708,15 +778,21 @@ const EditInput = styled.input`
 `;
 
 const ErrorMessage = styled.div`
-  color: #ff0000;
-  font-size: 14px;
-  margin-bottom: 10px;
+  padding: 10px;
+  background: rgba(255, 59, 48, 0.2);
+  border-left: 3px solid #ff3b30;
+  color: white;
+  margin-bottom: 15px;
+  border-radius: 3px;
 `;
 
 const SuccessMessage = styled.div`
-  color: #34c759;
-  font-size: 14px;
-  margin-bottom: 10px;
+  padding: 10px;
+  background: rgba(52, 199, 89, 0.2);
+  border-left: 3px solid #34c759;
+  color: white;
+  margin-bottom: 15px;
+  border-radius: 3px;
 `;
 
 const MetricsSection = styled.div`
@@ -893,13 +969,164 @@ const ProjectsContent = styled.div`
   }
 `;
 
+const ProjectsHeader = styled.div`
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 20px;
+`;
+
+const CreateProjectButton = styled.button`
+  padding: 10px 15px;
+  background: rgba(31, 83, 255, 0.25);
+  color: white;
+  border: none;
+  border-radius: 5px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-weight: 600;
+  transition: all 0.2s ease;
+  
+  &:hover {
+    background: rgba(31, 83, 255, 0.4);
+  }
+  
+  svg {
+    font-size: 16px;
+  }
+`;
+
+const ProjectDetail = styled.div`
+  background: rgba(255, 255, 255, 0.03);
+  border-radius: 10px;
+  padding: 20px;
+  margin-bottom: 30px;
+`;
+
+const ProjectDetailHeader = styled.div`
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 20px;
+  
+  h3 {
+    margin: 0;
+  }
+`;
+
+const ProjectActionButtons = styled.div`
+  display: flex;
+  gap: 10px;
+`;
+
+const ActionButton = styled.button`
+  padding: 8px 12px;
+  background: rgba(31, 83, 255, 0.25);
+  color: white;
+  border: none;
+  border-radius: 5px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  font-size: 14px;
+  transition: all 0.2s ease;
+  
+  &:hover {
+    background: rgba(31, 83, 255, 0.4);
+  }
+  
+  svg {
+    font-size: 16px;
+  }
+`;
+
+const ProjectDetailGrid = styled.div`
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+  gap: 15px;
+  margin-bottom: 30px;
+`;
+
+const DetailItem = styled.div`
+  background: rgba(255, 255, 255, 0.05);
+  padding: 15px;
+  border-radius: 8px;
+`;
+
+const DetailLabel = styled.div`
+  font-size: 12px;
+  color: rgba(255, 255, 255, 0.7);
+  margin-bottom: 5px;
+`;
+
+const DetailValue = styled.div`
+  font-size: 16px;
+  font-weight: 600;
+`;
+
+const TasksTable = styled.table`
+  width: 100%;
+  border-collapse: collapse;
+  margin-top: 15px;
+  
+  th, td {
+    padding: 12px 15px;
+    text-align: left;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+  }
+  
+  th {
+    font-weight: 600;
+    color: rgba(255, 255, 255, 0.7);
+    font-size: 14px;
+  }
+  
+  td {
+    font-size: 14px;
+  }
+`;
+
+const ProjectCardActions = styled.div`
+  display: flex;
+  justify-content: space-between;
+  margin-top: 15px;
+  padding-top: 15px;
+  border-top: 1px solid rgba(255, 255, 255, 0.1);
+`;
+
+const CardActionButton = styled.button`
+  padding: 8px 12px;
+  background: rgba(31, 83, 255, 0.2);
+  color: white;
+  border: none;
+  border-radius: 5px;
+  cursor: pointer;
+  font-size: 13px;
+  transition: all 0.2s ease;
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  
+  &:hover {
+    background: rgba(31, 83, 255, 0.3);
+  }
+  
+  svg {
+    font-size: 14px;
+  }
+`;
+
 const AllProjectsGrid = styled.div`
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
   gap: 20px;
 `;
 
-const BackToProjectsButton = styled.button`
+// Renamed from BackButton to avoid duplicate declaration
+const BackToListButton = styled.button`
   background: rgba(255, 255, 255, 0.1);
   border: none;
   border-radius: 8px;

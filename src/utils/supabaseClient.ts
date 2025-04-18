@@ -1,8 +1,12 @@
 import { createClient } from '@supabase/supabase-js';
 
-// Initialize the Supabase client with direct credentials
-const supabaseUrl = 'https://dvuiiloynbrtdrabtzsg.supabase.co';
-const supabaseAnonKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImR2dWlpbG95bmJydGRyYWJ0enNnIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDQzMDM1MDksImV4cCI6MjA1OTg3OTUwOX0.aef4QCYboLzhyw8im1pGZe7v0tweAnQ3haN1T0mVLmE';
+// Initialize the Supabase client with environment variables
+const supabaseUrl = process.env.REACT_APP_SUPABASE_URL || 'https://dvuiiloynbrtdrabtzsg.supabase.co';
+const supabaseAnonKey = process.env.REACT_APP_SUPABASE_ANON_KEY || 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImR2dWlpbG95bmJydGRyYWJ0enNnIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDQzMDM1MDksImV4cCI6MjA1OTg3OTUwOX0.aef4QCYboLzhyw8im1pGZe7v0tweAnQ3haN1T0mVLmE';
+
+// Log Supabase connection details for debugging
+console.log('Supabase URL:', supabaseUrl);
+console.log('Using environment variables:', !!process.env.REACT_APP_SUPABASE_URL);
 
 // Create the Supabase client
 const supabase = createClient(supabaseUrl, supabaseAnonKey);

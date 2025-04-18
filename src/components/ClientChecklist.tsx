@@ -32,7 +32,9 @@ const ClientChecklist: React.FC<ClientChecklistProps> = ({ clientId, projectId }
       setError(null);
       
       try {
+        console.log('Fetching checklist items for client:', clientId);
         const items = await getChecklistItemsByClientId(clientId, projectId || null);
+        console.log('Fetched checklist items:', items);
         setChecklist(items);
       } catch (err) {
         console.error('Error loading checklist:', err);
@@ -53,6 +55,16 @@ const ClientChecklist: React.FC<ClientChecklistProps> = ({ clientId, projectId }
       const user = getCurrentUser();
       const userId = user?.id || 'anonymous';
       
+      console.log('Creating new checklist item with data:', {
+        content: newItemText,
+        is_completed: false,
+        client_id: clientId,
+        project_id: projectId || null,
+        due_date: newItemDueDate || null,
+        assigned_to: newItemAssignee || null,
+        created_by: userId
+      });
+      
       const newItem = await createChecklistItem({
         content: newItemText,
         is_completed: false,
@@ -63,7 +75,16 @@ const ClientChecklist: React.FC<ClientChecklistProps> = ({ clientId, projectId }
         created_by: userId
       });
       
-      setChecklist(prev => [...prev, newItem]);
+      console.log('Successfully created checklist item:', newItem);
+      
+      // Update the local state with the new item
+      setChecklist(prev => {
+        const updated = [...prev, newItem];
+        console.log('Updated checklist state:', updated);
+        return updated;
+      });
+      
+      // Clear form fields
       setNewItemText('');
       setNewItemDueDate('');
       setNewItemAssignee('');
@@ -153,8 +174,12 @@ const ClientChecklist: React.FC<ClientChecklistProps> = ({ clientId, projectId }
             </InputWithIcon>
           </InputGroup>
           <AddItemActions>
-            <ActionButton onClick={handleAddItem}>Add</ActionButton>
-            <CancelButton onClick={() => setIsAddingItem(false)}>Cancel</CancelButton>
+            <ActionButton onClick={handleAddItem}>
+              Add Item
+            </ActionButton>
+            <CancelButton onClick={() => setIsAddingItem(false)}>
+              Cancel
+            </CancelButton>
           </AddItemActions>
         </AddItemForm>
       )}
@@ -247,10 +272,14 @@ const AddItemForm = styled.div`
   border-radius: 8px;
   padding: 15px;
   margin-bottom: 20px;
+  position: relative;
+  z-index: 1000;
 `;
 
 const InputGroup = styled.div`
   margin-bottom: 10px;
+  position: relative;
+  z-index: 1001;
   
   input {
     width: 100%;
@@ -260,6 +289,8 @@ const InputGroup = styled.div`
     padding: 10px 12px;
     color: white;
     font-size: 14px;
+    position: relative;
+    z-index: 1001;
     
     &:focus {
       outline: none;
@@ -270,6 +301,7 @@ const InputGroup = styled.div`
 
 const InputWithIcon = styled.div`
   position: relative;
+  z-index: 1001;
   
   svg {
     position: absolute;
@@ -277,6 +309,7 @@ const InputWithIcon = styled.div`
     top: 50%;
     transform: translateY(-50%);
     color: rgba(255, 255, 255, 0.5);
+    z-index: 1002;
   }
   
   input {
@@ -288,6 +321,8 @@ const AddItemActions = styled.div`
   display: flex;
   gap: 10px;
   margin-top: 15px;
+  position: relative;
+  z-index: 1001;
 `;
 
 const ActionButton = styled.button`
@@ -300,6 +335,8 @@ const ActionButton = styled.button`
   font-weight: 500;
   cursor: pointer;
   transition: all 0.2s ease;
+  position: relative;
+  z-index: 1002;
   
   &:hover {
     background: rgba(13, 249, 182, 0.3);
@@ -316,6 +353,8 @@ const CancelButton = styled.button`
   font-weight: 500;
   cursor: pointer;
   transition: all 0.2s ease;
+  position: relative;
+  z-index: 1002;
   
   &:hover {
     background: rgba(255, 255, 255, 0.2);

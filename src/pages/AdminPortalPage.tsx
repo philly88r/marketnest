@@ -9,6 +9,7 @@ import Footer from '../components/Footer';
 import ClientList from '../components/ClientList';
 import ClientDashboard from '../components/ClientDashboard';
 import AdminChat from '../components/AdminChat';
+import TestLibertyBeans from '../components/TestLibertyBeans';
 
 // Mock admin data - in a real app, this would come from your backend
 const adminUser = {
@@ -18,7 +19,7 @@ const adminUser = {
 };
 
 const AdminPortalPage: React.FC = () => {
-  const [activeTab, setActiveTab] = useState<'clients' | 'dashboard' | 'settings'>('clients');
+  const [activeTab, setActiveTab] = useState<'clients' | 'dashboard' | 'settings' | 'liberty-test'>('clients');
   const [selectedClientId, setSelectedClientId] = useState<string | null>(null);
   const navigate = useNavigate();
   
@@ -28,6 +29,12 @@ const AdminPortalPage: React.FC = () => {
       console.log('Selected client ID in AdminPortalPage:', selectedClientId);
     }
   }, [selectedClientId]);
+  
+  // Special handler for Liberty Beans Coffee
+  const handleLibertyBeansSelection = () => {
+    console.log('Special handler for Liberty Beans Coffee triggered');
+    setSelectedClientId('client-liberty-beans');
+  };
   
   // Add a visible title to show we're in the admin portal
   const pageTitle = "ADMIN PORTAL $$$";
@@ -49,15 +56,13 @@ const AdminPortalPage: React.FC = () => {
           <ClientList onSelectClient={(id) => {
             console.log('Client selected with ID:', id);
             // Special handling for Liberty Beans Coffee
-            if (id === 'client-001' || id === 'client-liberty-beans') {
-              console.log('Liberty Beans Coffee client selected');
-              // Always use the new ID for Liberty Beans
-              setSelectedClientId('client-liberty-beans');
-              // Add extra logging to confirm selection
-              console.log('Setting Liberty Beans client ID to: client-liberty-beans');
+            if (id === 'client-liberty-beans' || id === 'client-001') {
+              console.log('Liberty Beans Coffee client detected, using special handler');
+              handleLibertyBeansSelection();
             } else {
+              // For other clients, update the state directly
+              console.log('Updating selectedClientId state to:', id);
               setSelectedClientId(id);
-              console.log('Setting client ID to:', id);
             }
           }} />
         );
@@ -86,6 +91,8 @@ const AdminPortalPage: React.FC = () => {
             </MetricsGrid>
           </AdminDashboardContent>
         );
+      case 'liberty-test':
+        return <TestLibertyBeans />;
       case 'settings':
         return (
           <AdminSettingsContent>
@@ -157,6 +164,13 @@ const AdminPortalPage: React.FC = () => {
               onClick={() => setActiveTab('settings')}
             >
               {renderIcon(FiSettings)} Settings
+            </NavItem>
+            <NavItem
+              $active={activeTab === 'liberty-test'}
+              onClick={() => setActiveTab('liberty-test')}
+              style={{ background: activeTab === 'liberty-test' ? 'rgba(255, 0, 0, 0.25)' : 'transparent' }}
+            >
+              {renderIcon(FiUsers)} Liberty Beans Test
             </NavItem>
           </NavMenu>
           
