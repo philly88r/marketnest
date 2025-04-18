@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import styled from 'styled-components';
 import { motion } from 'framer-motion';
-import { FiUsers, FiPieChart, FiSettings, FiLogOut, FiEdit, FiEye } from 'react-icons/fi';
+import { FiUsers, FiPieChart, FiSettings, FiLogOut, FiEdit, FiEye, FiDatabase } from 'react-icons/fi';
 import { Link, useNavigate } from 'react-router-dom';
 import { renderIcon } from '../utils/iconUtils';
 import Header from '../components/Header';
@@ -10,6 +10,7 @@ import ClientList from '../components/ClientList';
 import ClientDashboard from '../components/ClientDashboard';
 import AdminChat from '../components/AdminChat';
 import TestLibertyBeans from '../components/TestLibertyBeans';
+import DatabaseTestPanel from '../components/DatabaseTestPanel';
 
 // Mock admin data - in a real app, this would come from your backend
 const adminUser = {
@@ -19,7 +20,7 @@ const adminUser = {
 };
 
 const AdminPortalPage: React.FC = () => {
-  const [activeTab, setActiveTab] = useState<'clients' | 'dashboard' | 'settings' | 'liberty-test'>('clients');
+  const [activeTab, setActiveTab] = useState<'clients' | 'dashboard' | 'settings' | 'liberty-test' | 'database-test'>('clients');
   const [selectedClientId, setSelectedClientId] = useState<string | null>(null);
   const navigate = useNavigate();
   
@@ -93,6 +94,8 @@ const AdminPortalPage: React.FC = () => {
         );
       case 'liberty-test':
         return <TestLibertyBeans />;
+      case 'database-test':
+        return <DatabaseTestPanel />;
       case 'settings':
         return (
           <AdminSettingsContent>
@@ -171,6 +174,13 @@ const AdminPortalPage: React.FC = () => {
               style={{ background: activeTab === 'liberty-test' ? 'rgba(255, 0, 0, 0.25)' : 'transparent' }}
             >
               {renderIcon(FiUsers)} Liberty Beans Test
+            </NavItem>
+            <NavItem
+              $active={activeTab === 'database-test'}
+              onClick={() => setActiveTab('database-test')}
+              style={{ background: activeTab === 'database-test' ? 'rgba(0, 128, 255, 0.25)' : 'transparent' }}
+            >
+              {renderIcon(FiDatabase)} Database Test
             </NavItem>
           </NavMenu>
           
