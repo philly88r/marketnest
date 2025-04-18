@@ -98,20 +98,23 @@ const ClientList: React.FC<ClientListProps> = ({ onSelectClient }) => {
         const { data, error } = await supabase.from('clients').select('*');
         if (error) throw error;
         if (data) {
-          // Ensure Liberty Beans Coffee is included and properly formatted
-          const libertyBeansExists = data.some(client => 
-            client.name.includes('Liberty Beans')
+          console.log('Fetched clients:', data);
+          // Check if Liberty Beans Coffee exists with the new ID
+          const libertyBeansClient = data.find(client => 
+            client.name.includes('Liberty Beans') || 
+            client.id === 'client-liberty-beans'
           );
           
-          if (!libertyBeansExists) {
-            // If Liberty Beans isn't in the database, add the mock version
-            const updatedData = [...data, mockClients[0]];
-            setClients(updatedData);
+          if (libertyBeansClient) {
+            console.log('Found Liberty Beans client:', libertyBeansClient);
           } else {
-            setClients(data);
+            console.log('Liberty Beans client not found in database');
           }
+          
+          setClients(data);
         }
       } catch (err: any) {
+        console.error('Error fetching clients:', err);
         // Fallback to mock data if Supabase fails
         setClients(mockClients);
       } finally {
@@ -239,23 +242,31 @@ const ClientList: React.FC<ClientListProps> = ({ onSelectClient }) => {
               </CredentialsContainer>
             </ClientCell>
             <ClientCell width="15%">
-              {client.name.includes('Liberty Beans') ? (
+              {client.name.includes('Liberty Beans') || client.id === 'client-liberty-beans' ? (
                 <>
                   <ActionButton 
                     onClick={() => {
-                      console.log('Liberty Beans Edit clicked', client.id);
-                      openEditModal(client);
+                      console.log('Liberty Beans Edit clicked', client);
+                      try {
+                        openEditModal(client);
+                      } catch (err) {
+                        console.error('Error opening edit modal:', err);
+                      }
                     }}
-                    style={{ background: 'rgba(31, 83, 255, 0.25)' }}
+                    style={{ background: 'rgba(31, 83, 255, 0.25)', cursor: 'pointer' }}
                   >
                     {renderIcon(FiEdit)} Edit
                   </ActionButton>
                   <ActionButton 
                     onClick={() => {
-                      console.log('Liberty Beans View clicked', client.id);
-                      onSelectClient(client.id);
+                      console.log('Liberty Beans View clicked', client);
+                      try {
+                        onSelectClient(client.id);
+                      } catch (err) {
+                        console.error('Error selecting client:', err);
+                      }
                     }}
-                    style={{ background: 'rgba(31, 83, 255, 0.25)' }}
+                    style={{ background: 'rgba(31, 83, 255, 0.25)', cursor: 'pointer' }}
                   >
                     {renderIcon(FiEye)} View
                   </ActionButton>
