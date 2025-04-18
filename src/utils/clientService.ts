@@ -87,7 +87,7 @@ export const updateClient = async (id: string, updates: Partial<Client>): Promis
   console.log('Updates to apply:', updates);
   
   // Special handling for Liberty Beans Coffee
-  if (id === 'client-liberty-beans' || id === 'client-001') {
+  if (id === 'client-liberty-beans') {
     console.log('Special handling for Liberty Beans Coffee update');
     try {
       // First check if the client exists

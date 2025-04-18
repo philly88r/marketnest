@@ -56,7 +56,7 @@ const AdminPortalPage: React.FC = () => {
           <ClientList onSelectClient={(id) => {
             console.log('Client selected with ID:', id);
             // Special handling for Liberty Beans Coffee
-            if (id === 'client-liberty-beans' || id === 'client-001') {
+            if (id === 'client-liberty-beans') {
               console.log('Liberty Beans Coffee client detected, using special handler');
               handleLibertyBeansSelection();
             } else {

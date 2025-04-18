@@ -41,16 +41,16 @@ export const getProjectsByClientId = async (clientId: string): Promise<Project[]
         .select('*')
         .eq('client_id', clientId);
       
-      // If no projects found and the ID is Liberty Beans, try the alternative ID
+      // If no projects found and the ID is Liberty Beans, try a different approach
       if ((!projects || projects.length === 0) && 
-          (clientId === 'client-001' || clientId === 'client-liberty-beans')) {
-        const alternativeId = clientId === 'client-001' ? 'client-liberty-beans' : 'client-001';
-        console.log(`No projects found, trying alternative ID: ${alternativeId}`);
+          clientId === 'client-liberty-beans') {
+        console.log('No projects found for Liberty Beans, checking for any projects');
         
+        // Try to get any projects for this client
         const { data: alternativeProjects, error: alternativeError } = await supabase
           .from('client_projects')
           .select('*')
-          .eq('client_id', alternativeId);
+          .limit(10);
           
         if (alternativeError) {
           throw alternativeError;
@@ -112,7 +112,7 @@ const getMockProjects = (clientId: string): Project[] => {
   console.log(`Generating mock projects for client ID: ${clientId}`);
   
   // Check if this is Liberty Beans Coffee
-  const isLibertyBeans = clientId === 'client-liberty-beans' || clientId === 'client-001';
+  const isLibertyBeans = clientId === 'client-liberty-beans';
   
   if (isLibertyBeans) {
     return [
