@@ -422,6 +422,13 @@ export const getTasksByProjectId = async (projectId: string): Promise<Task[]> =>
   try {
     console.log(`Fetching tasks for project ID: ${projectId}`);
     
+    // Check if this is a mock project ID (starts with 'proj-')
+    if (projectId.startsWith('proj-')) {
+      console.log('Mock project ID detected, using mock tasks');
+      return mockTasks.filter(task => task.project_id === projectId);
+    }
+    
+    // For real UUIDs, query the database
     const { data, error } = await supabase
       .from('client_project_tasks')
       .select('*')

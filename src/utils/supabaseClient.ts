@@ -13,9 +13,16 @@ const supabase = createClient(supabaseUrl, supabaseAnonKey, {
   auth: {
     autoRefreshToken: true,
     persistSession: true
+  },
+  global: {
+    headers: {
+      apikey: supabaseAnonKey
+    }
   }
 });
-console.log('Supabase client created with authentication options');
+
+// Verify the client has been created with the API key
+console.log('Supabase client created with API key in headers');
 
 // Add direct client login method to avoid using RPC
 export const clientLogin = async (username: string, password: string) => {
