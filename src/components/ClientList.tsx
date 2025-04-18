@@ -209,7 +209,8 @@ const ClientList: React.FC<ClientListProps> = ({ onSelectClient }) => {
                     onClick={() => {
                       console.log('Liberty Beans View clicked', client);
                       try {
-                        onSelectClient(client.id);
+                        // Always use client-liberty-beans ID for Liberty Beans Coffee
+                        onSelectClient('client-liberty-beans');
                       } catch (err) {
                         console.error('Error selecting client:', err);
                       }
