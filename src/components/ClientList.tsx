@@ -97,7 +97,20 @@ const ClientList: React.FC<ClientListProps> = ({ onSelectClient }) => {
       try {
         const { data, error } = await supabase.from('clients').select('*');
         if (error) throw error;
-        if (data) setClients(data);
+        if (data) {
+          // Ensure Liberty Beans Coffee is included and properly formatted
+          const libertyBeansExists = data.some(client => 
+            client.name.includes('Liberty Beans')
+          );
+          
+          if (!libertyBeansExists) {
+            // If Liberty Beans isn't in the database, add the mock version
+            const updatedData = [...data, mockClients[0]];
+            setClients(updatedData);
+          } else {
+            setClients(data);
+          }
+        }
       } catch (err: any) {
         // Fallback to mock data if Supabase fails
         setClients(mockClients);
@@ -226,8 +239,33 @@ const ClientList: React.FC<ClientListProps> = ({ onSelectClient }) => {
               </CredentialsContainer>
             </ClientCell>
             <ClientCell width="15%">
-              <ActionButton onClick={() => openEditModal(client)}>{renderIcon(FiEdit)} Edit</ActionButton>
-              <ActionButton onClick={() => onSelectClient(client.id)}>{renderIcon(FiEye)} View</ActionButton>
+              {client.name.includes('Liberty Beans') ? (
+                <>
+                  <ActionButton 
+                    onClick={() => {
+                      console.log('Liberty Beans Edit clicked', client.id);
+                      openEditModal(client);
+                    }}
+                    style={{ background: 'rgba(31, 83, 255, 0.25)' }}
+                  >
+                    {renderIcon(FiEdit)} Edit
+                  </ActionButton>
+                  <ActionButton 
+                    onClick={() => {
+                      console.log('Liberty Beans View clicked', client.id);
+                      onSelectClient(client.id);
+                    }}
+                    style={{ background: 'rgba(31, 83, 255, 0.25)' }}
+                  >
+                    {renderIcon(FiEye)} View
+                  </ActionButton>
+                </>
+              ) : (
+                <>
+                  <ActionButton onClick={() => openEditModal(client)}>{renderIcon(FiEdit)} Edit</ActionButton>
+                  <ActionButton onClick={() => onSelectClient(client.id)}>{renderIcon(FiEye)} View</ActionButton>
+                </>
+              )}
             </ClientCell>
           </ClientRow>
         ))}
