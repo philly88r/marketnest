@@ -1,15 +1,19 @@
 import { createClient } from '@supabase/supabase-js';
 
-// Use the exact Supabase configuration provided
-const supabaseUrl = 'https://dvuiiloynbrtdrabtzsg.supabase.co';
-const supabaseAnonKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImR2dWlpbG95bmJydGRyYWJ0enNnIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDQzMDM1MDksImV4cCI6MjA1OTg3OTUwOX0.aef4QCYboLzhyw8im1pGZe7v0tweAnQ3haN1T0mVLmE';
+// Use environment variables for Supabase configuration
+const supabaseUrl = process.env.REACT_APP_SUPABASE_URL || '';
+const supabaseAnonKey = process.env.REACT_APP_SUPABASE_ANON_KEY || '';
 
 // Log Supabase connection details for debugging
-console.log('Supabase URL:', supabaseUrl);
+console.log('Supabase URL from env:', supabaseUrl);
 
-// Create the Supabase client with the exact configuration
+if (!supabaseUrl || !supabaseAnonKey) {
+  console.error('Supabase credentials are missing from environment variables!');
+}
+
+// Create the Supabase client with environment variables
 const supabase = createClient(supabaseUrl, supabaseAnonKey);
-console.log('Supabase client created with hardcoded credentials');
+console.log('Supabase client created with environment variables');
 
 // Add direct client login method to avoid using RPC
 export const clientLogin = async (username: string, password: string) => {
