@@ -28,6 +28,9 @@ const AdminPortalPage: React.FC = () => {
       console.log('Selected client ID in AdminPortalPage:', selectedClientId);
     }
   }, [selectedClientId]);
+  
+  // Add a visible title to show we're in the admin portal
+  const pageTitle = "ADMIN PORTAL $$$";
 
   const handleLogout = () => {
     // In a real app, you would clear authentication tokens here
@@ -50,8 +53,11 @@ const AdminPortalPage: React.FC = () => {
               console.log('Liberty Beans Coffee client selected');
               // Always use the new ID for Liberty Beans
               setSelectedClientId('client-liberty-beans');
+              // Add extra logging to confirm selection
+              console.log('Setting Liberty Beans client ID to: client-liberty-beans');
             } else {
               setSelectedClientId(id);
+              console.log('Setting client ID to:', id);
             }
           }} />
         );
@@ -119,6 +125,7 @@ const AdminPortalPage: React.FC = () => {
   return (
     <AdminPortalContainer>
       <Header />
+      <h1 style={{ color: 'white', textAlign: 'center', marginTop: '20px', fontSize: '24px' }}>{pageTitle}</h1>
       <AdminContent>
         <AdminSidebar>
           <AdminProfile>

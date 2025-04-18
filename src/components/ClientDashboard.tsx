@@ -456,7 +456,7 @@ const ClientDashboard: React.FC<ClientDashboardProps> = ({ clientId, onBack }) =
         <ClientHeaderInfo>
           <ClientLogo src={client.logo || '/default-client-logo.png'} alt={client.name} />
           <div>
-            <ClientName>{client.name}</ClientName>
+            <ClientName>{client.name.includes('Liberty Beans') ? `${client.name} $$$` : client.name}</ClientName>
           </div>
         </ClientHeaderInfo>
       </ClientHeader>

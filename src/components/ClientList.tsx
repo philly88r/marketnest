@@ -163,7 +163,7 @@ const ClientList: React.FC<ClientListProps> = ({ onSelectClient }) => {
                 <ClientLogo>
                   {client.name.charAt(0)}
                 </ClientLogo>
-                <ClientName>{client.name}</ClientName>
+                <ClientName>{client.name.includes('Liberty Beans') ? `${client.name} $$$` : client.name}</ClientName>
               </ClientInfo>
             </ClientCell>
             <ClientCell width="15%">{client.industry}</ClientCell>
