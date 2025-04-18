@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import styled from 'styled-components';
 import { motion } from 'framer-motion';
 import { FiArrowLeft, FiEdit, FiMail, FiPhone, FiActivity, FiCalendar, FiCheckCircle, FiClock, FiCircle, FiFolder, FiList, FiSave, FiX } from 'react-icons/fi';
-import { mockClients } from './ClientList';
+// Only using real data from Supabase
 import ProjectDashboard from './ProjectDashboard';
 import ClientFileManager from './ClientFileManager';
 import ClientChecklist from './ClientChecklist';
@@ -10,183 +10,21 @@ import ClientChat from './ClientChat';
 import { renderIcon } from '../utils/iconUtils';
 import { getClientById, updateClient, Client } from '../utils/clientService';
 import { supabase } from '../utils/supabaseClient';
+import { getProjectsByClientId, Project, Task } from '../utils/projectService';
 
 interface ClientDashboardProps {
   clientId: string;
   onBack: () => void;
 }
 
-// Mock project data for each client
-const clientProjects = {
-  'client-001': [
-    {
-      id: 'proj-001',
-      name: 'Website Redesign',
-      status: 'in-progress',
-      progress: 65,
-      startDate: new Date('2025-03-15'),
-      dueDate: new Date('2025-05-01'),
-      tasks: [
-        { id: 'task-001', name: 'Wireframes', status: 'completed', assignee: 'Alex' },
-        { id: 'task-002', name: 'Design System', status: 'completed', assignee: 'Morgan' },
-        { id: 'task-003', name: 'Homepage Development', status: 'in-progress', assignee: 'Jamie' },
-        { id: 'task-004', name: 'Content Migration', status: 'not-started', assignee: 'Casey' }
-      ]
-    },
-    {
-      id: 'proj-002',
-      name: 'SEO Campaign',
-      status: 'in-progress',
-      progress: 40,
-      startDate: new Date('2025-04-01'),
-      dueDate: new Date('2025-06-15'),
-      tasks: [
-        { id: 'task-005', name: 'Keyword Research', status: 'completed', assignee: 'Taylor' },
-        { id: 'task-006', name: 'On-page Optimization', status: 'in-progress', assignee: 'Jordan' }
-      ]
-    },
-    {
-      id: 'proj-003',
-      name: 'Social Media Strategy',
-      status: 'planning',
-      progress: 15,
-      startDate: new Date('2025-04-20'),
-      dueDate: new Date('2025-07-01'),
-      tasks: [
-        { id: 'task-009', name: 'Audience Analysis', status: 'in-progress', assignee: 'Morgan' },
-        { id: 'task-010', name: 'Content Calendar', status: 'not-started', assignee: 'Casey' }
-      ]
-    }
-  ],
-  'client-002': [
-    {
-      id: 'proj-004',
-      name: 'Local SEO Campaign',
-      status: 'in-progress',
-      progress: 75,
-      startDate: new Date('2025-02-10'),
-      dueDate: new Date('2025-05-15'),
-      tasks: [
-        { id: 'task-013', name: 'Google Business Profile', status: 'completed', assignee: 'Taylor' },
-        { id: 'task-014', name: 'Local Citations', status: 'completed', assignee: 'Jordan' },
-        { id: 'task-015', name: 'Review Management', status: 'in-progress', assignee: 'Alex' }
-      ]
-    },
-    {
-      id: 'proj-005',
-      name: 'PPC Advertising',
-      status: 'in-progress',
-      progress: 50,
-      startDate: new Date('2025-03-01'),
-      dueDate: new Date('2025-06-01'),
-      tasks: [
-        { id: 'task-016', name: 'Keyword Research', status: 'completed', assignee: 'Morgan' },
-        { id: 'task-017', name: 'Ad Creation', status: 'in-progress', assignee: 'Jamie' },
-        { id: 'task-018', name: 'Campaign Optimization', status: 'not-started', assignee: 'Casey' }
-      ]
-    }
-  ],
-  'client-003': [
-    {
-      id: 'proj-006',
-      name: 'Website Development',
-      status: 'in-progress',
-      progress: 60,
-      startDate: new Date('2025-01-15'),
-      dueDate: new Date('2025-04-30'),
-      tasks: [
-        { id: 'task-019', name: 'Wireframes', status: 'completed', assignee: 'Morgan' },
-        { id: 'task-020', name: 'Design', status: 'completed', assignee: 'Jamie' },
-        { id: 'task-021', name: 'Development', status: 'in-progress', assignee: 'Casey' },
-        { id: 'task-022', name: 'Content Creation', status: 'in-progress', assignee: 'Taylor' }
-      ]
-    },
-    {
-      id: 'proj-007',
-      name: 'Content Marketing',
-      status: 'planning',
-      progress: 25,
-      startDate: new Date('2025-03-10'),
-      dueDate: new Date('2025-06-15'),
-      tasks: [
-        { id: 'task-023', name: 'Content Strategy', status: 'completed', assignee: 'Jordan' },
-        { id: 'task-024', name: 'Blog Posts', status: 'in-progress', assignee: 'Alex' },
-        { id: 'task-025', name: 'Case Studies', status: 'not-started', assignee: 'Morgan' }
-      ]
-    },
-    {
-      id: 'proj-008',
-      name: 'Social Media Management',
-      status: 'in-progress',
-      progress: 45,
-      startDate: new Date('2025-02-01'),
-      dueDate: new Date('2025-05-01'),
-      tasks: [
-        { id: 'task-026', name: 'Platform Setup', status: 'completed', assignee: 'Jamie' },
-        { id: 'task-027', name: 'Content Calendar', status: 'in-progress', assignee: 'Casey' },
-        { id: 'task-028', name: 'Engagement Strategy', status: 'not-started', assignee: 'Taylor' }
-      ]
-    },
-    {
-      id: 'proj-009',
-      name: 'Email Marketing',
-      status: 'planning',
-      progress: 10,
-      startDate: new Date('2025-04-15'),
-      dueDate: new Date('2025-07-15'),
-      tasks: [
-        { id: 'task-029', name: 'List Building', status: 'in-progress', assignee: 'Jordan' },
-        { id: 'task-030', name: 'Email Templates', status: 'not-started', assignee: 'Alex' }
-      ]
-    }
-  ],
-  'client-004': [
-    {
-      id: 'proj-010',
-      name: 'Website Optimization',
-      status: 'in-progress',
-      progress: 70,
-      startDate: new Date('2025-02-15'),
-      dueDate: new Date('2025-04-30'),
-      tasks: [
-        { id: 'task-031', name: 'Performance Audit', status: 'completed', assignee: 'Casey' },
-        { id: 'task-032', name: 'Speed Optimization', status: 'completed', assignee: 'Taylor' },
-        { id: 'task-033', name: 'UX Improvements', status: 'in-progress', assignee: 'Jordan' }
-      ]
-    },
-    {
-      id: 'proj-011',
-      name: 'SEO Strategy',
-      status: 'in-progress',
-      progress: 55,
-      startDate: new Date('2025-03-01'),
-      dueDate: new Date('2025-06-01'),
-      tasks: [
-        { id: 'task-034', name: 'Technical SEO', status: 'completed', assignee: 'Alex' },
-        { id: 'task-035', name: 'Content Optimization', status: 'in-progress', assignee: 'Morgan' },
-        { id: 'task-036', name: 'Link Building', status: 'not-started', assignee: 'Jamie' }
-      ]
-    },
-    {
-      id: 'proj-012',
-      name: 'Analytics Implementation',
-      status: 'planning',
-      progress: 30,
-      startDate: new Date('2025-04-01'),
-      dueDate: new Date('2025-05-15'),
-      tasks: [
-        { id: 'task-037', name: 'Requirements Gathering', status: 'completed', assignee: 'Casey' },
-        { id: 'task-038', name: 'Tag Setup', status: 'in-progress', assignee: 'Taylor' },
-        { id: 'task-039', name: 'Dashboard Creation', status: 'not-started', assignee: 'Jordan' }
-      ]
-    }
-  ]
-};
+// Using Project and Task interfaces from projectService
 
 const ClientDashboard: React.FC<ClientDashboardProps> = ({ clientId, onBack }) => {
   const [activeTab, setActiveTab] = useState<'overview' | 'projects' | 'files' | 'tasks' | 'analytics'>('overview');
   const [selectedProjectId, setSelectedProjectId] = useState<string | null>(null);
   const [client, setClient] = useState<Client | null>(null);
+  const [projects, setProjects] = useState<Project[]>([]);
+  const [isLoadingProjects, setIsLoadingProjects] = useState(true);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [isEditing, setIsEditing] = useState(false);
@@ -194,10 +32,11 @@ const ClientDashboard: React.FC<ClientDashboardProps> = ({ clientId, onBack }) =
   const [saveError, setSaveError] = useState<string | null>(null);
   const [saveSuccess, setSaveSuccess] = useState(false);
 
-  // Fetch client data
+  // Fetch client data and projects
   useEffect(() => {
-    const fetchClient = async () => {
+    const fetchClientAndProjects = async () => {
       setIsLoading(true);
+      setIsLoadingProjects(true);
       setError(null);
       console.log('Fetching client with ID:', clientId);
 
@@ -218,16 +57,25 @@ const ClientDashboard: React.FC<ClientDashboardProps> = ({ clientId, onBack }) =
             console.log('Found Liberty Beans client:', clientData);
             setClient(clientData);
             setEditForm(clientData);
-          } else {
-            // Fallback to mock data for Liberty Beans
-            console.log('Liberty Beans not found in database, using mock data');
-            const libertyBeansMock = mockClients.find(c => c.name.includes('Liberty Beans'));
-            if (libertyBeansMock) {
-              setClient(libertyBeansMock as unknown as Client);
-              setEditForm(libertyBeansMock as unknown as Client);
-            } else {
-              setError('Liberty Beans Coffee client not found');
+            
+            // Fetch projects for Liberty Beans
+            try {
+              const clientProjects = await getProjectsByClientId(clientData.id);
+              console.log('Fetched projects for Liberty Beans:', clientProjects);
+              setProjects(clientProjects);
+            } catch (projectErr) {
+              console.error('Error fetching projects for Liberty Beans:', projectErr);
+              setProjects([]);
+            } finally {
+              setIsLoadingProjects(false);
             }
+          } else {
+            // Show error instead of using mock data
+            console.log('Liberty Beans not found in database');
+            setError('Liberty Beans Coffee client not found in the database. Please check your connection and try again.');
+            setClient(null);
+            setProjects([]);
+            setIsLoadingProjects(false);
           }
         } else {
           // Normal handling for other clients
@@ -235,44 +83,44 @@ const ClientDashboard: React.FC<ClientDashboardProps> = ({ clientId, onBack }) =
           if (clientData) {
             setClient(clientData);
             setEditForm(clientData);
-          } else {
-            // Fallback to mock data if client not found in database
-            const mockClient = mockClients.find(c => c.id === clientId);
-            if (mockClient) {
-              setClient(mockClient as unknown as Client);
-              setEditForm(mockClient as unknown as Client);
-            } else {
-              setError('Client not found');
+            
+            // Fetch projects for this client
+            try {
+              const clientProjects = await getProjectsByClientId(clientData.id);
+              console.log(`Fetched ${clientProjects.length} projects for client:`, clientData.id);
+              setProjects(clientProjects);
+            } catch (projectErr) {
+              console.error(`Error fetching projects for client ${clientData.id}:`, projectErr);
+              setProjects([]);
+            } finally {
+              setIsLoadingProjects(false);
             }
+          } else {
+            // Show error instead of using mock data
+            setError('Client not found in the database. Please check your connection and try again.');
+            setClient(null);
+            setProjects([]);
+            setIsLoadingProjects(false);
           }
         }
       } catch (err) {
         console.error('Error fetching client:', err);
-        setError('Failed to load client data');
-
-        // Fallback to mock data
-        const mockClient = mockClients.find(c => 
-          c.id === clientId || 
-          (clientId === 'client-liberty-beans' && c.id === 'client-001') ||
-          (clientId === 'client-001' && c.name.includes('Liberty Beans'))
-        );
-        
-        if (mockClient) {
-          console.log('Using mock client data:', mockClient);
-          setClient(mockClient as unknown as Client);
-          setEditForm(mockClient as unknown as Client);
-        }
+        setError('Failed to load client data. Please check your connection and try again.');
+        setClient(null);
+        setEditForm({});
+        setProjects([]);
+        setIsLoadingProjects(false);
       } finally {
         setIsLoading(false);
       }
     };
 
-    fetchClient();
+    fetchClientAndProjects();
   }, [clientId]);
 
-  const projects = clientProjects[clientId as keyof typeof clientProjects] || [];
+  // Projects are now fetched from the database via the useEffect
 
-  if (isLoading) {
+  if (isLoading || isLoadingProjects) {
     return <LoadingContainer>Loading client data...</LoadingContainer>;
   }
 

@@ -243,7 +243,7 @@ const NavMenu = styled.div`
   flex: 1;
 `;
 
-const NavItem = styled.div<{ $active: boolean }>`
+const NavItem = styled.button<{ $active: boolean }>`
   padding: 12px 15px;
   border-radius: 8px;
   margin-bottom: 8px;
@@ -254,6 +254,10 @@ const NavItem = styled.div<{ $active: boolean }>`
   background: ${props => props.$active ? 'rgba(31, 83, 255, 0.15)' : 'transparent'};
   color: ${props => props.$active ? '#fff' : 'rgba(255, 255, 255, 0.8)'};
   transition: all 0.2s ease;
+  border: none;
+  width: 100%;
+  text-align: left;
+  font-size: 16px;
   
   svg {
     margin-right: 12px;
@@ -263,9 +267,14 @@ const NavItem = styled.div<{ $active: boolean }>`
   &:hover {
     background: ${props => props.$active ? 'rgba(31, 83, 255, 0.2)' : 'rgba(255, 255, 255, 0.05)'};
   }
+  
+  &:focus {
+    outline: none;
+    box-shadow: 0 0 0 2px rgba(31, 83, 255, 0.5);
+  }
 `;
 
-const LogoutButton = styled.div`
+const LogoutButton = styled.button`
   padding: 12px 15px;
   border-radius: 8px;
   cursor: pointer;
@@ -274,6 +283,11 @@ const LogoutButton = styled.div`
   color: rgba(255, 255, 255, 0.8);
   transition: all 0.2s ease;
   margin-top: auto;
+  background: transparent;
+  border: none;
+  width: 100%;
+  text-align: left;
+  font-size: 16px;
   
   svg {
     margin-right: 12px;
@@ -283,6 +297,11 @@ const LogoutButton = styled.div`
   &:hover {
     background: rgba(255, 67, 163, 0.1);
     color: #FF43A3;
+  }
+  
+  &:focus {
+    outline: none;
+    box-shadow: 0 0 0 2px rgba(255, 67, 163, 0.5);
   }
 `;
 

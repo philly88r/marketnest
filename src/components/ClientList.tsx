@@ -5,61 +5,8 @@ import { FiEdit, FiEye, FiSearch, FiPlus } from 'react-icons/fi';
 import { renderIcon } from '../utils/iconUtils';
 import { supabase } from '../utils/supabaseClient';
 
-// Mock client data - fallback for development or Supabase unavailability
-export const mockClients = [
-  {
-    id: 'client-001',
-    name: 'Liberty Beans Coffee',
-    logo: '/client-logos/liberty-beans.png',
-    industry: 'Food & Beverage',
-    contactName: 'Liberty Beans',
-    contactEmail: 'info@libertybeans.com',
-    contactPhone: '(919) 555-1234',
-    activeProjects: 3,
-    status: 'active',
-    username: 'libertybeans',
-    password: 'coffee2025'
-  },
-  {
-    id: 'client-002',
-    name: 'ProTech Carpet Care',
-    logo: '/client-logos/protech.png',
-    industry: 'Home Services',
-    contactName: 'ProTech Team',
-    contactEmail: 'service@protechcarpet.com',
-    contactPhone: '(919) 555-5678',
-    activeProjects: 2,
-    status: 'active',
-    username: 'protech',
-    password: 'carpet2025'
-  },
-  {
-    id: 'client-003',
-    name: 'STFD Fence',
-    logo: '/client-logos/stfd.png',
-    industry: 'Construction',
-    contactName: 'STFD Team',
-    contactEmail: 'info@stfdfence.com',
-    contactPhone: '(919) 555-9012',
-    activeProjects: 4,
-    status: 'active',
-    username: 'stfdfence',
-    password: 'fence2025'
-  },
-  {
-    id: 'client-004',
-    name: 'Altare',
-    logo: '/client-logos/altare.png',
-    industry: 'Technology',
-    contactName: 'Altare Team',
-    contactEmail: 'contact@altare.tech',
-    contactPhone: '(919) 555-3456',
-    activeProjects: 3,
-    status: 'active',
-    username: 'altare',
-    password: 'tech2025'
-  }
-];
+// Client interface for type safety
+// Real data will be fetched from Supabase
 
 interface Client {
   id: string;
@@ -82,7 +29,7 @@ interface ClientListProps {
 const ClientList: React.FC<ClientListProps> = ({ onSelectClient }) => {
   const [searchTerm, setSearchTerm] = useState('');
   const [showCredentials, setShowCredentials] = useState<Record<string, boolean>>({});
-  const [clients, setClients] = useState<Client[]>(mockClients);
+  const [clients, setClients] = useState<Client[]>([]);
   const [loading, setLoading] = useState(false);
   const [showModal, setShowModal] = useState(false);
   const [modalMode, setModalMode] = useState<'add' | 'edit'>('add');
@@ -115,8 +62,9 @@ const ClientList: React.FC<ClientListProps> = ({ onSelectClient }) => {
         }
       } catch (err: any) {
         console.error('Error fetching clients:', err);
-        // Fallback to mock data if Supabase fails
-        setClients(mockClients);
+        // Show error instead of using mock data
+        setError('Failed to load clients. Please try again.');
+        setClients([]);
       } finally {
         setLoading(false);
       }
