@@ -1,15 +1,34 @@
 import { createClient } from '@supabase/supabase-js';
 
 // Initialize the Supabase client with environment variables
-const supabaseUrl = process.env.REACT_APP_SUPABASE_URL || 'https://dvuiiloynbrtdrabtzsg.supabase.co';
+// Make sure the URL is properly formatted with https:// prefix
+let supabaseUrl = process.env.REACT_APP_SUPABASE_URL || 'https://dvuiiloynbrtdrabtzsg.supabase.co';
+
+// Ensure the URL has the correct format
+if (supabaseUrl && !supabaseUrl.startsWith('http')) {
+  supabaseUrl = 'https://' + supabaseUrl;
+}
+
 const supabaseAnonKey = process.env.REACT_APP_SUPABASE_ANON_KEY || 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImR2dWlpbG95bmJydGRyYWJ0enNnIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDQzMDM1MDksImV4cCI6MjA1OTg3OTUwOX0.aef4QCYboLzhyw8im1pGZe7v0tweAnQ3haN1T0mVLmE';
 
 // Log Supabase connection details for debugging
 console.log('Supabase URL:', supabaseUrl);
 console.log('Using environment variables:', !!process.env.REACT_APP_SUPABASE_URL);
 
-// Create the Supabase client
-const supabase = createClient(supabaseUrl, supabaseAnonKey);
+// Create and export the Supabase client
+let supabase;
+
+try {
+  // Create the Supabase client
+  supabase = createClient(supabaseUrl, supabaseAnonKey);
+  console.log('Supabase client created successfully');
+} catch (error) {
+  console.error('Error creating Supabase client:', error);
+  // Fallback to a known working URL if there's an error
+  const fallbackUrl = 'https://dvuiiloynbrtdrabtzsg.supabase.co';
+  console.log('Falling back to hardcoded URL:', fallbackUrl);
+  supabase = createClient(fallbackUrl, supabaseAnonKey);
+}
 
 // Add direct client login method to avoid using RPC
 export const clientLogin = async (username: string, password: string) => {
