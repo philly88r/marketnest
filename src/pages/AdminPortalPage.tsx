@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import styled from 'styled-components';
 import { motion } from 'framer-motion';
 import { FiUsers, FiPieChart, FiSettings, FiLogOut, FiEdit, FiEye } from 'react-icons/fi';
@@ -21,6 +21,13 @@ const AdminPortalPage: React.FC = () => {
   const [activeTab, setActiveTab] = useState<'clients' | 'dashboard' | 'settings'>('clients');
   const [selectedClientId, setSelectedClientId] = useState<string | null>(null);
   const navigate = useNavigate();
+  
+  // Add console logging for debugging
+  useEffect(() => {
+    if (selectedClientId) {
+      console.log('Selected client ID in AdminPortalPage:', selectedClientId);
+    }
+  }, [selectedClientId]);
 
   const handleLogout = () => {
     // In a real app, you would clear authentication tokens here
@@ -36,7 +43,17 @@ const AdminPortalPage: React.FC = () => {
             onBack={() => setSelectedClientId(null)} 
           />
         ) : (
-          <ClientList onSelectClient={(id) => setSelectedClientId(id)} />
+          <ClientList onSelectClient={(id) => {
+            console.log('Client selected with ID:', id);
+            // Special handling for Liberty Beans Coffee
+            if (id === 'client-001' || id === 'client-liberty-beans') {
+              console.log('Liberty Beans Coffee client selected');
+              // Always use the new ID for Liberty Beans
+              setSelectedClientId('client-liberty-beans');
+            } else {
+              setSelectedClientId(id);
+            }
+          }} />
         );
       case 'dashboard':
         return (

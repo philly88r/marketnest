@@ -199,20 +199,51 @@ const ClientDashboard: React.FC<ClientDashboardProps> = ({ clientId, onBack }) =
     const fetchClient = async () => {
       setIsLoading(true);
       setError(null);
+      console.log('Fetching client with ID:', clientId);
 
       try {
-        const clientData = await getClientById(clientId);
-        if (clientData) {
-          setClient(clientData);
-          setEditForm(clientData);
-        } else {
-          // Fallback to mock data if client not found in database
-          const mockClient = mockClients.find(c => c.id === clientId);
-          if (mockClient) {
-            setClient(mockClient as unknown as Client);
-            setEditForm(mockClient as unknown as Client);
+        // Special handling for Liberty Beans Coffee
+        if (clientId === 'client-001' || clientId === 'client-liberty-beans') {
+          console.log('Liberty Beans client detected, checking both IDs');
+          
+          // Try the new ID first
+          let clientData = await getClientById('client-liberty-beans');
+          
+          // If not found, try the old ID
+          if (!clientData) {
+            clientData = await getClientById('client-001');
+          }
+          
+          if (clientData) {
+            console.log('Found Liberty Beans client:', clientData);
+            setClient(clientData);
+            setEditForm(clientData);
           } else {
-            setError('Client not found');
+            // Fallback to mock data for Liberty Beans
+            console.log('Liberty Beans not found in database, using mock data');
+            const libertyBeansMock = mockClients.find(c => c.name.includes('Liberty Beans'));
+            if (libertyBeansMock) {
+              setClient(libertyBeansMock as unknown as Client);
+              setEditForm(libertyBeansMock as unknown as Client);
+            } else {
+              setError('Liberty Beans Coffee client not found');
+            }
+          }
+        } else {
+          // Normal handling for other clients
+          const clientData = await getClientById(clientId);
+          if (clientData) {
+            setClient(clientData);
+            setEditForm(clientData);
+          } else {
+            // Fallback to mock data if client not found in database
+            const mockClient = mockClients.find(c => c.id === clientId);
+            if (mockClient) {
+              setClient(mockClient as unknown as Client);
+              setEditForm(mockClient as unknown as Client);
+            } else {
+              setError('Client not found');
+            }
           }
         }
       } catch (err) {
@@ -220,8 +251,14 @@ const ClientDashboard: React.FC<ClientDashboardProps> = ({ clientId, onBack }) =
         setError('Failed to load client data');
 
         // Fallback to mock data
-        const mockClient = mockClients.find(c => c.id === clientId);
+        const mockClient = mockClients.find(c => 
+          c.id === clientId || 
+          (clientId === 'client-liberty-beans' && c.id === 'client-001') ||
+          (clientId === 'client-001' && c.name.includes('Liberty Beans'))
+        );
+        
         if (mockClient) {
+          console.log('Using mock client data:', mockClient);
           setClient(mockClient as unknown as Client);
           setEditForm(mockClient as unknown as Client);
         }
