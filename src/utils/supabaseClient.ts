@@ -1,19 +1,21 @@
 import { createClient } from '@supabase/supabase-js';
 
-// Use environment variables for Supabase configuration
-const supabaseUrl = process.env.REACT_APP_SUPABASE_URL || '';
-const supabaseAnonKey = process.env.REACT_APP_SUPABASE_ANON_KEY || '';
+// Use hardcoded values for Supabase configuration to ensure it works
+const supabaseUrl = 'https://dvuiiloynbrtdrabtzsg.supabase.co';
+const supabaseAnonKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImR2dWlpbG95bmJydGRyYWJ0enNnIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDQzMDM1MDksImV4cCI6MjA1OTg3OTUwOX0.aef4QCYboLzhyw8im1pGZe7v0tweAnQ3haN1T0mVLmE';
 
 // Log Supabase connection details for debugging
-console.log('Supabase URL from env:', supabaseUrl);
+console.log('Supabase URL:', supabaseUrl);
+console.log('Supabase Anon Key (first 10 chars):', supabaseAnonKey.substring(0, 10) + '...');
 
-if (!supabaseUrl || !supabaseAnonKey) {
-  console.error('Supabase credentials are missing from environment variables!');
-}
-
-// Create the Supabase client with environment variables
-const supabase = createClient(supabaseUrl, supabaseAnonKey);
-console.log('Supabase client created with environment variables');
+// Create the Supabase client with proper configuration
+const supabase = createClient(supabaseUrl, supabaseAnonKey, {
+  auth: {
+    autoRefreshToken: true,
+    persistSession: true
+  }
+});
+console.log('Supabase client created with authentication options');
 
 // Add direct client login method to avoid using RPC
 export const clientLogin = async (username: string, password: string) => {
