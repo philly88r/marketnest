@@ -14,13 +14,14 @@ export interface Task {
 
 export interface Project {
   id: string;
+  client_id: string;
   name: string;
   description: string;
   status: string;
   progress: number;
   start_date?: string;
   due_date?: string;
-  client_id: string;
+  created_at?: string;
   created_by?: string;
   tasks?: Task[];
 }
@@ -213,12 +214,27 @@ const getMockTasks = (projectId: string): Task[] => {
 /**
  * Create a new project
  */
-export const createProject = async (project: Omit<Project, 'id'>): Promise<Project> => {
+export const createProject = async (project: Omit<Project, 'id' | 'created_at'>): Promise<Project> => {
   try {
-    // First try to insert into the database
+    // Prepare project data with all required columns
+    const projectData = {
+      client_id: project.client_id,
+      name: project.name,
+      description: project.description,
+      status: project.status || 'planning',
+      progress: project.progress || 0,
+      start_date: project.start_date,
+      due_date: project.due_date,
+      created_by: project.created_by || 'admin'
+      // created_at is handled automatically by Supabase
+    };
+
+    console.log('Creating project with data:', projectData);
+    
+    // Insert into the database
     const { data, error } = await supabase
       .from('client_projects')
-      .insert([project])
+      .insert([projectData])
       .select()
       .single();
       
@@ -228,18 +244,20 @@ export const createProject = async (project: Omit<Project, 'id'>): Promise<Proje
       const mockId = 'proj-' + Math.random().toString(36).substring(2, 10);
       return {
         id: mockId,
+        client_id: project.client_id,
         name: project.name,
         description: project.description,
-        status: project.status,
-        progress: project.progress,
+        status: project.status || 'planning',
+        progress: project.progress || 0,
         start_date: project.start_date,
         due_date: project.due_date,
-        client_id: project.client_id,
+        created_at: new Date().toISOString(),
         created_by: project.created_by || 'admin',
         tasks: []
       };
     }
     
+    console.log('Project created successfully:', data);
     return data;
   } catch (error) {
     console.error('Error in createProject:', error);
@@ -247,13 +265,14 @@ export const createProject = async (project: Omit<Project, 'id'>): Promise<Proje
     const mockId = 'proj-' + Math.random().toString(36).substring(2, 10);
     return {
       id: mockId,
+      client_id: project.client_id,
       name: project.name,
       description: project.description,
-      status: project.status,
-      progress: project.progress,
+      status: project.status || 'planning',
+      progress: project.progress || 0,
       start_date: project.start_date,
       due_date: project.due_date,
-      client_id: project.client_id,
+      created_at: new Date().toISOString(),
       created_by: project.created_by || 'admin',
       tasks: []
     };
@@ -265,9 +284,27 @@ export const createProject = async (project: Omit<Project, 'id'>): Promise<Proje
  */
 export const updateProject = async (id: string, updates: Partial<Project>): Promise<Project> => {
   try {
+    // Prepare update data with only valid columns
+    const updateData: Record<string, any> = {};
+    
+    // Only include fields that are valid columns in the client_projects table
+    if (updates.client_id !== undefined) updateData.client_id = updates.client_id;
+    if (updates.name !== undefined) updateData.name = updates.name;
+    if (updates.description !== undefined) updateData.description = updates.description;
+    if (updates.status !== undefined) updateData.status = updates.status;
+    if (updates.progress !== undefined) updateData.progress = updates.progress;
+    if (updates.start_date !== undefined) updateData.start_date = updates.start_date;
+    if (updates.due_date !== undefined) updateData.due_date = updates.due_date;
+    if (updates.created_by !== undefined) updateData.created_by = updates.created_by;
+    
+    // Don't update created_at as it's managed by the database
+    
+    console.log('Updating project with ID:', id);
+    console.log('Update data:', updateData);
+    
     const { data, error } = await supabase
       .from('client_projects')
-      .update(updates)
+      .update(updateData)
       .eq('id', id)
       .select()
       .single();
@@ -291,13 +328,14 @@ export const updateProject = async (id: string, updates: Partial<Project>): Prom
         // Create a new mock project with the updates
         const mockProject: Project = {
           id,
+          client_id: updates.client_id || 'client-liberty-beans',
           name: updates.name || 'Updated Project',
           description: updates.description || 'Updated project description',
           status: updates.status || 'planning',
           progress: updates.progress || 0,
           start_date: updates.start_date || new Date().toISOString(),
           due_date: updates.due_date || new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString(),
-          client_id: updates.client_id || 'client-liberty-beans',
+          created_at: new Date().toISOString(),
           created_by: updates.created_by || 'admin',
           tasks: []
         };
@@ -306,6 +344,7 @@ export const updateProject = async (id: string, updates: Partial<Project>): Prom
       }
     }
     
+    console.log('Project updated successfully:', data);
     return data;
   } catch (error) {
     console.error('Error in updateProject:', error);
@@ -325,13 +364,14 @@ export const updateProject = async (id: string, updates: Partial<Project>): Prom
       // Create a new mock project with the updates
       const mockProject: Project = {
         id,
+        client_id: updates.client_id || 'client-liberty-beans',
         name: updates.name || 'Updated Project',
         description: updates.description || 'Updated project description',
         status: updates.status || 'planning',
         progress: updates.progress || 0,
         start_date: updates.start_date || new Date().toISOString(),
         due_date: updates.due_date || new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString(),
-        client_id: updates.client_id || 'client-liberty-beans',
+        created_at: new Date().toISOString(),
         created_by: updates.created_by || 'admin',
         tasks: []
       };
