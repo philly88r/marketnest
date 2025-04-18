@@ -8,16 +8,18 @@ const supabaseAnonKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYm
 console.log('Supabase URL:', supabaseUrl);
 console.log('Supabase Anon Key (first 10 chars):', supabaseAnonKey.substring(0, 10) + '...');
 
-// Create custom fetch function that always includes the API key
+// Create custom fetch function that always includes the API key and proper Content-Type
 const customFetch = (url: RequestInfo | URL, options: RequestInit = {}) => {
   // Ensure headers object exists
   options.headers = options.headers || {};
   
-  // Add the API key to headers
+  // Add the API key and Content-Type to headers
   options.headers = {
     ...options.headers,
     'apikey': supabaseAnonKey,
-    'Authorization': `Bearer ${supabaseAnonKey}`
+    'Authorization': `Bearer ${supabaseAnonKey}`,
+    'Content-Type': 'application/json',
+    'Accept': 'application/json'
   };
   
   console.log('Making Supabase request with headers:', JSON.stringify(options.headers));
@@ -33,7 +35,9 @@ const supabase = createClient(supabaseUrl, supabaseAnonKey, {
   global: {
     headers: {
       apikey: supabaseAnonKey,
-      Authorization: `Bearer ${supabaseAnonKey}`
+      Authorization: `Bearer ${supabaseAnonKey}`,
+      'Content-Type': 'application/json',
+      'Accept': 'application/json'
     },
     fetch: customFetch
   }
