@@ -629,6 +629,7 @@ const Sidebar = styled.div`
   display: flex;
   flex-direction: column;
   max-height: calc(100vh - 60px); /* Subtract header height */
+  flex-shrink: 0; /* Prevent sidebar from shrinking */
 `;
 
 const SidebarTitle = styled.h2`
@@ -642,6 +643,8 @@ const SidebarTitle = styled.h2`
 const TemplateList = styled.div`
   display: flex;
   flex-direction: column;
+  overflow-y: auto; /* Enable scrolling for the template list */
+  max-height: calc(100vh - 110px); /* Subtract header height and sidebar title */
 `;
 
 const TemplateItem = styled.div<{ $isActive: boolean }>`
