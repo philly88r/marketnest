@@ -4,7 +4,6 @@ import { FiMail, FiPlus, FiCheck, FiX, FiSend, FiCalendar, FiEdit, FiTrash2, FiC
 import { 
   generateEmailTemplates, 
   generateCustomEmailTemplate,
-  generateLandingPage,
   getEmailTemplatesByClientId, 
   updateEmailTemplateStatus,
   deleteEmailTemplate,
@@ -30,7 +29,6 @@ const EmailMarketingPage: React.FC<EmailMarketingPageProps> = ({
   const [error, setError] = useState<string | null>(null);
   const [showGenerateForm, setShowGenerateForm] = useState(false);
   const [showCustomForm, setShowCustomForm] = useState(false);
-  const [showLandingPageForm, setShowLandingPageForm] = useState(false);
   const [showScheduleForm, setShowScheduleForm] = useState(false);
   const [scheduledDate, setScheduledDate] = useState('');
   const [showScrollIndicator, setShowScrollIndicator] = useState(true);
@@ -126,37 +124,6 @@ const EmailMarketingPage: React.FC<EmailMarketingPageProps> = ({
     } catch (err) {
       console.error('Error generating custom email template:', err);
       setError('Failed to generate custom email template. Please try again.');
-    } finally {
-      setIsLoading(false);
-    }
-  };
-
-  // Handle generating landing page with AI
-  const handleGenerateLandingPage = async (e: React.FormEvent) => {
-    e.preventDefault();
-    
-    setIsLoading(true);
-    setError(null);
-    
-    try {
-      const landingPageOptions = {
-        ...generationOptions,
-        customContent,
-        isLandingPage: true,
-        purpose: 'landing-page' as const,
-        landingPageType: generationOptions.landingPageType || 'lead-generation',
-        imagePrompts: imagePrompts.filter(prompt => prompt.trim() !== '')
-      };
-      
-      const newTemplate = await generateLandingPage(landingPageOptions);
-      setTemplates(prevTemplates => [newTemplate, ...prevTemplates]);
-      setSelectedTemplate(newTemplate);
-      setShowLandingPageForm(false);
-      setCustomContent('');
-      setImagePrompts(['']);
-    } catch (err) {
-      console.error('Error generating landing page:', err);
-      setError('Failed to generate landing page. Please try again.');
     } finally {
       setIsLoading(false);
     }
@@ -309,9 +276,6 @@ const EmailMarketingPage: React.FC<EmailMarketingPageProps> = ({
             <FiMail style={{ marginRight: '8px' }} /> Email Marketing
           </HeaderTitle>
           <ButtonGroup>
-            <Button onClick={() => setShowLandingPageForm(true)}>
-              <FiLayout style={{ marginRight: '8px' }} /> Generate Landing Page
-            </Button>
             <Button onClick={() => setShowGenerateForm(true)}>
               <FiPlus style={{ marginRight: '8px' }} /> Generate Email Template
             </Button>
@@ -447,118 +411,6 @@ const EmailMarketingPage: React.FC<EmailMarketingPageProps> = ({
                     </Button>
                     <Button type="submit" disabled={isLoading}>
                       {isLoading ? 'Generating...' : 'Generate Custom Template'}
-                    </Button>
-                  </ButtonGroup>
-                </Form>
-              </Card>
-            ) : showLandingPageForm ? (
-              <Card>
-                <CardTitle>Generate Landing Page</CardTitle>
-                <Form onSubmit={handleGenerateLandingPage}>
-                  <FormGroup>
-                    <Label>Landing Page Title</Label>
-                    <Input 
-                      type="text" 
-                      value={generationOptions.title || ''}
-                      onChange={(e) => setGenerationOptions({
-                        ...generationOptions,
-                        title: e.target.value
-                      })}
-                      placeholder="Enter a title for your landing page..."
-                      required
-                    />
-                  </FormGroup>
-                  <FormGroup>
-                    <Label>Landing Page Description</Label>
-                    <Textarea 
-                      value={customContent}
-                      onChange={(e) => setCustomContent(e.target.value)}
-                      placeholder="Describe what you want on your landing page..."
-                      rows={6}
-                      required
-                    />
-                  </FormGroup>
-                  <FormGroup>
-                    <Label>Landing Page Type</Label>
-                    <Select 
-                      name="landingPageType" 
-                      value={generationOptions.landingPageType || 'lead-generation'}
-                      onChange={handleOptionChange}
-                    >
-                      <option value="lead-generation">Lead Generation</option>
-                      <option value="product">Product</option>
-                      <option value="service">Service</option>
-                      <option value="event">Event</option>
-                    </Select>
-                  </FormGroup>
-                  <FormGroup>
-                    <Label>Image Prompts (one per line)</Label>
-                    <Textarea 
-                      value={imagePrompts.join('\n')}
-                      onChange={(e) => setImagePrompts(e.target.value.split('\n'))}
-                      placeholder="Describe the images you want generated (one description per line)..."
-                      rows={4}
-                    />
-                    <small style={{ color: '#999', marginTop: '4px', display: 'block' }}>
-                      These will be used to generate images for your landing page using Google's AI image generator.
-                    </small>
-                  </FormGroup>
-                  <FormGroup>
-                    <Label>Brand Colors</Label>
-                    <div style={{ display: 'flex', gap: '10px', alignItems: 'center' }}>
-                      <div>
-                        <small>Primary</small>
-                        <Input 
-                          type="color" 
-                          name="primary"
-                          value={brandColors.primary}
-                          onChange={handleBrandColorChange}
-                          style={{ width: '50px', height: '30px', padding: '0' }}
-                        />
-                      </div>
-                      <div>
-                        <small>Secondary</small>
-                        <Input 
-                          type="color" 
-                          name="secondary"
-                          value={brandColors.secondary}
-                          onChange={handleBrandColorChange}
-                          style={{ width: '50px', height: '30px', padding: '0' }}
-                        />
-                      </div>
-                      <div>
-                        <small>Accent</small>
-                        <Input 
-                          type="color" 
-                          name="accent"
-                          value={brandColors.accent}
-                          onChange={handleBrandColorChange}
-                          style={{ width: '50px', height: '30px', padding: '0' }}
-                        />
-                      </div>
-                    </div>
-                  </FormGroup>
-                  {error && <ErrorMessage>{error}</ErrorMessage>}
-                  <ButtonGroup>
-                    <Button 
-                      type="button" 
-                      $secondary 
-                      onClick={() => setShowLandingPageForm(false)}
-                    >
-                      Cancel
-                    </Button>
-                    <Button type="submit" disabled={isLoading}>
-                      {isLoading ? (
-                        <>
-                          <FiRefreshCw className="spinning" style={{ marginRight: '8px' }} />
-                          Generating...
-                        </>
-                      ) : (
-                        <>
-                          <FiLayout style={{ marginRight: '8px' }} />
-                          Generate Landing Page
-                        </>
-                      )}
                     </Button>
                   </ButtonGroup>
                 </Form>
