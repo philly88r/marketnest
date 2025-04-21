@@ -94,15 +94,30 @@ const ProjectEditor: React.FC<ProjectEditorProps> = ({
       let savedProject: Project;
       
       if (isNewProject) {
+        console.log("Creating new project:", form);
+        console.log("Client ID:", clientId);
+        
         // Create new project with created_by field
         savedProject = await createProject({
           ...form,
-          created_by: 'admin' // Set default creator
-        } as Omit<Project, 'id'>);
+          client_id: clientId,
+          created_by: 'admin'
+        } as Omit<Project, 'id' | 'created_at'>);
+        
+        console.log("Project created successfully:", savedProject);
         setSuccessMessage('Project created successfully!');
       } else if (project) {
+        console.log("Updating existing project:", project.id, form);
         // Update existing project
-        savedProject = await updateProject(project.id, form);
+        const updateResult = await updateProject(project.id, form);
+        if (updateResult.error) {
+          setError('Failed to update project in the database. Please check your connection or permissions.');
+          console.error('Update project error:', updateResult.error);
+          setIsLoading(false);
+          return;
+        }
+        savedProject = updateResult.project;
+        console.log("Project updated successfully:", savedProject);
         setSuccessMessage('Project updated successfully!');
       } else {
         throw new Error('Invalid project state');

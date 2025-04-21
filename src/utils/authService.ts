@@ -10,6 +10,13 @@ export interface ClientUser {
   id: string;
   name: string;
   username: string;
+  logo?: string;
+  industry?: string;
+  contactname?: string;
+  contactemail?: string;
+  contactphone?: string;
+  activeprojects?: number;
+  status?: string;
   role: 'client';
 }
 
@@ -49,34 +56,66 @@ export const adminLogin = async (email: string, password: string): Promise<Admin
   return adminUser;
 };
 
-// Client authentication (using direct table query instead of RPC)
+// Client login using Supabase Auth and fetch client by user_id
 export const clientLogin = async (username: string, password: string): Promise<ClientUser> => {
-  try {
-    // Use the direct query method from supabaseClient.ts
-    const data = await supabaseClientLogin(username, password);
-    
-    if (!data || !data.client) {
-      throw new Error('Invalid username or password');
-    }
-    
-    // Store the token and client data
-    localStorage.setItem('user-type', 'client');
-    localStorage.setItem('client-token', data.access_token);
-    
-    const clientUser: ClientUser = {
-      id: data.client.id,
-      name: data.client.name,
-      username: data.client.username,
-      role: 'client'
-    };
-    
-    localStorage.setItem('client-user', JSON.stringify(clientUser));
-    
-    return clientUser;
-  } catch (error) {
-    console.error('Client login error:', error);
-    throw new Error('Invalid username or password');
+  // Use the provided email directly with Supabase Auth
+  const email = username; // The form field is labeled "Username" but contains email
+  
+  // Authenticate with Supabase Auth
+  const { data, error } = await supabase.auth.signInWithPassword({ email, password });
+  if (error) throw error;
+  if (!data.user || !data.session) throw new Error('Authentication failed');
+
+  // Fetch client by user_id (Supabase Auth UUID)
+  const userId = data.user.id;
+  console.log('Looking up client with user_id:', userId);
+
+  // First, let's check what's in the clients table
+  const { data: allClients, error: allClientsError } = await supabase
+    .from('clients')
+    .select('id, name, user_id');
+  
+  console.log('All clients with their user_id values:', allClients);
+  console.log('Any error fetching clients:', allClientsError);
+
+  const { data: clientData, error: clientError } = await supabase
+    .from('clients')
+    .select('*')
+    .eq('user_id', userId)
+    .single();
+
+  console.log('Client lookup result:', clientData, clientError);
+
+  // Check if clientData is an array (Supabase sometimes returns arrays even with single())
+  let client = clientData;
+  if (Array.isArray(clientData) && clientData.length > 0) {
+    client = clientData[0];
+    console.log('Extracted client from array:', client);
   }
+
+  if (clientError || !client) {
+    throw new Error('No client record found for this user');
+  }
+
+  // Map to ClientUser (add all fields you need)
+  const clientUser: ClientUser = {
+    id: client.id,
+    name: client.name,
+    logo: client.logo,
+    industry: client.industry,
+    contactname: client.contactname,
+    contactemail: client.contactemail,
+    contactphone: client.contactphone,
+    activeprojects: client.activeprojects,
+    status: client.status,
+    username: client.username,
+    role: 'client',
+  };
+
+  localStorage.setItem('user-type', 'client');
+  localStorage.setItem('client-user', JSON.stringify(clientUser));
+
+  return clientUser;
 };
 
 // Get current user (admin or client)

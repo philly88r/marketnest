@@ -5,14 +5,14 @@
 
 // Mock storage for demo purposes
 // In production, this would connect to your cloud storage solution
-const fileStorage: Record<string, {
-  name: string;
-  type: string;
-  size: number;
-  url: string;
-  uploadDate: Date;
-  uploadedBy: string;
-}> = {};
+// const fileStorage: Record<string, {
+//   name: string;
+//   type: string;
+//   size: number;
+//   url: string;
+//   uploadDate: Date;
+//   uploadedBy: string;
+// }> = {};
 
 /**
  * Upload a file and get a shareable URL
@@ -24,14 +24,14 @@ export const uploadFile = async (file: File, userId: string): Promise<string> =>
   const mockUrl = `/files/${fileId}/${encodeURIComponent(file.name)}`;
   
   // Store file metadata
-  fileStorage[fileId] = {
-    name: file.name,
-    type: file.type,
-    size: file.size,
-    url: mockUrl,
-    uploadDate: new Date(),
-    uploadedBy: userId
-  };
+  // fileStorage[fileId] = {
+  //   name: file.name,
+  //   type: file.type,
+  //   size: file.size,
+  //   url: mockUrl,
+  //   uploadDate: new Date(),
+  //   uploadedBy: userId
+  // };
   
   // Simulate network delay
   await new Promise(resolve => setTimeout(resolve, 500));
@@ -44,16 +44,18 @@ export const uploadFile = async (file: File, userId: string): Promise<string> =>
  */
 export const getFileMetadata = (url: string) => {
   const fileId = url.split('/')[2];
-  return fileStorage[fileId] || null;
+  // return fileStorage[fileId] || null;
+  return null;
 };
 
 /**
  * Get a list of recently shared files
  */
 export const getRecentFiles = (limit = 5) => {
-  return Object.values(fileStorage)
-    .sort((a, b) => b.uploadDate.getTime() - a.uploadDate.getTime())
-    .slice(0, limit);
+  // return Object.values(fileStorage)
+  //   .sort((a, b) => b.uploadDate.getTime() - a.uploadDate.getTime())
+  //   .slice(0, limit);
+  return [];
 };
 
 /**

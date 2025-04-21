@@ -265,6 +265,14 @@ const Header: React.FC = () => {
   const [servicesDropdownOpen, setServicesDropdownOpen] = useState(false);
   const [softwareDropdownOpen, setSoftwareDropdownOpen] = useState(false);
   
+  const navigate = useNavigate();
+  const handleLogout = async () => {
+    // Use the shared logout utility
+    const { logout } = await import('../utils/authService');
+    await logout();
+    navigate('/client-login');
+  };
+
   const toggleMobileMenu = () => {
     setMobileMenuOpen(!mobileMenuOpen);
   };
@@ -382,6 +390,11 @@ const Header: React.FC = () => {
           <RouterLink to={clientPortalLink} style={{ textDecoration: 'none' }}>
             <ClientPortalButton>Client Portal</ClientPortalButton>
           </RouterLink>
+          {isLoggedIn() && isClient() && (
+            <ClientPortalButton onClick={handleLogout} style={{ marginLeft: 24 }}>
+              Logout
+            </ClientPortalButton>
+          )}
       </NavContainer>
       
       <MobileMenuContainer>
@@ -473,6 +486,11 @@ const Header: React.FC = () => {
           <RouterLink to={clientPortalLink} style={{ textDecoration: 'none' }} onClick={toggleMobileMenu}>
             <MobileNavItem style={{ color: '#0df9b6' }}>Client Portal</MobileNavItem>
           </RouterLink>
+          {isLoggedIn() && isClient() && (
+            <MobileNavItem onClick={handleLogout} style={{ color: '#0df9b6' }}>
+              Logout
+            </MobileNavItem>
+          )}
         </>
       </MobileMenu>
     </HeaderContainer>

@@ -4,6 +4,7 @@ import { motion } from 'framer-motion';
 import { FiEdit, FiEye, FiSearch, FiPlus } from 'react-icons/fi';
 import { renderIcon } from '../utils/iconUtils';
 import { supabase } from '../utils/supabaseClient';
+import { getProjectsByClientId } from '../utils/projectService';
 
 // Client interface for type safety
 // Real data will be fetched from Supabase
@@ -36,6 +37,7 @@ const ClientList: React.FC<ClientListProps> = ({ onSelectClient }) => {
   const [editingClient, setEditingClient] = useState<Client | null>(null);
   const [form, setForm] = useState<Partial<Client>>({});
   const [error, setError] = useState<string | null>(null);
+  const [projectCounts, setProjectCounts] = useState<Record<string, number>>({});
 
   // Fetch clients from Supabase on mount
   useEffect(() => {
@@ -45,24 +47,33 @@ const ClientList: React.FC<ClientListProps> = ({ onSelectClient }) => {
         const { data, error } = await supabase.from('clients').select('*');
         if (error) throw error;
         if (data) {
-          console.log('Fetched clients:', data);
-          // Check if Liberty Beans Coffee exists with the new ID
-          const libertyBeansClient = data.find(client => 
-            client.name.includes('Liberty Beans') || 
-            client.id === 'client-liberty-beans'
-          );
-          
-          if (libertyBeansClient) {
-            console.log('Found Liberty Beans client:', libertyBeansClient);
-          } else {
-            console.log('Liberty Beans client not found in database');
+          // Normalize DB fields to frontend camelCase
+          const normalized = data.map(client => ({
+            ...client,
+            contactName: client.contactname,
+            contactEmail: client.contactemail,
+            contactPhone: client.contactphone,
+            activeProjects: client.activeprojects,
+          }));
+          setClients(normalized);
+
+          // Fetch project counts for each client
+          const counts: Record<string, number> = {};
+          for (const client of normalized) {
+            try {
+              const projects = await getProjectsByClientId(client.id);
+              // Only count projects with status not 'completed' (active projects)
+              const activeCount = projects.filter(p => p.status !== 'completed').length;
+              counts[client.id] = activeCount;
+            } catch (projError) {
+              console.error('Error fetching projects for client:', client.id, projError);
+              counts[client.id] = 0;
+            }
           }
-          
-          setClients(data);
+          setProjectCounts(counts);
         }
       } catch (err: any) {
         console.error('Error fetching clients:', err);
-        // Show error instead of using mock data
         setError('Failed to load clients. Please try again.');
         setClients([]);
       } finally {
@@ -163,7 +174,7 @@ const ClientList: React.FC<ClientListProps> = ({ onSelectClient }) => {
                 <ClientLogo>
                   {client.name.charAt(0)}
                 </ClientLogo>
-                <ClientName>{client.name.includes('Liberty Beans') ? `${client.name} $$$` : client.name}</ClientName>
+                <ClientName>{client.name}</ClientName>
               </ClientInfo>
             </ClientCell>
             <ClientCell width="15%">{client.industry}</ClientCell>
@@ -171,10 +182,12 @@ const ClientList: React.FC<ClientListProps> = ({ onSelectClient }) => {
               <ContactInfo>
                 <div>{client.contactName}</div>
                 <ContactEmail>{client.contactEmail}</ContactEmail>
+                <div>{client.contactPhone}</div>
               </ContactInfo>
             </ClientCell>
             <ClientCell width="10%">
-              <ProjectCount>{client.activeProjects}</ProjectCount>
+              {/* Show dynamic project count if available, else fallback to 0 */}
+              {projectCounts[client.id] !== undefined ? projectCounts[client.id] : 0}
             </ClientCell>
             <ClientCell width="15%">
               <CredentialsContainer>
@@ -234,7 +247,29 @@ const ClientList: React.FC<ClientListProps> = ({ onSelectClient }) => {
               ) : (
                 <>
                   <ActionButton onClick={() => openEditModal(client)}>{renderIcon(FiEdit)} Edit</ActionButton>
-                  <ActionButton onClick={() => onSelectClient(client.id)}>{renderIcon(FiEye)} View</ActionButton>
+                  <ActionButton 
+                    onClick={() => {
+                      console.log('View clicked', client);
+                      try {
+                        setTimeout(() => {
+                          onSelectClient(client.id);
+                        }, 100);
+                      } catch (err) {
+                        console.error('Error selecting client:', err);
+                      }
+                    }}
+                    style={{ 
+                      background: 'rgba(255, 0, 0, 0.25)', 
+                      cursor: 'pointer',
+                      padding: '10px 15px',
+                      fontWeight: 'bold',
+                      fontSize: '15px',
+                      boxShadow: '0 4px 8px rgba(0, 0, 0, 0.2)',
+                      transform: 'scale(1.05)'
+                    }}
+                  >
+                    {renderIcon(FiEye)} View
+                  </ActionButton>
                 </>
               )}
             </ClientCell>

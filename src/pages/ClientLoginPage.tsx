@@ -33,6 +33,12 @@ const ClientLoginPage: React.FC = () => {
     try {
       // clientLogin now returns clientUser with id
       const clientUser = await clientLogin(username, password);
+      console.log('clientUser after login:', clientUser);
+      if (!clientUser || !clientUser.id) {
+        setError('Login succeeded but no client ID was returned. Please contact support.');
+        setIsLoading(false);
+        return;
+      }
       navigate(`/client-portal/${clientUser.id}`);
     } catch (err) {
       console.error('Login error:', err);
@@ -60,12 +66,12 @@ const ClientLoginPage: React.FC = () => {
           
           <LoginForm onSubmit={handleSubmit}>
             <FormGroup>
-              <Label>Username</Label>
+              <Label style={{ color: 'red' }}>Email Address</Label>
               <Input 
-                type="text" 
+                type="email" 
                 value={username}
                 onChange={(e) => setUsername(e.target.value)}
-                placeholder="Enter your username"
+                placeholder="Enter your email address"
                 required
               />
             </FormGroup>

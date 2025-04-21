@@ -37,6 +37,12 @@ const AdminPortalPage: React.FC = () => {
     setSelectedClientId('client-liberty-beans');
   };
   
+  // Special handler for Altare (client-004)
+  const handleAltareSelection = () => {
+    console.log('Special handler for Altare triggered');
+    setSelectedClientId('client-004');
+  };
+  
   // Add a visible title to show we're in the admin portal
   const pageTitle = "ADMIN PORTAL $$$";
 
@@ -49,10 +55,12 @@ const AdminPortalPage: React.FC = () => {
     switch (activeTab) {
       case 'clients':
         return selectedClientId ? (
-          <ClientDashboard 
-            clientId={selectedClientId} 
-            onBack={() => setSelectedClientId(null)} 
-          />
+          <>
+            <ClientDashboard 
+              clientId={selectedClientId} 
+              onBack={() => setSelectedClientId(null)} 
+            />
+          </>
         ) : (
           <ClientList onSelectClient={(id) => {
             console.log('Client selected with ID:', id);
@@ -60,7 +68,13 @@ const AdminPortalPage: React.FC = () => {
             if (id === 'client-liberty-beans') {
               console.log('Liberty Beans Coffee client detected, using special handler');
               handleLibertyBeansSelection();
-            } else {
+            } 
+            // Special handling for Altare
+            else if (id === 'client-004') {
+              console.log('Altare client detected, using special handler');
+              handleAltareSelection();
+            }
+            else {
               // For other clients, update the state directly
               console.log('Updating selectedClientId state to:', id);
               setSelectedClientId(id);
@@ -219,17 +233,17 @@ const AdminContent = styled.div`
 `;
 
 const AdminSidebar = styled.div`
-  width: 280px;
-  background: rgba(0, 0, 0, 0.3);
+  background: #1a1c23;
+  width: 260px;
   padding: 30px 20px;
   display: flex;
   flex-direction: column;
-  border-right: 1px solid rgba(255, 255, 255, 0.05);
+  height: 100%;
+  position: relative;
+  z-index: 5;
   
   @media (max-width: 768px) {
     width: 100%;
-    border-right: none;
-    border-bottom: 1px solid rgba(255, 255, 255, 0.05);
     padding: 20px;
   }
 `;
@@ -289,6 +303,9 @@ const NavItem = styled.button<{ $active: boolean }>`
   width: 100%;
   text-align: left;
   font-size: 16px;
+  position: relative;
+  z-index: 10;
+  pointer-events: auto;
   
   svg {
     margin-right: 12px;

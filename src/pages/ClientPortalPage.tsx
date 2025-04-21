@@ -17,6 +17,7 @@ const ClientPortalPage = () => {
       <Header />
       <PortalContainer>
         <h1>Client Portal</h1>
+        {/* Checklist for client-004 removed from here to avoid duplicate rendering */}
         <ClientDashboard clientId={clientId} onBack={() => {}} />
       </PortalContainer>
       <Footer />

@@ -9,6 +9,7 @@ import TasksPage from './TasksPage';
 import ProjectEditor from './ProjectEditor';
 import ClientChecklist from './ClientChecklist';
 import SEOAuditPage from './SEOAuditPage';
+import FundraiserPage from './FundraiserPage';
 import { renderIcon } from '../utils/iconUtils';
 import { getClientById, updateClient, Client } from '../utils/clientService';
 import { supabase } from '../utils/supabaseClient';
@@ -1232,7 +1233,6 @@ const ClientDashboard: React.FC<ClientDashboardProps> = ({ clientId, onBack }) =
       case 'fundraiser':
         // Only show for Liberty Beans
         if (client?.id !== "client-liberty-beans") return null;
-        const FundraiserPage = require('./FundraiserPage').default;
         return <FundraiserPage clientId={client.id} isAdmin={false} />;
         
       case 'seo':

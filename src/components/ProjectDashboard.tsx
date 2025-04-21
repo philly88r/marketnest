@@ -1,182 +1,136 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import styled from 'styled-components';
 import { motion } from 'framer-motion';
 import { FiCheckCircle, FiClock, FiCircle } from 'react-icons/fi';
-
-// Mock project data - in a real app, this would come from your backend
-const mockProjects = [
-  {
-    id: 'proj-001',
-    name: 'Website Redesign',
-    status: 'in-progress',
-    progress: 65,
-    startDate: new Date('2025-03-15'),
-    dueDate: new Date('2025-05-01'),
-    tasks: [
-      { id: 'task-001', name: 'Wireframes', status: 'completed', assignee: 'Alex' },
-      { id: 'task-002', name: 'Design System', status: 'completed', assignee: 'Morgan' },
-      { id: 'task-003', name: 'Homepage Development', status: 'in-progress', assignee: 'Jamie' },
-      { id: 'task-004', name: 'Content Migration', status: 'not-started', assignee: 'Casey' }
-    ]
-  },
-  {
-    id: 'proj-002',
-    name: 'SEO Campaign',
-    status: 'in-progress',
-    progress: 40,
-    startDate: new Date('2025-04-01'),
-    dueDate: new Date('2025-06-15'),
-    tasks: [
-      { id: 'task-005', name: 'Keyword Research', status: 'completed', assignee: 'Taylor' },
-      { id: 'task-006', name: 'On-page Optimization', status: 'in-progress', assignee: 'Jordan' },
-      { id: 'task-007', name: 'Content Strategy', status: 'in-progress', assignee: 'Riley' },
-      { id: 'task-008', name: 'Backlink Building', status: 'not-started', assignee: 'Alex' }
-    ]
-  },
-  {
-    id: 'proj-003',
-    name: 'Social Media Strategy',
-    status: 'planning',
-    progress: 15,
-    startDate: new Date('2025-04-20'),
-    dueDate: new Date('2025-07-01'),
-    tasks: [
-      { id: 'task-009', name: 'Audience Analysis', status: 'in-progress', assignee: 'Morgan' },
-      { id: 'task-010', name: 'Content Calendar', status: 'not-started', assignee: 'Casey' },
-      { id: 'task-011', name: 'Creative Assets', status: 'not-started', assignee: 'Jamie' },
-      { id: 'task-012', name: 'Campaign Setup', status: 'not-started', assignee: 'Jordan' }
-    ]
-  }
-];
+import { getProjectsByClientId, Project as SupabaseProject } from '../utils/projectService';
 
 interface ProjectDashboardProps {
   clientId?: string;
   projectId?: string;
 }
 
+// Define local type to extend SupabaseProject with startDate/dueDate for UI
+type ProjectWithDates = SupabaseProject & {
+  startDate: Date | null;
+  dueDate: Date | null;
+};
+
 const ProjectDashboard: React.FC<ProjectDashboardProps> = ({ clientId, projectId }) => {
+  const [projects, setProjects] = useState<ProjectWithDates[]>([]);
+  const [loading, setLoading] = useState<boolean>(true);
+  const [error, setError] = useState<string | null>(null);
   const [activeProject, setActiveProject] = useState<string | null>(projectId || null);
   const [filter, setFilter] = useState<'all' | 'in-progress' | 'planning' | 'completed'>('all');
-  
-  // Use the project data from the client if available, otherwise use mock data
-  const projects = projectId ? 
-    mockProjects.filter(p => p.id === projectId) : 
-    mockProjects;
-  
-  // Filter projects based on status
-  const filteredProjects = projects.filter(project => 
+
+  useEffect(() => {
+    const fetchProjects = async () => {
+      setLoading(true);
+      setError(null);
+      try {
+        const allProjects = await getProjectsByClientId(clientId);
+        // Convert string dates to Date objects for UI
+        const projectsWithDates: ProjectWithDates[] = allProjects.map(p => ({
+          ...p,
+          startDate: p.start_date ? new Date(p.start_date) : null,
+          dueDate: p.due_date ? new Date(p.due_date) : null,
+        }));
+        if (projectId) {
+          const filtered = projectsWithDates.filter(p => p.id === projectId);
+          setProjects(filtered);
+        } else {
+          setProjects(projectsWithDates);
+        }
+      } catch (err: any) {
+        setError('Failed to load projects from Supabase.');
+      } finally {
+        setLoading(false);
+      }
+    };
+    fetchProjects();
+  }, [clientId, projectId]);
+
+  const filteredProjects = projects.filter(project =>
     filter === 'all' || project.status === filter
   );
-  
-  // Get the currently selected project
-  const selectedProject = activeProject ? 
-    projects.find(p => p.id === activeProject) : 
-    null;
-  
-  // Calculate overall progress across all projects
-  const overallProgress = projects.length > 0 ? 
-    Math.round(projects.reduce((sum, project) => sum + project.progress, 0) / projects.length) : 
-    0;
-  
+
+  const selectedProject = activeProject
+    ? projects.find(p => p.id === activeProject)
+    : null;
+
+  const overallProgress = projects.length > 0
+    ? Math.round(projects.reduce((sum, project) => sum + (project.progress || 0), 0) / projects.length)
+    : 0;
+
+  // Safely compute next deadline
+  const nextDeadline = (() => {
+    const dueDates = projects.map(project => project.dueDate).filter(Boolean) as Date[];
+    if (dueDates.length === 0) return null;
+    return new Date(Math.min(...dueDates.map(d => d.getTime())));
+  })();
+
   return (
     <DashboardContainer>
       <DashboardHeader>
         <h2>Project Dashboard</h2>
         <FilterContainer>
-          <FilterButton 
-            $active={filter === 'all'} 
-            onClick={() => setFilter('all')}
-          >
-            All
-          </FilterButton>
-          <FilterButton 
-            $active={filter === 'in-progress'} 
-            onClick={() => setFilter('in-progress')}
-          >
-            In Progress
-          </FilterButton>
-          <FilterButton 
-            $active={filter === 'planning'} 
-            onClick={() => setFilter('planning')}
-          >
-            Planning
-          </FilterButton>
-          <FilterButton 
-            $active={filter === 'completed'} 
-            onClick={() => setFilter('completed')}
-          >
-            Completed
-          </FilterButton>
+          <FilterButton $active={filter === 'all'} onClick={() => setFilter('all')}>All</FilterButton>
+          <FilterButton $active={filter === 'in-progress'} onClick={() => setFilter('in-progress')}>In Progress</FilterButton>
+          <FilterButton $active={filter === 'planning'} onClick={() => setFilter('planning')}>Planning</FilterButton>
+          <FilterButton $active={filter === 'completed'} onClick={() => setFilter('completed')}>Completed</FilterButton>
         </FilterContainer>
       </DashboardHeader>
-      
       <OverviewSection>
         <MetricCard>
           <MetricTitle>Projects</MetricTitle>
-          <MetricValue>{mockProjects.length}</MetricValue>
+          <MetricValue>{projects.length}</MetricValue>
         </MetricCard>
         <MetricCard>
           <MetricTitle>Overall Progress</MetricTitle>
-          <ProgressContainer>
-            <ProgressBar $progress={overallProgress} />
-            <ProgressLabel>{overallProgress}%</ProgressLabel>
-          </ProgressContainer>
+          <MetricValue>{overallProgress}%</MetricValue>
         </MetricCard>
         <MetricCard>
           <MetricTitle>Next Deadline</MetricTitle>
           <MetricValue>
-            {new Date(Math.min(...mockProjects.map(p => p.dueDate.getTime())))
-              .toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}
+            {nextDeadline ? nextDeadline.toLocaleDateString('en-US', { month: 'short', day: 'numeric' }) : 'N/A'}
           </MetricValue>
         </MetricCard>
       </OverviewSection>
-      
       <ProjectsSection>
         {filteredProjects.map(project => (
-          <ProjectCard 
+          <ProjectCard
             key={project.id}
             as={motion.div}
             whileHover={{ y: -5, boxShadow: '0 10px 30px rgba(0,0,0,0.15)' }}
-            onClick={() => setActiveProject(project.id === activeProject ? null : project.id)}
+            onClick={() => setActiveProject(project.id)}
             $active={project.id === activeProject}
           >
             <ProjectHeader>
               <ProjectTitle>{project.name}</ProjectTitle>
               <StatusBadge $status={project.status}>
-                {project.status === 'in-progress' ? 'In Progress' : 
-                 project.status === 'planning' ? 'Planning' : 'Completed'}
+                {project.status === 'in-progress' ? 'In Progress' :
+                  project.status === 'planning' ? 'Planning' : 'Completed'}
               </StatusBadge>
             </ProjectHeader>
-            
-            <ProjectProgress $progress={project.progress}>
-              <ProgressLabel>{project.progress}%</ProgressLabel>
-            </ProjectProgress>
-            
+            <ProjectProgress $progress={project.progress || 0} />
             <ProjectDates>
-              <span>Start: {project.startDate.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}</span>
-              <span>Due: {project.dueDate.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}</span>
+              <span>Start: {project.startDate ? project.startDate.toLocaleDateString('en-US', { month: 'short', day: 'numeric' }) : 'N/A'}</span>
+              <span>Due: {project.dueDate ? project.dueDate.toLocaleDateString('en-US', { month: 'short', day: 'numeric' }) : 'N/A'}</span>
             </ProjectDates>
-            
             {project.id === activeProject && (
-              <TasksList
-                as={motion.div}
-                initial={{ opacity: 0, height: 0 }}
-                animate={{ opacity: 1, height: 'auto' }}
-                transition={{ duration: 0.3 }}
-              >
+              <TasksList as={motion.div} initial={{ opacity: 0 }} animate={{ opacity: 1 }}>
                 <TasksHeader>
                   <h4>Tasks</h4>
                 </TasksHeader>
-                {project.tasks.map(task => (
+                {project.tasks && project.tasks.length > 0 ? project.tasks.map(task => (
                   <TaskItem key={task.id}>
                     <TaskStatus $status={task.status}>
-                      {task.status === 'completed' ? <span>{FiCheckCircle({ size: 16 })}</span> : 
-                       task.status === 'in-progress' ? <span>{FiClock({ size: 16 })}</span> : <span>{FiCircle({ size: 16 })}</span>}
+                      {task.status === 'completed' ? <span>{FiCheckCircle({ size: 16 })}</span> :
+                        task.status === 'in-progress' ? <span>{FiClock({ size: 16 })}</span> : <span>{FiCircle({ size: 16 })}</span>}
                     </TaskStatus>
                     <TaskName>{task.name}</TaskName>
                     <TaskAssignee>{task.assignee}</TaskAssignee>
                   </TaskItem>
-                ))}
+                )) : <TaskItem>No tasks for this project.</TaskItem>}
               </TasksList>
             )}
           </ProjectCard>
@@ -200,7 +154,7 @@ const DashboardHeader = styled.div`
   justify-content: space-between;
   align-items: center;
   margin-bottom: 24px;
-  
+
   h2 {
     font-size: 24px;
     font-weight: 600;
@@ -209,11 +163,11 @@ const DashboardHeader = styled.div`
     -webkit-background-clip: text;
     -webkit-text-fill-color: transparent;
   }
-  
+
   @media (max-width: 768px) {
     flex-direction: column;
     align-items: flex-start;
-    
+
     h2 {
       margin-bottom: 16px;
     }
@@ -223,7 +177,7 @@ const DashboardHeader = styled.div`
 const FilterContainer = styled.div`
   display: flex;
   gap: 8px;
-  
+
   @media (max-width: 768px) {
     width: 100%;
     overflow-x: auto;
@@ -232,15 +186,14 @@ const FilterContainer = styled.div`
 `;
 
 const FilterButton = styled.button<{ $active: boolean }>`
-  background: ${props => props.$active ? 'rgba(13, 249, 182, 0.2)' : 'rgba(255, 255, 255, 0.1)'};
+  background: ${props => props.$active ? 'rgba(13, 249, 182, 0.1)' : 'transparent'};
   border: none;
-  border-radius: 20px;
-  color: ${props => props.$active ? '#0df9b6' : '#fff'};
-  padding: 6px 12px;
+  padding: 8px 12px;
+  color: ${props => props.$active ? '#0df9b6' : 'rgba(255, 255, 255, 0.7)'};
   font-size: 14px;
   cursor: pointer;
   transition: all 0.2s ease;
-  
+
   &:hover {
     background: rgba(13, 249, 182, 0.15);
   }
@@ -251,7 +204,7 @@ const OverviewSection = styled.div`
   grid-template-columns: repeat(3, 1fr);
   gap: 16px;
   margin-bottom: 24px;
-  
+
   @media (max-width: 768px) {
     grid-template-columns: 1fr;
   }
@@ -286,7 +239,7 @@ const ProgressBar = styled.div<{ $progress: number }>`
   border-radius: 4px;
   position: relative;
   overflow: hidden;
-  
+
   &:after {
     content: '';
     position: absolute;
@@ -306,7 +259,7 @@ const ProjectProgress = styled.div<{ $progress: number }>`
   position: relative;
   overflow: hidden;
   margin: 8px 0;
-  
+
   &:after {
     content: '';
     position: absolute;
@@ -360,7 +313,7 @@ const StatusBadge = styled.span<{ $status: string }>`
   padding: 4px 8px;
   border-radius: 12px;
   font-weight: 500;
-  
+
   ${props => {
     if (props.$status === 'completed') {
       return `
@@ -397,7 +350,7 @@ const TasksList = styled.div`
 
 const TasksHeader = styled.div`
   margin-bottom: 12px;
-  
+
   h4 {
     font-size: 16px;
     font-weight: 500;
@@ -410,7 +363,7 @@ const TaskItem = styled.div`
   align-items: center;
   padding: 8px 0;
   border-bottom: 1px solid rgba(255, 255, 255, 0.05);
-  
+
   &:last-child {
     border-bottom: none;
   }

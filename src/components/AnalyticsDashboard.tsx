@@ -451,7 +451,7 @@ const DateRangeSelector = styled.div`
 `;
 
 const DateRangeButton = styled.button<{ $active: boolean }>`
-  background: ${props => props.$active ? 'rgba(13, 249, 182, 0.2)' : 'rgba(255, 255, 255, 0.1)'};
+  background: ${props => props.$active ? 'rgba(13, 249, 182, 0.1)' : 'transparent'};
   border: none;
   border-radius: 20px;
   color: ${props => props.$active ? '#0df9b6' : '#fff'};

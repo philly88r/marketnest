@@ -285,8 +285,8 @@ const MetricValue = styled.div`
   }
 `;
 
-const MetricChange = styled.div<{ positive: boolean }>`
-  color: ${props => props.positive ? '#4ADE80' : '#F87171'};
+const MetricChange = styled.div<{ $positive: boolean }>`
+  color: ${props => props.$positive ? '#4ADE80' : '#F87171'};
   font-size: 12px;
   display: flex;
   align-items: center;
@@ -492,7 +492,7 @@ const AnalyticsSection: React.FC = () => {
                   >
                     <MetricLabel>{metric.label}</MetricLabel>
                     <MetricValue>{metric.value}</MetricValue>
-                    <MetricChange positive={metric.positive}>
+                    <MetricChange $positive={metric.positive}>
                       {metric.positive ? (
                         <svg width="12" height="12" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
                           <path d="M12 19V5" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>

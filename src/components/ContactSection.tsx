@@ -183,10 +183,10 @@ const RequiredStar = styled.span`
   margin-left: 4px;
 `;
 
-const FormInput = styled.input<{ hasError?: boolean }>`
+const FormInput = styled.input<{ $hasError?: boolean }>`
   width: 100%;
   background: rgba(255, 255, 255, 0.05);
-  border: 1px solid ${props => props.hasError ? '#FF4343' : 'rgba(255, 255, 255, 0.1)'};
+  border: 1px solid ${props => props.$hasError ? '#FF4343' : 'rgba(255, 255, 255, 0.1)'};
   border-radius: 8px;
   padding: 14px 16px;
   color: white;
@@ -196,7 +196,7 @@ const FormInput = styled.input<{ hasError?: boolean }>`
   
   &:focus {
     outline: none;
-    border-color: ${props => props.hasError ? '#FF4343' : 'rgba(255, 255, 255, 0.3)'};
+    border-color: ${props => props.$hasError ? '#FF4343' : 'rgba(255, 255, 255, 0.3)'};
     background: rgba(255, 255, 255, 0.08);
   }
   
@@ -216,10 +216,10 @@ const ErrorMessage = styled(motion.div)`
   font-family: 'Plus Jakarta Sans', sans-serif;
 `;
 
-const FormTextarea = styled.textarea<{ hasError?: boolean }>`
+const FormTextarea = styled.textarea<{ $hasError?: boolean }>`
   width: 100%;
   background: rgba(255, 255, 255, 0.05);
-  border: 1px solid ${props => props.hasError ? '#FF4343' : 'rgba(255, 255, 255, 0.1)'};
+  border: 1px solid ${props => props.$hasError ? '#FF4343' : 'rgba(255, 255, 255, 0.1)'};
   border-radius: 8px;
   padding: 14px 16px;
   color: white;
@@ -231,7 +231,7 @@ const FormTextarea = styled.textarea<{ hasError?: boolean }>`
   
   &:focus {
     outline: none;
-    border-color: ${props => props.hasError ? '#FF4343' : 'rgba(255, 255, 255, 0.3)'};
+    border-color: ${props => props.$hasError ? '#FF4343' : 'rgba(255, 255, 255, 0.3)'};
     background: rgba(255, 255, 255, 0.08);
   }
   
@@ -245,7 +245,7 @@ const FormTextarea = styled.textarea<{ hasError?: boolean }>`
   }
 `;
 
-const SubmitButton = styled(motion.button)<{ isSubmitting?: boolean }>`
+const SubmitButton = styled(motion.button)<{ $isSubmitting?: boolean }>`
   width: 100%;
   padding: 16px;
   border-radius: 8px;
@@ -254,35 +254,13 @@ const SubmitButton = styled(motion.button)<{ isSubmitting?: boolean }>`
   font-size: 16px;
   font-weight: 600;
   border: none;
-  cursor: ${props => props.isSubmitting ? 'not-allowed' : 'pointer'};
-  transition: all 0.3s ease;
+  cursor: pointer;
+  opacity: ${props => props.disabled ? 0.7 : 1};
+  pointer-events: ${props => props.disabled ? 'none' : 'auto'};
+  margin-top: 10px;
+  margin-bottom: 0;
+  transition: all 0.2s ease;
   position: relative;
-  overflow: hidden;
-  
-  &:hover {
-    opacity: ${props => props.isSubmitting ? '1' : '0.9'};
-    transform: ${props => props.isSubmitting ? 'none' : 'translateY(-2px)'};
-    box-shadow: 0 8px 20px rgba(31, 83, 255, 0.2);
-  }
-  
-  &:before {
-    content: '';
-    position: absolute;
-    top: 0;
-    left: -100%;
-    width: 100%;
-    height: 100%;
-    background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.2), transparent);
-    transition: all 0.6s ease;
-  }
-  
-  &:hover:before {
-    left: 100%;
-  }
-  
-  @media (max-width: 768px) {
-    padding: 14px;
-  }
 `;
 
 const LoadingSpinner = styled(motion.div)`
@@ -568,7 +546,7 @@ const ContactSection: React.FC = () => {
                 value={formState.firstName}
                 onChange={handleChange}
                 placeholder="Enter your first name" 
-                hasError={!!errors.firstName}
+                $hasError={!!errors.firstName}
               />
               <AnimatePresence>
                 {errors.firstName && (
@@ -595,7 +573,7 @@ const ContactSection: React.FC = () => {
                 value={formState.lastName}
                 onChange={handleChange}
                 placeholder="Enter your last name" 
-                hasError={!!errors.lastName}
+                $hasError={!!errors.lastName}
               />
               <AnimatePresence>
                 {errors.lastName && (
@@ -623,7 +601,7 @@ const ContactSection: React.FC = () => {
               value={formState.email}
               onChange={handleChange}
               placeholder="Enter your email address" 
-              hasError={!!errors.email}
+              $hasError={!!errors.email}
             />
             <AnimatePresence>
               {errors.email && (
@@ -660,7 +638,7 @@ const ContactSection: React.FC = () => {
               value={formState.message}
               onChange={handleChange}
               placeholder="Tell us about your project or inquiry" 
-              hasError={!!errors.message}
+              $hasError={!!errors.message}
             />
             <AnimatePresence>
               {errors.message && (
@@ -678,7 +656,7 @@ const ContactSection: React.FC = () => {
           
           <SubmitButton 
             type="submit"
-            isSubmitting={isSubmitting}
+            $isSubmitting={isSubmitting}
             whileHover={!isSubmitting ? { y: -5 } : {}}
             whileTap={!isSubmitting ? { scale: 0.98 } : {}}
             disabled={isSubmitting}
