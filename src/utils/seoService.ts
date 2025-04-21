@@ -1,7 +1,6 @@
 import { supabase } from './supabaseClient';
 import { analyzeWebsite } from './apiProxy';
 import * as cheerio from 'cheerio';
-import crypto from 'crypto';
 
 // Types for SEO data
 export interface SEOAudit {
@@ -2386,8 +2385,8 @@ export const generateSEOAudit = async (url: string, clientId: string): Promise<S
       url = 'https://' + url;
     }
     
-    // Create a proper UUID for the audit (Supabase expects a UUID, not a string)
-    const auditId = crypto.randomUUID();
+    // Create a proper UUID for the audit
+    const auditId = generateUUID();
     
     // Create an initial audit record
     const { data: auditData, error: auditError } = await supabase
@@ -2423,4 +2422,15 @@ export const generateSEOAudit = async (url: string, clientId: string): Promise<S
     console.error('Error generating SEO audit:', error);
     throw error;
   }
+};
+
+/**
+ * Generates a random UUID v4
+ */
+const generateUUID = (): string => {
+  return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, function(c) {
+    const r = Math.random() * 16 | 0;
+    const v = c === 'x' ? r : (r & 0x3 | 0x8);
+    return v.toString(16);
+  });
 };
