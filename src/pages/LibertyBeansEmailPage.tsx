@@ -2,14 +2,50 @@ import React from 'react';
 import styled from 'styled-components';
 import { FiCoffee, FiMail } from 'react-icons/fi';
 import EmailMarketingPage from '../components/EmailMarketingPage';
+import { useSearchParams, useNavigate } from 'react-router-dom';
+import { useEffect, useState } from 'react';
+import { getClientById } from '../utils/clientService';
 
 const LibertyBeansEmailPage: React.FC = () => {
+  const [searchParams] = useSearchParams();
+  const navigate = useNavigate();
+  const [clientName, setClientName] = useState('Liberty Beans Coffee');
+  const [clientIndustry, setClientIndustry] = useState('specialty coffee roaster');
+  
+  // Get the clientId from URL query parameters
+  const clientId = searchParams.get('clientId') || 'client-liberty-beans';
+  
+  useEffect(() => {
+    // Validate that this is Liberty Beans or redirect
+    if (clientId !== 'client-liberty-beans') {
+      // For now, we only support Liberty Beans for email marketing
+      // You can expand this later to support other clients
+      navigate('/client-portal/' + clientId);
+      return;
+    }
+    
+    // Fetch client details if needed
+    const loadClientDetails = async () => {
+      try {
+        const client = await getClientById(clientId);
+        if (client) {
+          setClientName(client.name);
+          setClientIndustry(client.industry || 'specialty coffee roaster');
+        }
+      } catch (error) {
+        console.error('Error loading client details:', error);
+      }
+    };
+    
+    loadClientDetails();
+  }, [clientId, navigate]);
+
   return (
     <Container>
       <Header>
         <LogoContainer>
           <FiCoffee size={32} />
-          <ClientName>Liberty Beans Coffee</ClientName>
+          <ClientName>{clientName}</ClientName>
         </LogoContainer>
         <HeaderInfo>
           <HeaderTitle>
@@ -21,9 +57,9 @@ const LibertyBeansEmailPage: React.FC = () => {
       </Header>
 
       <EmailMarketingPage 
-        clientId="client-liberty-beans"
-        clientName="Liberty Beans Coffee"
-        clientIndustry="specialty coffee roaster"
+        clientId={clientId}
+        clientName={clientName}
+        clientIndustry={clientIndustry}
       />
     </Container>
   );

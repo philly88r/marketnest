@@ -146,6 +146,7 @@ function App() {
           <Route path="/admin-portal" element={<AdminPortalPage />} />
           <Route path="/admin" element={<DirectAdminPage />} />
           <Route path="/clients/liberty-beans/email" element={<LibertyBeansEmailPage />} />
+          <Route path="/email-marketing" element={<LibertyBeansEmailPage />} />
           <Route path="/" element={
             <ContentContainer>
               <div id="home">
