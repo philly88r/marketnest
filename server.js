@@ -3,6 +3,7 @@ const express = require('express');
 const cors = require('cors');
 const path = require('path');
 const googleAuthHandler = require('./src/api/googleAuthHandler');
+const seoProxy = require('./server/seoProxy');
 
 const app = express();
 const PORT = process.env.PORT || 3001;
@@ -13,6 +14,7 @@ app.use(express.json());
 
 // API routes
 app.use('/api', googleAuthHandler);
+app.use('/api/seo', seoProxy);
 
 // Serve static files in production
 if (process.env.NODE_ENV === 'production') {

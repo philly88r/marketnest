@@ -142,28 +142,28 @@ const createEmptyReport = (): SEOReport => {
 };
 
 /**
- * Fetch website data using a CORS proxy with Cheerio
+ * Fetch website data using our server-side proxy to avoid CORS issues
  */
 const fetchWebsiteData = async (url: string): Promise<any> => {
   try {
-    console.log(`Fetching website data for ${url} using CORS proxy with Cheerio`);
+    console.log(`Fetching website data for ${url}`);
     
-    // Use a more reliable CORS proxy to fetch the website content
-    const corsProxyUrl = `https://corsproxy.io/?${encodeURIComponent(url)}`;
-    const response = await fetch(corsProxyUrl, {
-      headers: {
-        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36'
-      }
-    });
+    // Use our server-side proxy to avoid CORS issues
+    const proxyUrl = `/api/seo/fetch?url=${encodeURIComponent(url)}`;
+    const response = await fetch(proxyUrl);
     
     if (!response.ok) {
       throw new Error(`Failed to fetch website data: ${response.statusText}`);
     }
     
-    const html = await response.text();
+    const data = await response.json();
+    
+    if (data.error) {
+      throw new Error(`Proxy error: ${data.message || data.error}`);
+    }
     
     // Parse the HTML content with Cheerio
-    const $ = cheerio.load(html);
+    const $ = cheerio.load(data.html);
     
     // Extract metadata
     const metaData = extractMetaData($, url);
@@ -183,7 +183,7 @@ const fetchWebsiteData = async (url: string): Promise<any> => {
       mobile: mobileData,
       security: securityData,
       timestamp: new Date().toISOString(),
-      rawHtml: html.substring(0, 50000) // Store a portion of the raw HTML for AI analysis
+      rawHtml: data.html.substring(0, 50000) // Store a portion of the raw HTML for AI analysis
     };
   } catch (error) {
     console.error('Error fetching website data:', error);
@@ -1719,7 +1719,7 @@ const analyzePerformance = (report: SEOReport, websiteData: any) => {
     if (loadTime > 3000) {
       issues.push({
         title: "Slow page load time",
-        description: `The page takes ${Math.round(loadTime / 1000)} seconds to load.`,
+        description: `The page load time is ${Math.round(loadTime / 1000)} seconds.`,
         severity: "high",
         impact: "Slow loading pages have higher bounce rates and lower conversion rates.",
         recommendation: "Optimize server response time, leverage browser caching, and use a content delivery network (CDN)."
@@ -1835,7 +1835,7 @@ const generateOverallSummary = (report: SEOReport) => {
   // Generate summary based on score
   let summary = '';
   if (overallScore >= 80) {
-    summary = `The website has a strong SEO foundation with an overall score of ${overallScore}/100. There are still some opportunities for improvement.`;
+    summary = `The website has a strong overall SEO score of ${overallScore}/100. There are still some opportunities for improvement.`;
   } else if (overallScore >= 60) {
     summary = `The website has a moderate overall SEO score of ${overallScore}/100 with room for improvement.`;
   } else {
