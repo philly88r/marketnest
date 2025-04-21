@@ -549,7 +549,7 @@ interface ClientDashboardProps {
 // Using Project and Task interfaces from projectService
 
 const ClientDashboard: React.FC<ClientDashboardProps> = ({ clientId, onBack }) => {
-  const [activeTab, setActiveTab] = useState<'overview' | 'projects' | 'files' | 'tasks' | 'checklist' | 'analytics' | 'fundraiser' | 'email' | 'seo'>('overview');
+  const [activeTab, setActiveTab] = useState<'overview' | 'projects' | 'files' | 'tasks' | 'checklist' | 'analytics' | 'fundraiser' | 'email' | 'seo' | 'landing-pages'>('overview');
   const [client, setClient] = useState<Client | null>(null);
   const [projects, setProjects] = useState<Project[]>([]);
   const [loading, setLoading] = useState<boolean>(true);
@@ -1247,6 +1247,35 @@ const ClientDashboard: React.FC<ClientDashboardProps> = ({ clientId, onBack }) =
       case 'seo':
         return <SEOAuditPage clientId={clientId} />;
         
+      case 'landing-pages':
+        return (
+          <div style={{ padding: '20px' }}>
+            <h3>Landing Page Generator</h3>
+            <p>Create and manage landing pages for {client?.name || 'your business'}.</p>
+            <div style={{ marginTop: '20px' }}>
+              <button 
+                onClick={() => navigate(`/landing-page-generator?clientId=${clientId}`)}
+                style={{
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  gap: '8px',
+                  padding: '10px 16px',
+                  background: 'rgba(31, 83, 255, 0.25)',
+                  color: 'white',
+                  borderRadius: '5px',
+                  textDecoration: 'none',
+                  fontWeight: '600',
+                  border: 'none',
+                  cursor: 'pointer'
+                }}
+              >
+                <FiPlus size={18} />
+                Create Landing Page
+              </button>
+            </div>
+          </div>
+        );
+        
       default:
         return null;
     }
@@ -1277,15 +1306,18 @@ const ClientDashboard: React.FC<ClientDashboardProps> = ({ clientId, onBack }) =
           Checklist
         </TabButton>
         <TabButton $active={activeTab === 'analytics'} onClick={() => setActiveTab('analytics')}>Analytics</TabButton>
+        <TabButton $active={activeTab === 'email'} onClick={() => setActiveTab('email')}>
+          Email Marketing
+        </TabButton>
         <TabButton $active={activeTab === 'seo'} onClick={() => setActiveTab('seo')}>SEO Audit</TabButton>
+        <TabButton $active={activeTab === 'landing-pages'} onClick={() => setActiveTab('landing-pages')}>
+          Landing Pages
+        </TabButton>
         {/* Only show Liberty Beans specific tabs */}
         {client?.id === LIBERTY_BEANS_CLIENT_ID && (
           <>
             <TabButton $active={activeTab === 'fundraiser'} onClick={() => setActiveTab('fundraiser')}>
               Fundraiser
-            </TabButton>
-            <TabButton $active={activeTab === 'email'} onClick={() => setActiveTab('email')}>
-              Email Marketing
             </TabButton>
           </>
         )}
