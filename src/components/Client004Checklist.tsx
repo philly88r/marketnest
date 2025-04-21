@@ -1130,7 +1130,7 @@ const PageInfo = styled.div`
 // Modal Styling
 const StyledModal = styled(Modal)`
   .modal-content {
-    background: #16213e;
+    background: #f5f5f7;
     border-radius: 12px;
     max-width: 600px;
     width: 100%;
@@ -1139,12 +1139,13 @@ const StyledModal = styled(Modal)`
 
 const ModalContent = styled.div`
   padding: 24px;
-  color: #fff;
+  color: #333;
   
   h3 {
     margin-top: 0;
     margin-bottom: 24px;
     font-size: 20px;
+    color: #1a1a2e;
   }
 `;
 
@@ -1156,7 +1157,7 @@ const FormLabel = styled.label`
   display: block;
   margin-bottom: 8px;
   font-size: 14px;
-  color: rgba(255, 255, 255, 0.7);
+  color: #555;
   display: flex;
   justify-content: space-between;
 `;
@@ -1169,10 +1170,10 @@ const ErrorText = styled.span`
 const FormInput = styled.input<{ error?: boolean }>`
   width: 100%;
   padding: 10px 12px;
-  background: rgba(255, 255, 255, 0.1);
-  border: 1px solid ${props => props.error ? '#ff3b30' : 'rgba(255, 255, 255, 0.2)'};
+  background: #fff;
+  border: 1px solid ${props => props.error ? '#ff3b30' : '#ddd'};
   border-radius: 4px;
-  color: #fff;
+  color: #333;
   font-size: 14px;
   
   &:focus {
@@ -1193,10 +1194,10 @@ const DateInput = styled(FormInput)`
 const FormTextarea = styled.textarea`
   width: 100%;
   padding: 10px 12px;
-  background: rgba(255, 255, 255, 0.1);
-  border: 1px solid rgba(255, 255, 255, 0.2);
+  background: #fff;
+  border: 1px solid #ddd;
   border-radius: 4px;
-  color: #fff;
+  color: #333;
   font-size: 14px;
   resize: vertical;
   min-height: 80px;
@@ -1211,13 +1212,13 @@ const FormTextarea = styled.textarea`
 const FormSelect = styled.select`
   width: 100%;
   padding: 10px 12px;
-  background: rgba(255, 255, 255, 0.1);
-  border: 1px solid rgba(255, 255, 255, 0.2);
+  background: #fff;
+  border: 1px solid #ddd;
   border-radius: 4px;
-  color: #fff;
+  color: #333;
   font-size: 14px;
   appearance: none;
-  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='white' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpolyline points='6 9 12 15 18 9'%3E%3C/polyline%3E%3C/svg%3E");
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='%23333' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpolyline points='6 9 12 15 18 9'%3E%3C/polyline%3E%3C/svg%3E");
   background-repeat: no-repeat;
   background-position: right 12px center;
   
@@ -1280,15 +1281,15 @@ const SaveButton = styled.button`
 
 const CancelButton = styled.button`
   background: transparent;
-  border: 1px solid rgba(255, 255, 255, 0.2);
+  border: 1px solid #ddd;
   border-radius: 4px;
-  color: #fff;
+  color: #333;
   padding: 10px 16px;
   cursor: pointer;
   transition: all 0.2s ease;
   
   &:hover {
-    background: rgba(255, 255, 255, 0.1);
+    background: #f0f0f0;
   }
 `;
 
