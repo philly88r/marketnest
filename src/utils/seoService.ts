@@ -1,5 +1,5 @@
 import { supabase } from './supabaseClient';
-import { callGeminiAPI, analyzeWebsite } from './apiProxy';
+import { analyzeWebsite } from './apiProxy';
 import * as cheerio from 'cheerio';
 
 // Types for SEO data
@@ -23,6 +23,8 @@ export interface SEOIssue {
   recommendation: string;
 }
 
+export type SEORecommendation = SEOIssue;
+
 export interface SEOScoreSection {
   score: number;
   issues: SEOIssue[];
@@ -42,7 +44,7 @@ export interface SEOReport {
   mobile: SEOScoreSection;
   backlinks: SEOScoreSection;
   keywords: SEOScoreSection;
-  recommendations: SEOIssue[];
+  recommendations: SEORecommendation[];
   url: string;
   metaTags: {
     title: string;
@@ -471,7 +473,7 @@ const generateRealSEOReport = (url: string, websiteData: any): SEOReport => {
     report.keywords = keywordsAnalysis;
     
     // Generate recommendations
-    const recommendations = generateRecommendations(websiteData, new URL(url).hostname);
+    const recommendations = generateSEORecommendations(websiteData, new URL(url).hostname);
     report.recommendations = recommendations;
     
     // Calculate overall score
@@ -824,7 +826,7 @@ const suggestKeywords = (websiteData: any, domain: string): string[] => {
 /**
  * Generate recommendations based on website data
  */
-const generateRecommendations = (websiteData: any, domain: string): SEOIssue[] => {
+const generateSEORecommendations = (websiteData: any, domain: string): SEOIssue[] => {
   const recommendations: SEOIssue[] = [];
   
   // Add HTTPS recommendation if needed
@@ -834,7 +836,7 @@ const generateRecommendations = (websiteData: any, domain: string): SEOIssue[] =
       description: "Secure your website with HTTPS by obtaining an SSL certificate.",
       severity: "high",
       impact: "Improved security, user trust, and potential ranking boost.",
-      recommendation: "Implement HTTPS by obtaining an SSL certificate and configuring your server."
+      recommendation: "Install an SSL certificate and redirect HTTP to HTTPS."
     });
   }
   
@@ -855,7 +857,7 @@ const generateRecommendations = (websiteData: any, domain: string): SEOIssue[] =
       title: 'Improve meta description',
       description: "Add a descriptive meta description between 50-160 characters.",
       severity: "medium",
-      impact: "Higher click-through rates from search results.",
+      impact: "Better meta descriptions can improve click-through rates from search results.",
       recommendation: "Add a descriptive meta description between 50-160 characters."
     });
   }
@@ -1428,88 +1430,8 @@ Return ONLY the JSON object with no additional text or explanation.
 };
 
 /**
- * Generate an SEO report from website data
- */
-const generateSEOReport = (websiteData: any, url: string): SEOReport => {
-  try {
-    // Generate a real SEO report based on the website data
-    const report = createEmptyReport();
-    
-    // Set the URL and timestamp
-    report.url = url;
-    report.overall.timestamp = new Date().toISOString();
-    
-    // Extract meta tags
-    if (websiteData.meta) {
-      report.metaTags.title = websiteData.meta.title || '';
-      report.metaTags.description = websiteData.meta.description || '';
-      report.metaTags.keywords = websiteData.meta.keywords?.join(', ') || '';
-    }
-    
-    // Extract headings
-    if (websiteData.meta?.headings) {
-      report.headings.h1 = websiteData.meta.headings.h1 || [];
-      report.headings.h2 = websiteData.meta.headings.h2 || [];
-      report.headings.h3 = websiteData.meta.headings.h3 || [];
-    }
-    
-    // Extract image data
-    if (websiteData.meta?.images) {
-      report.images.total = websiteData.meta.images.total || 0;
-      report.images.withAlt = websiteData.meta.images.withAlt || 0;
-      report.images.withoutAlt = websiteData.meta.images.withoutAlt || 0;
-    }
-    
-    // Extract link data
-    if (websiteData.meta?.links) {
-      report.links.internalCount = websiteData.meta.links.internalCount || 0;
-      report.links.externalCount = websiteData.meta.links.externalCount || 0;
-    }
-    
-    // Extract content word count
-    report.contentWordCount = websiteData.meta?.contentWordCount || 0;
-    
-    // Analyze technical SEO
-    analyzeTechnicalSEO(report, websiteData);
-    
-    // Analyze on-page SEO
-    analyzeOnPageSEO(report, websiteData);
-    
-    // Analyze content
-    analyzeContent(report, websiteData);
-    
-    // Analyze performance
-    analyzePerformance(report, websiteData);
-    
-    // Analyze mobile-friendliness
-    analyzeMobile(report, websiteData);
-    
-    // Generate overall recommendations
-    generateRecommendations(report);
-    
-    // Generate overall summary and score
-    generateOverallSummary(report);
-    
-    return report;
-  } catch (error) {
-    console.error('Error generating SEO report from website data:', error);
-    
-    // Return a basic report with an error message
-    const emptyReport = createEmptyReport();
-    return {
-      ...emptyReport,
-      overall: {
-        score: 0,
-        summary: `Failed to generate SEO audit for ${url}. Error: ${error instanceof Error ? error.message : 'Unknown error'}`,
-        timestamp: new Date().toISOString()
-      },
-      url: url
-    };
-  }
-};
-
-/**
  * Call the Gemini API to generate an SEO audit
+ * This is a local implementation to avoid import conflicts
  */
 const callGeminiAPI = async (prompt: string): Promise<string> => {
   try {
@@ -1546,8 +1468,8 @@ const callGeminiAPI = async (prompt: string): Promise<string> => {
             title: "Thin content",
             description: "Some pages have less than 300 words of content.",
             severity: "high",
-            impact: "Pages with thin content may not rank well in search results.",
-            recommendation: "Expand content to at least 500-800 words per page."
+            impact: "Pages with thin content typically don't rank well in search results.",
+            recommendation: "Expand content to at least 500-800 words with valuable information."
           }
         ]
       },
@@ -1848,7 +1770,7 @@ const analyzeMobile = (report: SEOReport, websiteData: any) => {
 /**
  * Generate overall recommendations
  */
-const generateRecommendations = (report: SEOReport) => {
+const generateReportRecommendations = (report: SEOReport) => {
   const recommendations: SEORecommendation[] = [];
   
   // Collect high-priority issues from all categories
@@ -1919,6 +1841,159 @@ const generateOverallSummary = (report: SEOReport) => {
     summary,
     timestamp: new Date().toISOString()
   };
+};
+
+/**
+ * Generates an SEO audit for a given URL using real web data
+ */
+const generateSEOReport = (websiteData: any, url: string): SEOReport => {
+  try {
+    // Create an empty report
+    const report = createEmptyReport();
+    
+    // Set the URL and timestamp
+    report.url = url;
+    report.overall.timestamp = new Date().toISOString();
+    
+    // Extract meta tags
+    if (websiteData.meta) {
+      report.metaTags.title = websiteData.meta.title || '';
+      report.metaTags.description = websiteData.meta.description || '';
+      report.metaTags.keywords = websiteData.meta.keywords?.join(', ') || '';
+    }
+    
+    // Extract headings
+    if (websiteData.meta?.headings) {
+      report.headings.h1 = websiteData.meta.headings.h1 || [];
+      report.headings.h2 = websiteData.meta.headings.h2 || [];
+      report.headings.h3 = websiteData.meta.headings.h3 || [];
+    }
+    
+    // Extract image data
+    if (websiteData.meta?.images) {
+      report.images.total = websiteData.meta.images.total || 0;
+      report.images.withAlt = websiteData.meta.images.withAlt || 0;
+      report.images.withoutAlt = websiteData.meta.images.withoutAlt || 0;
+    }
+    
+    // Extract link data
+    if (websiteData.meta?.links) {
+      report.links.internalCount = websiteData.meta.links.internalCount || 0;
+      report.links.externalCount = websiteData.meta.links.externalCount || 0;
+    }
+    
+    // Extract content word count
+    report.contentWordCount = websiteData.meta?.contentWordCount || 0;
+    
+    // Analyze technical SEO
+    analyzeTechnicalSEO(report, websiteData);
+    
+    // Analyze on-page SEO
+    analyzeOnPageSEO(report, websiteData);
+    
+    // Analyze content
+    analyzeContent(report, websiteData);
+    
+    // Analyze performance
+    analyzePerformance(report, websiteData);
+    
+    // Analyze mobile-friendliness
+    analyzeMobile(report, websiteData);
+    
+    // Generate overall recommendations
+    generateReportRecommendations(report);
+    
+    // Generate overall summary and score
+    generateOverallSummary(report);
+    
+    return report;
+  } catch (error) {
+    console.error('Error generating SEO report from website data:', error);
+    
+    // Return a basic report with an error message
+    const emptyReport = createEmptyReport();
+    return {
+      ...emptyReport,
+      overall: {
+        score: 0,
+        summary: `Failed to generate SEO audit for ${url}. Error: ${error instanceof Error ? error.message : 'Unknown error'}`,
+        timestamp: new Date().toISOString()
+      },
+      url: url
+    };
+  }
+};
+
+/**
+ * Gets all SEO audits for a specific client
+ */
+export const getSEOAuditsByClientId = async (clientId: string): Promise<SEOAudit[]> => {
+  try {
+    console.log(`Getting SEO audits for client: ${clientId}`);
+    
+    const { data, error } = await supabase
+      .from('seo_audits')
+      .select('*')
+      .eq('client_id', clientId)
+      .order('created_at', { ascending: false });
+    
+    if (error) {
+      console.error('Error fetching SEO audits:', error);
+      return [];
+    }
+    
+    return data || [];
+  } catch (error) {
+    console.error('Error fetching SEO audits:', error);
+    return [];
+  }
+};
+
+/**
+ * Deletes an SEO audit by ID
+ */
+export const deleteSEOAudit = async (auditId: string): Promise<boolean> => {
+  try {
+    console.log(`Deleting SEO audit: ${auditId}`);
+    
+    const { error } = await supabase
+      .from('seo_audits')
+      .delete()
+      .eq('id', auditId);
+    
+    if (error) {
+      console.error('Error deleting SEO audit:', error);
+      return false;
+    }
+    
+    return true;
+  } catch (error) {
+    console.error('Error deleting SEO audit:', error);
+    return false;
+  }
+};
+
+/**
+ * Gets a specific SEO audit by ID
+ */
+export const getSEOAuditById = async (auditId: string): Promise<SEOAudit | null> => {
+  try {
+    const { data, error } = await supabase
+      .from('seo_audits')
+      .select('*')
+      .eq('id', auditId)
+      .single();
+    
+    if (error) {
+      console.error('Error fetching SEO audit:', error);
+      throw error;
+    }
+    
+    return data;
+  } catch (error) {
+    console.error('Unexpected error in getSEOAuditById:', error);
+    return null;
+  }
 };
 
 /**
@@ -2020,77 +2095,5 @@ export const generateSEOAudit = async (url: string, clientId: string): Promise<S
     }
     
     return failedAudit;
-  }
-};
-
-/**
- * Gets all SEO audits for a specific client
- */
-export const getSEOAuditsByClientId = async (clientId: string): Promise<SEOAudit[]> => {
-  try {
-    console.log(`Getting SEO audits for client: ${clientId}`);
-    
-    const { data, error } = await supabase
-      .from('seo_audits')
-      .select('*')
-      .eq('client_id', clientId)
-      .order('created_at', { ascending: false });
-    
-    if (error) {
-      console.error('Error fetching SEO audits:', error);
-      return [];
-    }
-    
-    return data || [];
-  } catch (error) {
-    console.error('Error fetching SEO audits:', error);
-    return [];
-  }
-};
-
-/**
- * Deletes an SEO audit by ID
- */
-export const deleteSEOAudit = async (auditId: string): Promise<boolean> => {
-  try {
-    console.log(`Deleting SEO audit: ${auditId}`);
-    
-    const { error } = await supabase
-      .from('seo_audits')
-      .delete()
-      .eq('id', auditId);
-    
-    if (error) {
-      console.error('Error deleting SEO audit:', error);
-      return false;
-    }
-    
-    return true;
-  } catch (error) {
-    console.error('Error deleting SEO audit:', error);
-    return false;
-  }
-};
-
-/**
- * Gets a specific SEO audit by ID
- */
-export const getSEOAuditById = async (auditId: string): Promise<SEOAudit | null> => {
-  try {
-    const { data, error } = await supabase
-      .from('seo_audits')
-      .select('*')
-      .eq('id', auditId)
-      .single();
-    
-    if (error) {
-      console.error('Error fetching SEO audit:', error);
-      throw error;
-    }
-    
-    return data;
-  } catch (error) {
-    console.error('Unexpected error in getSEOAuditById:', error);
-    return null;
   }
 };
