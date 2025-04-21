@@ -524,7 +524,7 @@ const Container = styled.div`
   background-color: #1a1a1a;
   color: #ffffff;
   overflow-y: auto;
-  margin-top: 80px; /* Use margin instead of padding to position below the header */
+  padding-top: 20px;
 `;
 
 const Header = styled.div`
@@ -534,11 +534,9 @@ const Header = styled.div`
   padding: 16px 24px;
   background-color: ${LIBERTY_BEANS_COLORS.primary};
   border-bottom: 1px solid #333;
-  position: fixed; /* Make header fixed */
-  top: 80px; /* Position below the site header */
-  left: 0;
-  right: 0;
-  z-index: 100; /* Ensure header is on top */
+  position: relative;
+  z-index: 10;
+  margin-bottom: 20px;
 `;
 
 const HeaderTitle = styled.h1`
@@ -553,7 +551,7 @@ const HeaderTitle = styled.h1`
 const Content = styled.div`
   display: flex;
   flex: 1;
-  min-height: calc(100vh - 60px); /* Subtract header height */
+  min-height: calc(100vh - 60px);
   overflow-y: auto;
 `;
 
@@ -563,8 +561,8 @@ const Sidebar = styled.div`
   overflow-y: auto;
   display: flex;
   flex-direction: column;
-  max-height: calc(100vh - 60px); /* Subtract header height */
-  flex-shrink: 0; /* Prevent sidebar from shrinking */
+  max-height: calc(100vh - 60px);
+  flex-shrink: 0;
 `;
 
 const SidebarTitle = styled.h2`
@@ -578,8 +576,8 @@ const SidebarTitle = styled.h2`
 const TemplateList = styled.div`
   display: flex;
   flex-direction: column;
-  overflow-y: auto; /* Enable scrolling for the template list */
-  max-height: calc(100vh - 110px); /* Subtract header height and sidebar title */
+  overflow-y: auto;
+  max-height: calc(100vh - 110px);
 `;
 
 const TemplateItem = styled.div<{ $isActive: boolean }>`
@@ -602,7 +600,7 @@ const TemplateItem = styled.div<{ $isActive: boolean }>`
 const TemplateInfo = styled.div`
   flex: 1;
   overflow: hidden;
-  pointer-events: none; /* Ensure clicks pass through to parent */
+  pointer-events: none;
 `;
 
 const TemplateTitle = styled.div`
@@ -627,7 +625,7 @@ const TemplateMetadata = styled.div`
   display: flex;
   align-items: center;
   gap: 8px;
-  pointer-events: none; /* Ensure clicks pass through to parent */
+  pointer-events: none;
 `;
 
 const StatusBadge = styled.span<{ $status: string }>`
@@ -672,10 +670,10 @@ const ActionButton = styled.button`
 
 const MainContent = styled.div`
   flex: 1;
-  padding: 24px 24px 60px; /* Add padding to the bottom to ensure buttons are visible */
+  padding: 24px 24px 60px;
   overflow-y: auto;
   position: relative;
-  max-height: calc(100vh - 60px); /* Subtract header height */
+  max-height: calc(100vh - 60px);
 `;
 
 const NoTemplates = styled.div`
@@ -857,7 +855,7 @@ const EmailPreviewContainer = styled.div`
   margin-bottom: 16px;
   max-width: 800px;
   overflow-y: auto;
-  max-height: 600px; /* Add a max height to enable scrolling within the email preview */
+  max-height: 600px;
 `;
 
 const EmailContent = styled.div`
