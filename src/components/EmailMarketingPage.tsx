@@ -271,16 +271,19 @@ const EmailMarketingPage: React.FC<EmailMarketingPageProps> = ({
   return (
     <GlobalStyle>
       <Container>
-        <Header>
-          <HeaderTitle>
-            <FiMail style={{ marginRight: '8px' }} /> Email Marketing
-          </HeaderTitle>
-          <ButtonGroup>
+        <PageTitle>
+          <TitleIcon><FiMail /></TitleIcon>
+          <TitleText>Email Marketing Hub</TitleText>
+          <ActionButtons>
             <Button onClick={() => setShowGenerateForm(true)}>
-              <FiPlus style={{ marginRight: '8px' }} /> Generate Email Template
+              <FiPlus /> Generate Templates
             </Button>
-          </ButtonGroup>
-        </Header>
+            <Button onClick={() => setShowCustomForm(true)}>
+              <FiPenTool /> Write with AI
+            </Button>
+          </ActionButtons>
+        </PageTitle>
+        
         <Content>
           <Sidebar>
             <SidebarTitle>Email Templates</SidebarTitle>
@@ -524,10 +527,10 @@ const Container = styled.div`
   background-color: #1a1a1a;
   color: #ffffff;
   overflow-y: auto;
-  padding-top: 20px;
+  padding-top: 40px;
 `;
 
-const Header = styled.div`
+const PageTitle = styled.div`
   display: flex;
   justify-content: space-between;
   align-items: center;
@@ -537,15 +540,25 @@ const Header = styled.div`
   position: relative;
   z-index: 10;
   margin-bottom: 20px;
+  border-radius: 8px;
+  margin: 0 20px 20px 20px;
 `;
 
-const HeaderTitle = styled.h1`
-  display: flex;
-  align-items: center;
+const TitleIcon = styled.div`
+  font-size: 20px;
+  margin-right: 8px;
+`;
+
+const TitleText = styled.h1`
   font-size: 20px;
   font-weight: 600;
   margin: 0;
   color: #ffffff;
+`;
+
+const ActionButtons = styled.div`
+  display: flex;
+  gap: 12px;
 `;
 
 const Content = styled.div`
@@ -794,27 +807,28 @@ const ButtonGroup = styled.div`
   margin-top: 8px;
 `;
 
-const Button = styled.button<{ $secondary?: boolean }>`
+const Button = styled.button`
   display: flex;
   align-items: center;
-  background-color: ${props => props.$secondary ? 'transparent' : LIBERTY_BEANS_COLORS.secondary};
-  color: ${props => props.$secondary ? '#ffffff' : '#ffffff'};
-  border: ${props => props.$secondary ? `1px solid ${LIBERTY_BEANS_COLORS.secondary}` : 'none'};
+  justify-content: center;
+  background-color: #333;
+  color: #ffffff;
+  border: none;
   border-radius: 4px;
   padding: 10px 16px;
   font-size: 14px;
   font-weight: 600;
   cursor: pointer;
   transition: background-color 0.2s;
+  margin: 0 4px;
+  white-space: nowrap;
 
   &:hover {
-    background-color: ${props => props.$secondary ? 'rgba(127, 38, 40, 0.2)' : '#9e2e30'};
+    background-color: #444;
   }
 
-  &:disabled {
-    background-color: #555;
-    color: #888;
-    cursor: not-allowed;
+  svg {
+    margin-right: 8px;
   }
 `;
 

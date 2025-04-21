@@ -20,7 +20,7 @@ const ContentContainer = styled.div`
   position: relative;
   z-index: 1;
   max-width: 100%;
-  padding-top: 80px; /* Reduced padding to avoid too much space */
+  padding-top: 120px; /* Increased padding to ensure content is well below the header */
 `;
 
 const LoadingContainer = styled.div`
