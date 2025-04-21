@@ -1,6 +1,7 @@
 import { supabase } from './supabaseClient';
 import { callGeminiAPI, analyzeWebsite } from './apiProxy';
 import * as cheerio from 'cheerio';
+import * as crypto from 'crypto';
 
 // Types for SEO data
 export interface SEOAudit {
@@ -10,6 +11,7 @@ export interface SEOAudit {
   status: 'in-progress' | 'processing' | 'completed' | 'failed';
   created_at: string;
   updated_at: string;
+  score: number;
   report: SEOReport | null;
 }
 
@@ -835,77 +837,106 @@ const generateRecommendations = (websiteData: any, domain: string): SEOIssue[] =
 };
 
 /**
+ * Calculate a score from an SEO report
+ */
+const calculateScore = (report: SEOReport): number => {
+  if (!report) return 0;
+  
+  let score = 0;
+  const maxScore = 100;
+  
+  // Calculate score based on various factors
+  if (report.metaTags && report.metaTags.title) score += 10;
+  if (report.metaTags && report.metaTags.description) score += 10;
+  if (report.headings && report.headings.h1 && report.headings.h1.length > 0) score += 10;
+  if (report.images && report.images.withAlt / Math.max(1, report.images.total) > 0.8) score += 10;
+  if (report.performance && report.performance.loadTime < 3) score += 15;
+  if (report.performance && report.performance.mobileResponsive) score += 15;
+  if (report.links && report.links.internal > 0) score += 10;
+  if (report.links && report.links.external > 0) score += 10;
+  if (report.content && report.content.wordCount > 300) score += 10;
+  
+  // Ensure score is between 0 and 100
+  return Math.min(maxScore, Math.max(0, score));
+};
+
+/**
+ * Calculate a score from an AI-generated report
+ */
+const calculateScoreFromAIReport = (report: any): number => {
+  if (!report) return 0;
+  
+  // For AI reports, we'll use a simpler scoring mechanism
+  // based on the number of recommendations provided
+  const recommendations = report.recommendations || [];
+  const issuesCount = recommendations.length;
+  
+  // More issues = lower score (baseline of 80)
+  const score = Math.max(0, 80 - (issuesCount * 5));
+  
+  return score;
+};
+
+/**
  * Generates an SEO audit for a given URL using real web data
  */
 export const generateSEOAudit = async (url: string, clientId: string): Promise<SEOAudit> => {
   try {
-    // Create initial audit record without specifying ID (let Supabase generate the UUID)
-    const initialAudit: Omit<SEOAudit, 'id'> = {
+    // Generate a UUID for the audit
+    const auditId = crypto.randomUUID();
+    
+    // Create initial audit record with all required fields
+    const initialAudit: SEOAudit = {
+      id: auditId,
       client_id: clientId,
       url,
       status: 'in-progress',
       created_at: new Date().toISOString(),
       updated_at: new Date().toISOString(),
+      score: 0,
       report: null
     };
     
-    // Insert initial audit record and get the generated ID
-    const { data, error: insertError } = await supabase
+    // Insert initial audit record
+    const { error: insertError } = await supabase
       .from('seo_audits')
-      .insert(initialAudit)
-      .select()
-      .single();
+      .insert(initialAudit);
     
     if (insertError) {
       console.error('Error creating initial SEO audit record:', insertError);
       throw insertError;
     }
     
-    // Check if data is null or undefined
-    if (!data) {
-      console.error('No data returned from insert operation');
-      throw new Error('Failed to create audit record - no data returned');
-    }
-    
-    // Get the generated audit ID
-    const auditId = data.id;
-    
     // Start asynchronous processing
     processAuditAsync(url, auditId);
     
-    // Return the initial audit record with the generated ID
-    return data;
+    // Return the initial audit record
+    return initialAudit;
   } catch (error) {
     console.error('Error generating SEO audit:', error);
     
-    // Create a failed audit record - let the database handle the ID
-    const failedAudit: Omit<SEOAudit, 'id'> = {
+    // Create a failed audit record
+    const failedAudit: SEOAudit = {
+      id: crypto.randomUUID(),
       client_id: clientId,
       url,
-      status: 'failed',
+      status: 'failed' as 'failed',
       created_at: new Date().toISOString(),
       updated_at: new Date().toISOString(),
+      score: 0,
       report: null
     };
     
-    // Try to insert the failed audit
+    // Try to insert the failed audit, but don't throw if this fails
     try {
-      const { data } = await supabase
+      await supabase
         .from('seo_audits')
-        .insert(failedAudit)
-        .select()
-        .single();
-      
-      return data;
+        .insert(failedAudit);
     } catch (insertError) {
       console.error('Error creating failed audit record:', insertError);
-      
-      // Return a temporary object for the UI
-      return {
-        id: 'temp-failed-audit',
-        ...failedAudit
-      } as SEOAudit;
     }
+    
+    return failedAudit;
   }
 };
 
@@ -919,7 +950,8 @@ const processAuditAsync = async (url: string, auditId: string) => {
       .from('seo_audits')
       .update({
         status: 'processing',
-        updated_at: new Date().toISOString()
+        updated_at: new Date().toISOString(),
+        score: 0
       })
       .eq('id', auditId);
     
@@ -935,12 +967,16 @@ const processAuditAsync = async (url: string, auditId: string) => {
         console.log('Falling back to AI-generated report');
         const aiReport = await generateAIReport(url);
         
+        // Calculate a score based on AI report
+        const score = calculateScoreFromAIReport(aiReport);
+        
         // Update the audit record with the AI-generated report
         await supabase
           .from('seo_audits')
           .update({
             status: 'completed',
             updated_at: new Date().toISOString(),
+            score,
             report: aiReport
           })
           .eq('id', auditId);
@@ -955,6 +991,7 @@ const processAuditAsync = async (url: string, auditId: string) => {
           .update({
             status: 'failed',
             updated_at: new Date().toISOString(),
+            score: 0,
             report: null
           })
           .eq('id', auditId);
@@ -966,12 +1003,16 @@ const processAuditAsync = async (url: string, auditId: string) => {
     // Generate SEO report from website data
     const report = generateSEOReport(websiteData, url);
     
+    // Calculate score from report
+    const score = calculateScore(report);
+    
     // Update the audit record with the completed report
     await supabase
       .from('seo_audits')
       .update({
         status: 'completed',
         updated_at: new Date().toISOString(),
+        score,
         report
       })
       .eq('id', auditId);
@@ -985,6 +1026,7 @@ const processAuditAsync = async (url: string, auditId: string) => {
       .update({
         status: 'failed',
         updated_at: new Date().toISOString(),
+        score: 0,
         report: null
       })
       .eq('id', auditId);
