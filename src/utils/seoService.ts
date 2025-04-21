@@ -1,6 +1,7 @@
 import { supabase } from './supabaseClient';
 import { analyzeWebsite } from './apiProxy';
 import * as cheerio from 'cheerio';
+import crypto from 'crypto';
 
 // Types for SEO data
 export interface SEOAudit {
@@ -1837,9 +1838,9 @@ const generateOverallSummary = (report: SEOReport) => {
   if (overallScore >= 80) {
     summary = `The website has a strong SEO foundation with an overall score of ${overallScore}/100. There are still some opportunities for improvement.`;
   } else if (overallScore >= 60) {
-    summary = `The website has a moderate SEO score of ${overallScore}/100 with room for improvement.`;
+    summary = `The website has a moderate overall SEO score of ${overallScore}/100 with room for improvement.`;
   } else {
-    summary = `The website has significant SEO issues with a low score of ${overallScore}/100 and requires significant improvements.`;
+    summary = `The website has a low overall SEO score of ${overallScore}/100 and requires significant improvements.`;
   }
   
   report.overall = {
@@ -2385,8 +2386,8 @@ export const generateSEOAudit = async (url: string, clientId: string): Promise<S
       url = 'https://' + url;
     }
     
-    // Create a unique ID for the audit
-    const auditId = `audit-${Date.now()}-${Math.floor(Math.random() * 1000)}`;
+    // Create a proper UUID for the audit (Supabase expects a UUID, not a string)
+    const auditId = crypto.randomUUID();
     
     // Create an initial audit record
     const { data: auditData, error: auditError } = await supabase
