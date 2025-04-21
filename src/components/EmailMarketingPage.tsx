@@ -1,15 +1,17 @@
 import React, { useState, useEffect } from 'react';
 import styled from 'styled-components';
-import { FiMail, FiPlus, FiCheck, FiX, FiSend, FiCalendar, FiEdit, FiTrash2, FiCopy, FiRefreshCw, FiPenTool, FiChevronDown } from 'react-icons/fi';
+import { FiMail, FiPlus, FiCheck, FiX, FiSend, FiCalendar, FiEdit, FiTrash2, FiCopy, FiRefreshCw, FiPenTool, FiChevronDown, FiImage, FiLayout } from 'react-icons/fi';
 import { 
   generateEmailTemplates, 
   generateCustomEmailTemplate,
+  generateLandingPage,
   getEmailTemplatesByClientId, 
   updateEmailTemplateStatus,
   deleteEmailTemplate,
   EmailTemplate,
   EmailGenerationOptions,
-  LIBERTY_BEANS_COLORS
+  LIBERTY_BEANS_COLORS,
+  getBrandColors
 } from '../utils/emailService';
 
 interface EmailMarketingPageProps {
@@ -29,9 +31,12 @@ const EmailMarketingPage: React.FC<EmailMarketingPageProps> = ({
   const [error, setError] = useState<string | null>(null);
   const [showGenerateForm, setShowGenerateForm] = useState(false);
   const [showCustomForm, setShowCustomForm] = useState(false);
+  const [showLandingPageForm, setShowLandingPageForm] = useState(false);
   const [showScheduleForm, setShowScheduleForm] = useState(false);
   const [scheduledDate, setScheduledDate] = useState('');
   const [showScrollIndicator, setShowScrollIndicator] = useState(true);
+  const [imagePrompts, setImagePrompts] = useState<string[]>(['']);
+  const [brandColors, setBrandColors] = useState(getBrandColors(clientId));
   
   // Hide scroll indicator after 5 seconds
   useEffect(() => {
@@ -122,6 +127,37 @@ const EmailMarketingPage: React.FC<EmailMarketingPageProps> = ({
     } catch (err) {
       console.error('Error generating custom email template:', err);
       setError('Failed to generate custom email template. Please try again.');
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  // Handle generating landing page with AI
+  const handleGenerateLandingPage = async (e: React.FormEvent) => {
+    e.preventDefault();
+    
+    setIsLoading(true);
+    setError(null);
+    
+    try {
+      const landingPageOptions = {
+        ...generationOptions,
+        customContent,
+        isLandingPage: true,
+        purpose: 'landing-page' as const,
+        landingPageType: generationOptions.landingPageType || 'lead-generation',
+        imagePrompts: imagePrompts.filter(prompt => prompt.trim() !== '')
+      };
+      
+      const newTemplate = await generateLandingPage(landingPageOptions);
+      setTemplates(prevTemplates => [newTemplate, ...prevTemplates]);
+      setSelectedTemplate(newTemplate);
+      setShowLandingPageForm(false);
+      setCustomContent('');
+      setImagePrompts(['']);
+    } catch (err) {
+      console.error('Error generating landing page:', err);
+      setError('Failed to generate landing page. Please try again.');
     } finally {
       setIsLoading(false);
     }
@@ -257,6 +293,15 @@ const EmailMarketingPage: React.FC<EmailMarketingPageProps> = ({
     setSelectedTemplate(template);
   };
 
+  // Handle brand color changes
+  const handleBrandColorChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const { name, value } = e.target;
+    setBrandColors(prev => ({
+      ...prev,
+      [name.replace('Color', '')]: value
+    }));
+  };
+
   return (
     <GlobalStyle>
       <Container>
@@ -265,11 +310,11 @@ const EmailMarketingPage: React.FC<EmailMarketingPageProps> = ({
             <FiMail style={{ marginRight: '8px' }} /> Email Marketing
           </HeaderTitle>
           <ButtonGroup>
-            <Button onClick={() => setShowCustomForm(true)}>
-              <FiPenTool style={{ marginRight: '8px' }} /> Write with AI
+            <Button onClick={() => setShowLandingPageForm(true)}>
+              <FiLayout style={{ marginRight: '8px' }} /> Generate Landing Page
             </Button>
             <Button onClick={() => setShowGenerateForm(true)}>
-              <FiPlus style={{ marginRight: '8px' }} /> Generate Templates
+              <FiPlus style={{ marginRight: '8px' }} /> Generate Email Template
             </Button>
           </ButtonGroup>
         </Header>
@@ -355,50 +400,6 @@ const EmailMarketingPage: React.FC<EmailMarketingPageProps> = ({
                     </Select>
                   </FormGroup>
                   <FormGroup>
-                    <CheckboxLabel>
-                      <Checkbox 
-                        type="checkbox" 
-                        name="includePromotion"
-                        checked={generationOptions.includePromotion}
-                        onChange={(e) => setGenerationOptions({
-                          ...generationOptions,
-                          includePromotion: e.target.checked
-                        })}
-                      />
-                      Include Promotion
-                    </CheckboxLabel>
-                    {generationOptions.includePromotion && (
-                      <Textarea 
-                        name="promotionDetails"
-                        value={generationOptions.promotionDetails || ''}
-                        onChange={handleOptionChange}
-                        placeholder="Describe the promotion details..."
-                      />
-                    )}
-                  </FormGroup>
-                  <FormGroup>
-                    <CheckboxLabel>
-                      <Checkbox 
-                        type="checkbox" 
-                        name="includeProductHighlight"
-                        checked={generationOptions.includeProductHighlight}
-                        onChange={(e) => setGenerationOptions({
-                          ...generationOptions,
-                          includeProductHighlight: e.target.checked
-                        })}
-                      />
-                      Highlight Products
-                    </CheckboxLabel>
-                    {generationOptions.includeProductHighlight && (
-                      <Textarea 
-                        name="productDetails"
-                        value={generationOptions.productDetails || ''}
-                        onChange={handleOptionChange}
-                        placeholder="Describe the products to highlight..."
-                      />
-                    )}
-                  </FormGroup>
-                  <FormGroup>
                     <Label>Additional Instructions (Optional)</Label>
                     <Textarea 
                       name="additionalInstructions"
@@ -424,51 +425,16 @@ const EmailMarketingPage: React.FC<EmailMarketingPageProps> = ({
               </Card>
             ) : showCustomForm ? (
               <Card>
-                <CardTitle>Write with AI</CardTitle>
+                <CardTitle>Generate Custom Email Template</CardTitle>
                 <Form onSubmit={handleGenerateCustomTemplate}>
                   <FormGroup>
-                    <Label>Your Content</Label>
+                    <Label>Custom Content</Label>
                     <Textarea 
                       value={customContent}
                       onChange={(e) => setCustomContent(e.target.value)}
-                      placeholder="Write your email content here. The AI will enhance and format it..."
-                      rows={8}
+                      placeholder="Describe what you want in your email..."
+                      rows={6}
                       required
-                    />
-                  </FormGroup>
-                  <FormGroup>
-                    <Label>Email Purpose</Label>
-                    <Select 
-                      name="purpose" 
-                      value={generationOptions.purpose}
-                      onChange={handleOptionChange}
-                    >
-                      <option value="newsletter">Newsletter</option>
-                      <option value="promotional">Promotional</option>
-                      <option value="announcement">Announcement</option>
-                      <option value="seasonal">Seasonal</option>
-                    </Select>
-                  </FormGroup>
-                  <FormGroup>
-                    <Label>Tone</Label>
-                    <Select 
-                      name="tone" 
-                      value={generationOptions.tone}
-                      onChange={handleOptionChange}
-                    >
-                      <option value="professional">Professional</option>
-                      <option value="casual">Casual</option>
-                      <option value="enthusiastic">Enthusiastic</option>
-                      <option value="informative">Informative</option>
-                    </Select>
-                  </FormGroup>
-                  <FormGroup>
-                    <Label>Additional Instructions (Optional)</Label>
-                    <Textarea 
-                      name="additionalInstructions"
-                      value={generationOptions.additionalInstructions || ''}
-                      onChange={handleOptionChange}
-                      placeholder="Any additional instructions for the AI..."
                     />
                   </FormGroup>
                   {error && <ErrorMessage>{error}</ErrorMessage>}
@@ -481,7 +447,119 @@ const EmailMarketingPage: React.FC<EmailMarketingPageProps> = ({
                       Cancel
                     </Button>
                     <Button type="submit" disabled={isLoading}>
-                      {isLoading ? 'Generating...' : 'Enhance with AI'}
+                      {isLoading ? 'Generating...' : 'Generate Custom Template'}
+                    </Button>
+                  </ButtonGroup>
+                </Form>
+              </Card>
+            ) : showLandingPageForm ? (
+              <Card>
+                <CardTitle>Generate Landing Page</CardTitle>
+                <Form onSubmit={handleGenerateLandingPage}>
+                  <FormGroup>
+                    <Label>Landing Page Title</Label>
+                    <Input 
+                      type="text" 
+                      value={generationOptions.title || ''}
+                      onChange={(e) => setGenerationOptions({
+                        ...generationOptions,
+                        title: e.target.value
+                      })}
+                      placeholder="Enter a title for your landing page..."
+                      required
+                    />
+                  </FormGroup>
+                  <FormGroup>
+                    <Label>Landing Page Description</Label>
+                    <Textarea 
+                      value={customContent}
+                      onChange={(e) => setCustomContent(e.target.value)}
+                      placeholder="Describe what you want on your landing page..."
+                      rows={6}
+                      required
+                    />
+                  </FormGroup>
+                  <FormGroup>
+                    <Label>Landing Page Type</Label>
+                    <Select 
+                      name="landingPageType" 
+                      value={generationOptions.landingPageType || 'lead-generation'}
+                      onChange={handleOptionChange}
+                    >
+                      <option value="lead-generation">Lead Generation</option>
+                      <option value="product">Product</option>
+                      <option value="service">Service</option>
+                      <option value="event">Event</option>
+                    </Select>
+                  </FormGroup>
+                  <FormGroup>
+                    <Label>Image Prompts (one per line)</Label>
+                    <Textarea 
+                      value={imagePrompts.join('\n')}
+                      onChange={(e) => setImagePrompts(e.target.value.split('\n'))}
+                      placeholder="Describe the images you want generated (one description per line)..."
+                      rows={4}
+                    />
+                    <small style={{ color: '#999', marginTop: '4px', display: 'block' }}>
+                      These will be used to generate images for your landing page using Google's AI image generator.
+                    </small>
+                  </FormGroup>
+                  <FormGroup>
+                    <Label>Brand Colors</Label>
+                    <div style={{ display: 'flex', gap: '10px', alignItems: 'center' }}>
+                      <div>
+                        <small>Primary</small>
+                        <Input 
+                          type="color" 
+                          name="primary"
+                          value={brandColors.primary}
+                          onChange={handleBrandColorChange}
+                          style={{ width: '50px', height: '30px', padding: '0' }}
+                        />
+                      </div>
+                      <div>
+                        <small>Secondary</small>
+                        <Input 
+                          type="color" 
+                          name="secondary"
+                          value={brandColors.secondary}
+                          onChange={handleBrandColorChange}
+                          style={{ width: '50px', height: '30px', padding: '0' }}
+                        />
+                      </div>
+                      <div>
+                        <small>Accent</small>
+                        <Input 
+                          type="color" 
+                          name="accent"
+                          value={brandColors.accent}
+                          onChange={handleBrandColorChange}
+                          style={{ width: '50px', height: '30px', padding: '0' }}
+                        />
+                      </div>
+                    </div>
+                  </FormGroup>
+                  {error && <ErrorMessage>{error}</ErrorMessage>}
+                  <ButtonGroup>
+                    <Button 
+                      type="button" 
+                      $secondary 
+                      onClick={() => setShowLandingPageForm(false)}
+                    >
+                      Cancel
+                    </Button>
+                    <Button type="submit" disabled={isLoading}>
+                      {isLoading ? (
+                        <>
+                          <FiRefreshCw className="spinning" style={{ marginRight: '8px' }} />
+                          Generating...
+                        </>
+                      ) : (
+                        <>
+                          <FiLayout style={{ marginRight: '8px' }} />
+                          Generate Landing Page
+                        </>
+                      )}
                     </Button>
                   </ButtonGroup>
                 </Form>
@@ -595,6 +673,7 @@ const Container = styled.div`
   background-color: #1a1a1a;
   color: #ffffff;
   overflow-y: auto;
+  padding-top: 80px; /* Add padding to ensure content is below the header */
 `;
 
 const Header = styled.div`
@@ -604,6 +683,11 @@ const Header = styled.div`
   padding: 16px 24px;
   background-color: ${LIBERTY_BEANS_COLORS.primary};
   border-bottom: 1px solid #333;
+  position: fixed; /* Make header fixed */
+  top: 0;
+  left: 0;
+  right: 0;
+  z-index: 100; /* Ensure header is on top */
 `;
 
 const HeaderTitle = styled.h1`
@@ -737,7 +821,7 @@ const ActionButton = styled.button`
 
 const MainContent = styled.div`
   flex: 1;
-  padding: 24px;
+  padding: 24px 24px 60px; /* Add padding to the bottom to ensure buttons are visible */
   overflow-y: auto;
   position: relative;
   max-height: calc(100vh - 60px); /* Subtract header height */
