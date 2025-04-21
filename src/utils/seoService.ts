@@ -923,8 +923,10 @@ const calculateScoreFromAIReport = (report: any): number => {
  */
 export const generateSEOAudit = async (url: string, clientId: string): Promise<SEOAudit> => {
   try {
-    // Generate a UUID for the audit
-    const auditId = Math.random().toString(36).substr(2, 9);
+    // Generate a proper UUID for the audit
+    const auditId = '00000000-0000-0000-0000-000000000000'.replace(/0/g, () => 
+      Math.floor(Math.random() * 16).toString(16)
+    );
     
     // Create initial audit record with all required fields
     const initialAudit: SEOAudit = {
@@ -958,7 +960,9 @@ export const generateSEOAudit = async (url: string, clientId: string): Promise<S
     
     // Create a failed audit record
     const failedAudit: SEOAudit = {
-      id: Math.random().toString(36).substr(2, 9),
+      id: '00000000-0000-0000-0000-000000000000'.replace(/0/g, () => 
+        Math.floor(Math.random() * 16).toString(16)
+      ),
       client_id: clientId,
       url,
       status: 'failed' as 'failed',
