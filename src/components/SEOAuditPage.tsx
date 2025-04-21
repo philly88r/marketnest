@@ -761,7 +761,7 @@ const SummaryCard = styled.div`
   margin-bottom: 24px;
 `;
 
-const SummaryText = styled.p`
+const SummaryText = styled.div`
   font-size: 14px;
   line-height: 1.5;
   margin: 0;
