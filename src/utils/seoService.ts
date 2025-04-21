@@ -140,18 +140,22 @@ const fetchWebsiteData = async (url: string): Promise<any> => {
   try {
     console.log(`Fetching website data for ${url} using CORS proxy with Cheerio`);
     
-    // Use a CORS proxy to fetch the website content
-    const corsProxyUrl = `https://api.allorigins.win/get?url=${encodeURIComponent(url)}`;
-    const response = await fetch(corsProxyUrl);
+    // Use a more reliable CORS proxy to fetch the website content
+    const corsProxyUrl = `https://corsproxy.io/?${encodeURIComponent(url)}`;
+    const response = await fetch(corsProxyUrl, {
+      headers: {
+        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36'
+      }
+    });
     
     if (!response.ok) {
       throw new Error(`Failed to fetch website data: ${response.statusText}`);
     }
     
-    const data = await response.json();
+    const html = await response.text();
     
     // Parse the HTML content with Cheerio
-    const $ = cheerio.load(data.contents);
+    const $ = cheerio.load(html);
     
     // Extract metadata
     const metaData = extractMetaData($, url);
@@ -170,7 +174,8 @@ const fetchWebsiteData = async (url: string): Promise<any> => {
       performance: performanceData,
       mobile: mobileData,
       security: securityData,
-      timestamp: new Date().toISOString()
+      timestamp: new Date().toISOString(),
+      rawHtml: html.substring(0, 50000) // Store a portion of the raw HTML for AI analysis
     };
   } catch (error) {
     console.error('Error fetching website data:', error);
@@ -903,20 +908,290 @@ const calculateScore = (report: SEOReport): number => {
 };
 
 /**
- * Calculate a score from an AI-generated report
+ * Process the SEO audit asynchronously
  */
-const calculateScoreFromAIReport = (report: any): number => {
-  if (!report) return 0;
+const processAuditAsync = async (url: string, auditId: string, userId: string) => {
+  try {
+    // Update status to processing
+    await supabase
+      .from('seo_audits')
+      .update({
+        status: 'processing',
+        updated_at: new Date().toISOString(),
+        score: 0
+      })
+      .eq('id', auditId);
+    
+    // Try to fetch website data
+    let websiteData;
+    try {
+      websiteData = await fetchWebsiteData(url);
+    } catch (fetchError) {
+      console.error('Error fetching website data:', fetchError);
+      
+      // Try AI-generated report as fallback
+      try {
+        console.log('Falling back to AI-generated report');
+        const aiReport = await generateAIReport(url);
+        
+        // Calculate a score based on AI report
+        const score = calculateScoreFromAIReport(aiReport);
+        
+        // Update the audit record with the AI-generated report
+        await supabase
+          .from('seo_audits')
+          .update({
+            status: 'completed',
+            updated_at: new Date().toISOString(),
+            score,
+            report: aiReport
+          })
+          .eq('id', auditId);
+        
+        return;
+      } catch (aiError) {
+        console.error('Error generating AI report:', aiError);
+        
+        // Update the audit record with failed status
+        await supabase
+          .from('seo_audits')
+          .update({
+            status: 'failed',
+            updated_at: new Date().toISOString(),
+            score: 0,
+            report: null
+          })
+          .eq('id', auditId);
+        
+        return;
+      }
+    }
+    
+    // Generate SEO report from website data AND enhance with AI
+    const report = await generateEnhancedSEOReport(websiteData, url);
+    
+    // Calculate score from report
+    const score = calculateScore(report);
+    
+    // Update the audit record with the completed report
+    await supabase
+      .from('seo_audits')
+      .update({
+        status: 'completed',
+        updated_at: new Date().toISOString(),
+        score,
+        report
+      })
+      .eq('id', auditId);
+    
+  } catch (error) {
+    console.error('Error processing SEO audit:', error);
+    
+    // Update the audit record with failed status
+    await supabase
+      .from('seo_audits')
+      .update({
+        status: 'failed',
+        updated_at: new Date().toISOString(),
+        score: 0,
+        report: null
+      })
+      .eq('id', auditId);
+  }
+};
+
+/**
+ * Generate an enhanced SEO report using both website data and AI analysis
+ */
+const generateEnhancedSEOReport = async (websiteData: any, url: string): Promise<SEOReport> => {
+  try {
+    // First generate a report based on the scraped data
+    const baseReport = generateSEOReport(websiteData, url);
+    
+    // Then enhance it with AI analysis
+    const aiPrompt = generateSEOAuditPromptWithData(url, websiteData, baseReport);
+    const aiResponse = await callGeminiAPI(aiPrompt);
+    const aiReport = parseGeminiResponse(aiResponse, url);
+    
+    // Merge the reports, prioritizing AI insights but keeping technical data
+    return mergeReports(baseReport, aiReport);
+  } catch (error) {
+    console.error('Error generating enhanced SEO report:', error);
+    
+    // Fall back to the basic report if AI enhancement fails
+    return generateSEOReport(websiteData, url);
+  }
+};
+
+/**
+ * Merge two SEO reports, prioritizing AI insights but keeping technical data
+ */
+const mergeReports = (baseReport: SEOReport, aiReport: SEOReport): SEOReport => {
+  return {
+    overall: aiReport.overall || baseReport.overall,
+    technical: {
+      score: aiReport.technical?.score || baseReport.technical.score,
+      issues: [...(baseReport.technical.issues || []), ...(aiReport.technical?.issues || [])]
+    },
+    content: {
+      score: aiReport.content?.score || baseReport.content.score,
+      issues: [...(baseReport.content.issues || []), ...(aiReport.content?.issues || [])]
+    },
+    onPage: {
+      score: aiReport.onPage?.score || baseReport.onPage.score,
+      issues: [...(baseReport.onPage.issues || []), ...(aiReport.onPage?.issues || [])]
+    },
+    performance: {
+      score: aiReport.performance?.score || baseReport.performance.score,
+      issues: [...(baseReport.performance.issues || []), ...(aiReport.performance?.issues || [])]
+    },
+    mobile: {
+      score: aiReport.mobile?.score || baseReport.mobile.score,
+      issues: [...(baseReport.mobile.issues || []), ...(aiReport.mobile?.issues || [])]
+    },
+    backlinks: {
+      score: aiReport.backlinks?.score || baseReport.backlinks.score,
+      issues: [...(baseReport.backlinks.issues || []), ...(aiReport.backlinks?.issues || [])]
+    },
+    keywords: {
+      score: aiReport.keywords?.score || baseReport.keywords.score,
+      issues: [...(baseReport.keywords.issues || []), ...(aiReport.keywords?.issues || [])]
+    },
+    recommendations: [
+      ...(baseReport.recommendations || []),
+      ...(aiReport.recommendations || [])
+    ],
+    url: baseReport.url,
+    metaTags: baseReport.metaTags,
+    headings: baseReport.headings,
+    images: baseReport.images,
+    links: baseReport.links,
+    contentWordCount: baseReport.contentWordCount
+  };
+};
+
+/**
+ * Generate an AI prompt with detailed website data for more accurate analysis
+ */
+const generateSEOAuditPromptWithData = (url: string, websiteData: any, baseReport: SEOReport): string => {
+  // Extract a sample of the raw HTML (first 10000 chars)
+  const htmlSample = websiteData.rawHtml ? 
+    `HTML Sample (first 10000 chars): ${websiteData.rawHtml.substring(0, 10000)}` : 
+    'HTML Sample: Not available';
   
-  // For AI reports, we'll use a simpler scoring mechanism
-  // based on the number of recommendations provided
-  const recommendations = report.recommendations || [];
-  const issuesCount = recommendations.length;
-  
-  // More issues = lower score (baseline of 80)
-  const score = Math.max(0, 80 - (issuesCount * 5));
-  
-  return score;
+  return `
+Please perform a comprehensive SEO audit for the website: ${url}
+
+I have already performed a technical analysis and found the following data:
+
+METADATA:
+- Title: ${websiteData.meta?.title || 'Unknown'}
+- Meta Description: ${websiteData.meta?.description || 'Missing'}
+- Meta Keywords: ${websiteData.meta?.keywords?.join(', ') || 'Missing'}
+- Has Structured Data: ${websiteData.meta?.structuredData ? 'Yes' : 'No'}
+
+HEADINGS:
+- H1 Tags (${websiteData.meta?.headings?.h1?.length || 0}): ${JSON.stringify(websiteData.meta?.headings?.h1 || [])}
+- H2 Tags (${websiteData.meta?.headings?.h2?.length || 0}): ${JSON.stringify((websiteData.meta?.headings?.h2 || []).slice(0, 5))}${(websiteData.meta?.headings?.h2?.length || 0) > 5 ? ' (truncated)' : ''}
+- H3 Tags (${websiteData.meta?.headings?.h3?.length || 0}): ${JSON.stringify((websiteData.meta?.headings?.h3 || []).slice(0, 5))}${(websiteData.meta?.headings?.h3?.length || 0) > 5 ? ' (truncated)' : ''}
+
+LINKS:
+- Internal Links: ${websiteData.meta?.links?.internalCount || 0}
+- External Links: ${websiteData.meta?.links?.externalCount || 0}
+
+IMAGES:
+- Total Images: ${websiteData.meta?.images?.total || 0}
+- Images with Alt Text: ${websiteData.meta?.images?.withAlt || 0}
+- Images without Alt Text: ${websiteData.meta?.images?.withoutAlt || 0}
+
+SOCIAL MEDIA:
+- Open Graph Title: ${websiteData.meta?.socialMedia?.openGraph?.title || 'Missing'}
+- Open Graph Description: ${websiteData.meta?.socialMedia?.openGraph?.description || 'Missing'}
+- Open Graph Image: ${websiteData.meta?.socialMedia?.openGraph?.image || 'Missing'}
+- Twitter Card: ${websiteData.meta?.socialMedia?.twitter?.card || 'Missing'}
+
+PERFORMANCE:
+- Performance Score: ${websiteData.performance?.score || 'Unknown'}/100
+- Load Time: ${websiteData.performance?.metrics?.loadTime || 'Unknown'} ms
+- Total Page Size: ${websiteData.performance?.metrics?.totalSize ? Math.round(websiteData.performance.metrics.totalSize / 1024) + ' KB' : 'Unknown'}
+
+MOBILE:
+- Mobile-Friendly: ${websiteData.mobile?.isMobileFriendly ? 'Yes' : 'No'}
+- Has Viewport Meta: ${websiteData.mobile?.hasViewportMeta ? 'Yes' : 'No'}
+- Is Responsive: ${websiteData.mobile?.isResponsive ? 'Yes' : 'No'}
+
+SECURITY:
+- HTTPS: ${websiteData.security?.isHttps ? 'Yes' : 'No'}
+
+${htmlSample}
+
+I need a detailed analysis in JSON format with the following structure:
+
+{
+  "overall": {
+    "score": <number between 0-100>,
+    "summary": "<brief summary of overall SEO health>",
+    "timestamp": "<current date and time>"
+  },
+  "technical": {
+    "score": <number between 0-100>,
+    "issues": [
+      {
+        "title": "<issue title>",
+        "description": "<detailed description>",
+        "severity": "<high|medium|low>",
+        "impact": "<impact on SEO>",
+        "recommendation": "<how to fix>"
+      }
+    ]
+  },
+  "content": {
+    "score": <number between 0-100>,
+    "issues": [<same structure as technical issues>]
+  },
+  "onPage": {
+    "score": <number between 0-100>,
+    "issues": [<same structure as technical issues>]
+  },
+  "performance": {
+    "score": <number between 0-100>,
+    "issues": [<same structure as technical issues>]
+  },
+  "mobile": {
+    "score": <number between 0-100>,
+    "issues": [<same structure as technical issues>]
+  },
+  "backlinks": {
+    "score": <number between 0-100>,
+    "issues": [<same structure as technical issues>]
+  },
+  "keywords": {
+    "score": <number between 0-100>,
+    "issues": [<same structure as technical issues>]
+  },
+  "recommendations": [
+    {
+      "title": "<recommendation title>",
+      "description": "<detailed description>",
+      "severity": "<high|medium|low>",
+      "impact": "<expected impact>",
+      "recommendation": "<how to fix>"
+    }
+  ]
+}
+
+Please analyze the website thoroughly, including:
+1. Technical SEO (crawlability, indexability, site structure, SSL, mobile-friendliness, etc.)
+2. On-page SEO (meta tags, headings, content quality, internal linking, etc.)
+3. Performance (page speed, Core Web Vitals, etc.)
+4. Content quality and optimization
+5. Backlink profile
+6. Keyword targeting and opportunities
+
+For each issue, provide specific details and actionable recommendations. Assign appropriate severity levels and prioritize recommendations based on potential impact and implementation effort.
+
+Return ONLY the JSON object with no additional text or explanation.
+`;
 };
 
 /**
@@ -1019,376 +1294,6 @@ export const generateSEOAudit = async (url: string, clientId: string): Promise<S
     
     return failedAudit;
   }
-};
-
-/**
- * Process the SEO audit asynchronously
- */
-const processAuditAsync = async (url: string, auditId: string, userId: string) => {
-  try {
-    // Update status to processing
-    await supabase
-      .from('seo_audits')
-      .update({
-        status: 'processing',
-        updated_at: new Date().toISOString(),
-        score: 0
-      })
-      .eq('id', auditId);
-    
-    // Try to fetch website data
-    let websiteData;
-    try {
-      websiteData = await fetchWebsiteData(url);
-    } catch (fetchError) {
-      console.error('Error fetching website data:', fetchError);
-      
-      // Try AI-generated report as fallback
-      try {
-        console.log('Falling back to AI-generated report');
-        const aiReport = await generateAIReport(url);
-        
-        // Calculate a score based on AI report
-        const score = calculateScoreFromAIReport(aiReport);
-        
-        // Update the audit record with the AI-generated report
-        await supabase
-          .from('seo_audits')
-          .update({
-            status: 'completed',
-            updated_at: new Date().toISOString(),
-            score,
-            report: aiReport
-          })
-          .eq('id', auditId);
-        
-        return;
-      } catch (aiError) {
-        console.error('Error generating AI report:', aiError);
-        
-        // Update the audit record with failed status
-        await supabase
-          .from('seo_audits')
-          .update({
-            status: 'failed',
-            updated_at: new Date().toISOString(),
-            score: 0,
-            report: null
-          })
-          .eq('id', auditId);
-        
-        return;
-      }
-    }
-    
-    // Generate SEO report from website data
-    const report = generateSEOReport(websiteData, url);
-    
-    // Calculate score from report
-    const score = calculateScore(report);
-    
-    // Update the audit record with the completed report
-    await supabase
-      .from('seo_audits')
-      .update({
-        status: 'completed',
-        updated_at: new Date().toISOString(),
-        score,
-        report
-      })
-      .eq('id', auditId);
-    
-  } catch (error) {
-    console.error('Error processing SEO audit:', error);
-    
-    // Update the audit record with failed status
-    await supabase
-      .from('seo_audits')
-      .update({
-        status: 'failed',
-        updated_at: new Date().toISOString(),
-        score: 0,
-        report: null
-      })
-      .eq('id', auditId);
-  }
-};
-
-/**
- * Create a failed audit report
- */
-const createFailedAuditReport = (url: string, error: any): SEOReport => {
-  const emptyReport = createEmptyReport();
-  return {
-    ...emptyReport,
-    overall: {
-      score: 0,
-      summary: `Failed to generate SEO audit for ${url}. Error: ${error instanceof Error ? error.message : 'Unknown error'}`,
-      timestamp: new Date().toISOString()
-    }
-  };
-};
-
-/**
- * Generate an AI-based SEO report when direct website analysis fails
- */
-const generateAIReport = async (url: string): Promise<SEOReport> => {
-  try {
-    // Generate the prompt for the Gemini API
-    const prompt = generateSEOAuditPrompt(url);
-    
-    // Call the Gemini API to analyze the website
-    const geminiResponse = await callGeminiAPI(prompt);
-    
-    // Parse the Gemini API response
-    return parseGeminiResponse(geminiResponse, url);
-  } catch (error) {
-    console.error('Error generating AI report:', error);
-    return createFailedAuditReport(url, error);
-  }
-};
-
-/**
- * Generate an SEO report from website data
- */
-const generateSEOReport = (websiteData: any, url: string): SEOReport => {
-  try {
-    return generateRealSEOReport(url, websiteData);
-  } catch (error) {
-    console.error('Error generating SEO report from website data:', error);
-    return createFailedAuditReport(url, error);
-  }
-};
-
-/**
- * Parses the Gemini API response into a structured SEO report
- */
-const parseGeminiResponse = (response: string, url: string): SEOReport => {
-  try {
-    // Extract the JSON part from the response
-    const jsonMatch = response.match(/\{[\s\S]*\}/);
-    if (!jsonMatch) {
-      throw new Error('No JSON found in response');
-    }
-    
-    const jsonStr = jsonMatch[0];
-    const parsedReport = JSON.parse(jsonStr) as SEOReport;
-    
-    // Ensure the report has all required sections
-    const emptyReport = createEmptyReport();
-    return {
-      overall: { ...emptyReport.overall, ...parsedReport.overall },
-      technical: { ...emptyReport.technical, ...parsedReport.technical },
-      content: { ...emptyReport.content, ...parsedReport.content },
-      onPage: { ...emptyReport.onPage, ...parsedReport.onPage },
-      performance: { ...emptyReport.performance, ...parsedReport.performance },
-      mobile: { ...emptyReport.mobile, ...parsedReport.mobile },
-      backlinks: { ...emptyReport.backlinks, ...parsedReport.backlinks },
-      keywords: { ...emptyReport.keywords, ...parsedReport.keywords },
-      recommendations: parsedReport.recommendations || [],
-      url: url,
-      metaTags: {
-        title: parsedReport.metaTags?.title || '',
-        description: parsedReport.metaTags?.description || '',
-        keywords: parsedReport.metaTags?.keywords || ''
-      },
-      headings: {
-        h1: parsedReport.headings?.h1 || [],
-        h2: parsedReport.headings?.h2 || [],
-        h3: parsedReport.headings?.h3 || []
-      },
-      images: {
-        total: parsedReport.images?.total || 0,
-        withAlt: parsedReport.images?.withAlt || 0,
-        withoutAlt: parsedReport.images?.withoutAlt || 0
-      },
-      links: {
-        internalCount: parsedReport.links?.internalCount || 0,
-        externalCount: parsedReport.links?.externalCount || 0
-      },
-      contentWordCount: parsedReport.contentWordCount || 0
-    };
-  } catch (error) {
-    console.error('Error parsing Gemini response:', error);
-    
-    // Return a basic report with an error message
-    const emptyReport = createEmptyReport();
-    return {
-      ...emptyReport,
-      overall: {
-        score: 0,
-        summary: `Failed to parse SEO audit for ${url}. Error: ${error instanceof Error ? error.message : 'Unknown error'}`,
-        timestamp: new Date().toISOString()
-      },
-      url: url,
-      metaTags: {
-        title: '',
-        description: '',
-        keywords: ''
-      },
-      headings: {
-        h1: [],
-        h2: [],
-        h3: []
-      },
-      images: {
-        total: 0,
-        withAlt: 0,
-        withoutAlt: 0
-      },
-      links: {
-        internalCount: 0,
-        externalCount: 0
-      },
-      contentWordCount: 0
-    };
-  }
-};
-
-/**
- * Generates the prompt for the Gemini API to create an SEO audit
- */
-const generateSEOAuditPrompt = (url: string, websiteData?: any): string => {
-  let websiteDataString = '';
-  
-  if (websiteData) {
-    websiteDataString = `
-Here is some technical data about the website that will help with your analysis:
-
-METADATA:
-- Title: ${websiteData.meta?.title || 'Unknown'}
-- Meta Description: ${websiteData.meta?.description || 'Missing'}
-- Meta Keywords: ${websiteData.meta?.keywords?.join(', ') || 'Missing'}
-- Has Structured Data: ${websiteData.meta?.structuredData ? 'Yes' : 'No'}
-
-HEADINGS:
-- H1 Tags (${websiteData.meta?.headings?.h1?.length || 0}): ${JSON.stringify(websiteData.meta?.headings?.h1 || [])}
-- H2 Tags (${websiteData.meta?.headings?.h2?.length || 0}): ${JSON.stringify((websiteData.meta?.headings?.h2 || []).slice(0, 5))}${(websiteData.meta?.headings?.h2?.length || 0) > 5 ? ' (truncated)' : ''}
-- H3 Tags (${websiteData.meta?.headings?.h3?.length || 0}): ${JSON.stringify((websiteData.meta?.headings?.h3 || []).slice(0, 5))}${(websiteData.meta?.headings?.h3?.length || 0) > 5 ? ' (truncated)' : ''}
-
-LINKS:
-- Internal Links: ${websiteData.meta?.links?.internalCount || 0}
-- External Links: ${websiteData.meta?.links?.externalCount || 0}
-
-IMAGES:
-- Total Images: ${websiteData.meta?.images?.total || 0}
-- Images with Alt Text: ${websiteData.meta?.images?.withAlt || 0}
-- Images without Alt Text: ${websiteData.meta?.images?.withoutAlt || 0}
-
-SOCIAL MEDIA:
-- Open Graph Title: ${websiteData.meta?.socialMedia?.openGraph?.title || 'Missing'}
-- Open Graph Description: ${websiteData.meta?.socialMedia?.openGraph?.description || 'Missing'}
-- Open Graph Image: ${websiteData.meta?.socialMedia?.openGraph?.image || 'Missing'}
-- Twitter Card: ${websiteData.meta?.socialMedia?.twitter?.card || 'Missing'}
-
-PERFORMANCE:
-- Performance Score: ${websiteData.performance?.score || 'Unknown'}/100
-- Load Time: ${websiteData.performance?.metrics?.loadTime || 'Unknown'} ms
-- Total Page Size: ${websiteData.performance?.metrics?.totalSize ? Math.round(websiteData.performance.metrics.totalSize / 1024) + ' KB' : 'Unknown'}
-
-MOBILE:
-- Mobile-Friendly: ${websiteData.mobile?.isMobileFriendly ? 'Yes' : 'No'}
-- Has Viewport Meta: ${websiteData.mobile?.hasViewportMeta ? 'Yes' : 'No'}
-- Is Responsive: ${websiteData.mobile?.isResponsive ? 'Yes' : 'No'}
-
-SECURITY:
-- HTTPS: ${websiteData.security?.isHttps ? 'Yes' : 'No'}
-`;
-  }
-  
-  return `
-Please perform a comprehensive SEO audit for the website: ${url}
-
-${websiteDataString}
-
-I need a detailed analysis in JSON format with the following structure:
-
-{
-  "overall": {
-    "score": <number between 0-100>,
-    "summary": "<brief summary of overall SEO health>",
-    "timestamp": "<current date and time>"
-  },
-  "technical": {
-    "score": <number between 0-100>,
-    "issues": [
-      {
-        "title": "<issue title>",
-        "description": "<detailed description>",
-        "severity": "<high|medium|low>",
-        "impact": "<impact on SEO>",
-        "recommendation": "<how to fix>"
-      }
-    ]
-  },
-  "content": {
-    "score": <number between 0-100>,
-    "issues": [<same structure as technical issues>]
-  },
-  "onPage": {
-    "score": <number between 0-100>,
-    "issues": [<same structure as technical issues>]
-  },
-  "performance": {
-    "score": <number between 0-100>,
-    "issues": [<same structure as technical issues>]
-  },
-  "mobile": {
-    "score": <number between 0-100>,
-    "issues": [<same structure as technical issues>]
-  },
-  "backlinks": {
-    "score": <number between 0-100>,
-    "issues": [<same structure as technical issues>]
-  },
-  "keywords": {
-    "score": <number between 0-100>,
-    "issues": [<same structure as technical issues>]
-  },
-  "recommendations": [
-    {
-      "title": "<recommendation title>",
-      "description": "<detailed description>",
-      "severity": "<high|medium|low>",
-      "impact": "<expected impact>",
-      "recommendation": "<how to fix>"
-    }
-  ],
-  "url": "<website URL>",
-  "metaTags": {
-    "title": "<meta title>",
-    "description": "<meta description>",
-    "keywords": "<meta keywords>"
-  },
-  "headings": {
-    "h1": ["<h1 heading>"],
-    "h2": ["<h2 heading>"],
-    "h3": ["<h3 heading>"]
-  },
-  "images": {
-    "total": <number>,
-    "withAlt": <number>,
-    "withoutAlt": <number>
-  },
-  "links": {
-    "internalCount": <number>,
-    "externalCount": <number>
-  },
-  "contentWordCount": <number>
-}
-
-Please analyze the website thoroughly, including:
-1. Technical SEO (crawlability, indexability, site structure, SSL, mobile-friendliness, etc.)
-2. On-page SEO (meta tags, headings, content quality, internal linking, etc.)
-3. Performance (page speed, Core Web Vitals, etc.)
-4. Content quality and optimization
-5. Backlink profile
-6. Keyword targeting and opportunities
-
-For each issue, provide specific details and actionable recommendations. Assign appropriate severity levels and prioritize recommendations based on potential impact and implementation effort.
-
-Return ONLY the JSON object with no additional text or explanation.
-`;
 };
 
 /**
