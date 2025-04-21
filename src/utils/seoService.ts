@@ -838,42 +838,42 @@ const generateRecommendations = (websiteData: any, domain: string): SEOIssue[] =
  * Generates an SEO audit for a given URL using real web data
  */
 export const generateSEOAudit = async (url: string, clientId: string): Promise<SEOAudit> => {
-  // Generate a unique ID for the audit
-  const auditId = `audit-${Date.now()}-${Math.floor(Math.random() * 1000)}`;
-  
-  // Create initial audit record
-  const initialAudit: SEOAudit = {
-    id: auditId,
-    client_id: clientId,
-    url,
-    status: 'in-progress',
-    created_at: new Date().toISOString(),
-    updated_at: new Date().toISOString(),
-    report: null
-  };
-  
   try {
-    // Insert initial audit record
-    const { error: insertError } = await supabase
+    // Create initial audit record without specifying ID (let Supabase generate the UUID)
+    const initialAudit: Omit<SEOAudit, 'id'> = {
+      client_id: clientId,
+      url,
+      status: 'in-progress',
+      created_at: new Date().toISOString(),
+      updated_at: new Date().toISOString(),
+      report: null
+    };
+    
+    // Insert initial audit record and get the generated ID
+    const { data, error: insertError } = await supabase
       .from('seo_audits')
-      .insert(initialAudit);
+      .insert(initialAudit)
+      .select()
+      .single();
     
     if (insertError) {
       console.error('Error creating initial SEO audit record:', insertError);
       throw insertError;
     }
     
+    // Get the generated audit ID
+    const auditId = data.id;
+    
     // Start asynchronous processing
     processAuditAsync(url, auditId);
     
-    // Return the initial audit record
-    return initialAudit;
+    // Return the initial audit record with the generated ID
+    return data;
   } catch (error) {
     console.error('Error generating SEO audit:', error);
     
-    // Create a failed audit record
-    const failedAudit: SEOAudit = {
-      id: auditId,
+    // Create a failed audit record - let the database handle the ID
+    const failedAudit: Omit<SEOAudit, 'id'> = {
       client_id: clientId,
       url,
       status: 'failed',
@@ -882,7 +882,24 @@ export const generateSEOAudit = async (url: string, clientId: string): Promise<S
       report: null
     };
     
-    return failedAudit;
+    // Try to insert the failed audit
+    try {
+      const { data } = await supabase
+        .from('seo_audits')
+        .insert(failedAudit)
+        .select()
+        .single();
+      
+      return data;
+    } catch (insertError) {
+      console.error('Error creating failed audit record:', insertError);
+      
+      // Return a temporary object for the UI
+      return {
+        id: 'temp-failed-audit',
+        ...failedAudit
+      } as SEOAudit;
+    }
   }
 };
 
