@@ -160,6 +160,22 @@ const SEOAuditPage: React.FC<SEOAuditPageProps> = ({ clientId }) => {
       setSelectedAudit(newAudit);
       setUrl('');
       setShowNewAuditForm(false);
+      
+      // Refresh the audit list after a short delay
+      setTimeout(async () => {
+        try {
+          const refreshedAudits = await getSEOAuditsByClientId(clientId);
+          setAudits(refreshedAudits);
+          
+          // Find and select the newly created audit
+          const createdAudit = refreshedAudits.find(audit => audit.id === newAudit.id);
+          if (createdAudit) {
+            setSelectedAudit(createdAudit);
+          }
+        } catch (refreshError) {
+          console.error('Error refreshing audits:', refreshError);
+        }
+      }, 2000);
     } catch (err) {
       console.error('Error creating SEO audit:', err);
       setError('Failed to create SEO audit. Please try again.');

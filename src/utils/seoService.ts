@@ -1854,10 +1854,18 @@ const processComprehensiveSEOAudit = async (url: string, auditId: string, userId
     console.log(`Starting comprehensive SEO audit for ${url} (ID: ${auditId})`);
     
     // Update status to processing
-    await supabase
-      .from('seo_audits')
-      .update({ status: 'processing' })
-      .eq('id', auditId);
+    try {
+      await supabase
+        .from('seo_audits')
+        .update({ 
+          status: 'processing',
+          updated_at: new Date().toISOString()
+        })
+        .eq('id', auditId);
+    } catch (updateError) {
+      console.error('Error updating audit status:', updateError);
+      // Continue with the audit even if the update fails
+    }
     
     // Extract domain from URL
     const domain = new URL(url).hostname;
@@ -1870,7 +1878,7 @@ const processComprehensiveSEOAudit = async (url: string, auditId: string, userId
     const initialReport = await generateRealSEOReport(url, mainPageData);
     
     // Extract all internal links to crawl
-    const internalLinks = extractInternalLinks(mainPageData, domain);
+    const internalLinks = extractInternalLinks(mainPageData.meta?.$, domain) || [];
     console.log(`Found ${internalLinks.length} internal links to crawl`);
     
     // Limit the number of pages to crawl to avoid overloading
@@ -1894,19 +1902,24 @@ const processComprehensiveSEOAudit = async (url: string, auditId: string, userId
       console.log(`Processing batch ${batchIndex + 1}/${totalBatches} (pages ${batchStart + 1} to ${batchEnd})`);
       
       // Update the audit status with progress information
-      await supabase
-        .from('seo_audits')
-        .update({ 
-          status: 'processing',
-          report: {
-            overall: {
-              summary: `Analyzing pages ${batchStart + 1} to ${batchEnd} of ${pagesToCrawl.length} (${Math.round((batchEnd / pagesToCrawl.length) * 100)}% complete)`,
-              score: 0,
-              timestamp: new Date().toISOString()
+      try {
+        await supabase
+          .from('seo_audits')
+          .update({ 
+            status: 'processing',
+            report: {
+              overall: {
+                summary: `Analyzing pages ${batchStart + 1} to ${batchEnd} of ${pagesToCrawl.length} (${Math.round((batchEnd / pagesToCrawl.length) * 100)}% complete)`,
+                score: 0,
+                timestamp: new Date().toISOString()
+              }
             }
-          }
-        })
-        .eq('id', auditId);
+          })
+          .eq('id', auditId);
+      } catch (updateError) {
+        console.error('Error updating audit status:', updateError);
+        // Continue with the audit even if the update fails
+      }
       
       // Process each page in the current batch in parallel
       const batchPromises = currentBatch.map(async (pageUrl, index) => {
@@ -1956,19 +1969,23 @@ const processComprehensiveSEOAudit = async (url: string, auditId: string, userId
     comprehensiveReport.pageDetails.sort((a, b) => a.score - b.score);
     
     // Update the audit with the comprehensive report
-    const { error: updateError } = await supabase
-      .from('seo_audits')
-      .update({
-        status: 'completed',
-        score: comprehensiveReport.overall.score,
-        report: comprehensiveReport,
-        updated_at: new Date().toISOString()
-      })
-      .eq('id', auditId);
-    
-    if (updateError) {
-      console.error('Error updating SEO audit with comprehensive report:', updateError);
-      throw updateError;
+    try {
+      const { error: updateError } = await supabase
+        .from('seo_audits')
+        .update({
+          status: 'completed',
+          score: comprehensiveReport.overall.score,
+          report: comprehensiveReport,
+          updated_at: new Date().toISOString()
+        })
+        .eq('id', auditId);
+      
+      if (updateError) {
+        console.error('Error updating SEO audit with comprehensive report:', updateError);
+        throw updateError;
+      }
+    } catch (error) {
+      console.error('Error updating SEO audit:', error);
     }
     
     console.log(`Comprehensive SEO audit completed for ${url} (ID: ${auditId})`);
@@ -1979,47 +1996,65 @@ const processComprehensiveSEOAudit = async (url: string, auditId: string, userId
     const failedReport = createFailedAuditReport(url, error);
     
     // Update the audit with the failed status
-    await supabase
-      .from('seo_audits')
-      .update({
-        status: 'failed',
-        report: failedReport,
-        updated_at: new Date().toISOString()
-      })
-      .eq('id', auditId);
+    try {
+      await supabase
+        .from('seo_audits')
+        .update({
+          status: 'failed',
+          report: failedReport,
+          updated_at: new Date().toISOString()
+        })
+        .eq('id', auditId);
+    } catch (error) {
+      console.error('Error updating SEO audit:', error);
+    }
   }
 };
 
 /**
  * Extract internal links from website data
  */
-const extractInternalLinks = ($: any, domain: string): string[] => {
+const extractInternalLinks = ($: cheerio.CheerioAPI, domain: string): string[] => {
   const links: string[] = [];
   
-  $('a').each((i: number, el: any) => {
-    const href = $(el).attr('href');
-    
-    if (href && (href.startsWith('/') || href.includes(domain))) {
-      // Convert relative URLs to absolute
-      let fullUrl = href;
-      if (href.startsWith('/')) {
-        fullUrl = `https://${domain}${href}`;
-      }
-      
-      // Filter out non-HTML resources and duplicates
-      if (
-        !fullUrl.endsWith('.jpg') && 
-        !fullUrl.endsWith('.jpeg') && 
-        !fullUrl.endsWith('.png') && 
-        !fullUrl.endsWith('.gif') && 
-        !fullUrl.endsWith('.pdf') && 
-        !fullUrl.endsWith('.zip') && 
-        !links.includes(fullUrl)
-      ) {
-        links.push(fullUrl);
-      }
+  try {
+    // Make sure $ is a valid cheerio object
+    if (typeof $ !== 'function') {
+      console.error('Invalid cheerio object in extractInternalLinks');
+      return [];
     }
-  });
+    
+    $('a').each((i, el) => {
+      try {
+        const href = $(el).attr('href');
+        
+        if (href && (href.startsWith('/') || href.includes(domain))) {
+          // Convert relative URLs to absolute
+          let fullUrl = href;
+          if (href.startsWith('/')) {
+            fullUrl = `https://${domain}${href}`;
+          }
+          
+          // Filter out non-HTML resources and duplicates
+          if (
+            !fullUrl.endsWith('.jpg') && 
+            !fullUrl.endsWith('.jpeg') && 
+            !fullUrl.endsWith('.png') && 
+            !fullUrl.endsWith('.gif') && 
+            !fullUrl.endsWith('.pdf') && 
+            !fullUrl.endsWith('.zip') && 
+            !links.includes(fullUrl)
+          ) {
+            links.push(fullUrl);
+          }
+        }
+      } catch (err) {
+        console.error('Error processing link:', err);
+      }
+    });
+  } catch (error) {
+    console.error('Error extracting internal links:', error);
+  }
   
   return links;
 };
