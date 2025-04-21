@@ -1878,7 +1878,8 @@ const processComprehensiveSEOAudit = async (url: string, auditId: string, userId
     const initialReport = await generateRealSEOReport(url, mainPageData);
     
     // Extract all internal links to crawl
-    const internalLinks = extractInternalLinks(mainPageData.meta?.$, domain) || [];
+    const $ = cheerio.load(mainPageData.rawHtml || '');
+    const internalLinks = extractInternalLinks($, domain) || [];
     console.log(`Found ${internalLinks.length} internal links to crawl`);
     
     // Limit the number of pages to crawl to avoid overloading
@@ -2024,6 +2025,7 @@ const extractInternalLinks = ($: cheerio.CheerioAPI, domain: string): string[] =
       return [];
     }
     
+    // Find all links in the document
     $('a').each((i, el) => {
       try {
         const href = $(el).attr('href');
@@ -2052,6 +2054,8 @@ const extractInternalLinks = ($: cheerio.CheerioAPI, domain: string): string[] =
         console.error('Error processing link:', err);
       }
     });
+    
+    console.log(`Successfully extracted ${links.length} internal links`);
   } catch (error) {
     console.error('Error extracting internal links:', error);
   }
