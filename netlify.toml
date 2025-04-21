@@ -12,3 +12,9 @@
   from = "/*"
   to = "/index.html"
   status = 200
+
+# Redirect API requests to our serverless functions
+[[redirects]]
+  from = "/api/seo/fetch"
+  to = "/.netlify/functions/seo-proxy"
+  status = 200
