@@ -7,10 +7,13 @@ import {
   getEmailTemplatesByClientId, 
   updateEmailTemplateStatus,
   deleteEmailTemplate,
+  updateEmailTemplate,
+  updateTemplateWithAI,
   EmailTemplate,
   EmailGenerationOptions,
   LIBERTY_BEANS_COLORS
 } from '../utils/emailService';
+import EmailDebugger from './EmailDebugger';
 
 interface EmailMarketingPageProps {
   clientId: string;
@@ -34,6 +37,11 @@ const EmailMarketingPage: React.FC<EmailMarketingPageProps> = ({
   const [showScrollIndicator, setShowScrollIndicator] = useState(true);
   const [imagePrompts, setImagePrompts] = useState<string[]>(['']);
   const [brandColors, setBrandColors] = useState(LIBERTY_BEANS_COLORS);
+  const [isEditing, setIsEditing] = useState(false);
+  const [editedTemplate, setEditedTemplate] = useState<Partial<EmailTemplate>>({});
+  const [showAIEditForm, setShowAIEditForm] = useState(false);
+  const [aiEditPrompt, setAIEditPrompt] = useState('');
+  const [isUpdatingWithAI, setIsUpdatingWithAI] = useState(false);
   
   // Hide scroll indicator after 5 seconds
   useEffect(() => {
@@ -64,13 +72,19 @@ const EmailMarketingPage: React.FC<EmailMarketingPageProps> = ({
       setIsLoading(true);
       setError(null);
       
+      console.log('EmailMarketingPage: Loading templates for client:', clientId);
+      
       try {
         const emailTemplates = await getEmailTemplatesByClientId(clientId);
+        console.log('EmailMarketingPage: Received templates:', emailTemplates.length);
         setTemplates(emailTemplates);
         
         // Select the most recent template if available
         if (emailTemplates.length > 0) {
+          console.log('EmailMarketingPage: Setting selected template:', emailTemplates[0].title);
           setSelectedTemplate(emailTemplates[0]);
+        } else {
+          console.log('EmailMarketingPage: No templates found for client:', clientId);
         }
       } catch (err) {
         console.error('Error loading email templates:', err);
@@ -162,7 +176,7 @@ const EmailMarketingPage: React.FC<EmailMarketingPageProps> = ({
   const handleScheduleTemplate = async (e: React.FormEvent) => {
     e.preventDefault();
     
-    if (!selectedTemplate) return;
+    if (!selectedTemplate || !scheduledDate) return;
     
     setIsLoading(true);
     setError(null);
@@ -170,30 +184,28 @@ const EmailMarketingPage: React.FC<EmailMarketingPageProps> = ({
     try {
       await updateEmailTemplateStatus(
         selectedTemplate.id, 
-        'approved', 
+        'scheduled', 
         scheduledDate
       );
       
-      // Update the template in the local state
+      // Update the local state
       const updatedTemplate: EmailTemplate = { 
         ...selectedTemplate, 
-        status: 'approved' as const, 
+        status: 'scheduled', 
         scheduled_for: scheduledDate 
       };
       
       setTemplates(prevTemplates => 
         prevTemplates.map(template => 
-          template.id === selectedTemplate.id 
-            ? updatedTemplate
-            : template
+          template.id === updatedTemplate.id ? updatedTemplate : template
         )
       );
       
       setSelectedTemplate(updatedTemplate);
       setShowScheduleForm(false);
     } catch (err) {
-      console.error('Error scheduling email template:', err);
-      setError('Failed to schedule email template. Please try again.');
+      console.error('Error scheduling template:', err);
+      setError('Failed to schedule template. Please try again.');
     } finally {
       setIsLoading(false);
     }
@@ -268,6 +280,124 @@ const EmailMarketingPage: React.FC<EmailMarketingPageProps> = ({
     }));
   };
 
+  // Function to handle editing template
+  const handleEditTemplate = () => {
+    if (!selectedTemplate) return;
+    
+    setEditedTemplate({
+      title: selectedTemplate.title,
+      subject: selectedTemplate.subject,
+      content: selectedTemplate.content
+    });
+    setIsEditing(true);
+  };
+  
+  // Function to save edited template
+  const handleSaveEdit = async () => {
+    if (!selectedTemplate || !editedTemplate) return;
+    
+    setIsLoading(true);
+    setError(null);
+    
+    try {
+      const updatedTemplate = await updateEmailTemplate(selectedTemplate.id, editedTemplate);
+      
+      // Update the templates list
+      setTemplates(prevTemplates => 
+        prevTemplates.map(template => 
+          template.id === updatedTemplate.id ? updatedTemplate : template
+        )
+      );
+      
+      // Update selected template
+      setSelectedTemplate(updatedTemplate);
+      setIsEditing(false);
+    } catch (err) {
+      console.error('Error updating template:', err);
+      setError('Failed to update template. Please try again.');
+    } finally {
+      setIsLoading(false);
+    }
+  };
+  
+  // Function to cancel editing
+  const handleCancelEdit = () => {
+    setIsEditing(false);
+    setEditedTemplate({});
+  };
+  
+  // Function to show AI edit form
+  const handleShowAIEditForm = () => {
+    if (!selectedTemplate) return;
+    setShowAIEditForm(true);
+  };
+  
+  // Function to update template with AI
+  const handleUpdateWithAI = async () => {
+    if (!selectedTemplate || !aiEditPrompt) return;
+    
+    setIsUpdatingWithAI(true);
+    setError(null);
+    
+    try {
+      const updatedTemplate = await updateTemplateWithAI(selectedTemplate.id, aiEditPrompt);
+      
+      // Update the templates list
+      setTemplates(prevTemplates => 
+        prevTemplates.map(template => 
+          template.id === updatedTemplate.id ? updatedTemplate : template
+        )
+      );
+      
+      // Update selected template
+      setSelectedTemplate(updatedTemplate);
+      setShowAIEditForm(false);
+      setAIEditPrompt('');
+    } catch (err) {
+      console.error('Error updating template with AI:', err);
+      setError('Failed to update template with AI. Please try again.');
+    } finally {
+      setIsUpdatingWithAI(false);
+    }
+  };
+  
+  // Function to fix image URLs
+  const fixImageUrl = (content: string): string => {
+    // Replace relative image URLs with absolute URLs
+    return content.replace(/(src=["'])(\/images\/[^"']+)(["'])/g, (match, p1, p2, p3) => {
+      return `${p1}https://marketnest.org${p2}${p3}`;
+    });
+  };
+
+  // Function to handle updating template status
+  const handleUpdateStatus = async (templateId: string, status: 'draft' | 'approved' | 'sent' | 'scheduled') => {
+    if (!templateId) return;
+    
+    setIsLoading(true);
+    setError(null);
+    
+    try {
+      const updatedTemplate = await updateEmailTemplateStatus(templateId, status);
+      
+      // Update the templates list
+      setTemplates(prevTemplates => 
+        prevTemplates.map(template => 
+          template.id === updatedTemplate.id ? updatedTemplate : template
+        )
+      );
+      
+      // Update selected template if it's the one being updated
+      if (selectedTemplate && selectedTemplate.id === updatedTemplate.id) {
+        setSelectedTemplate(updatedTemplate);
+      }
+    } catch (err) {
+      console.error('Error updating template status:', err);
+      setError('Failed to update template status. Please try again.');
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
   return (
     <GlobalStyle>
       <Container>
@@ -288,219 +418,150 @@ const EmailMarketingPage: React.FC<EmailMarketingPageProps> = ({
           <Sidebar>
             <SidebarTitle>Email Templates</SidebarTitle>
             <TemplateList>
-              {templates.length === 0 ? (
+              {isLoading && templates.length === 0 ? (
+                <LoadingMessage>Loading templates...</LoadingMessage>
+              ) : error ? (
+                <ErrorMessage>{error}</ErrorMessage>
+              ) : templates.length === 0 ? (
                 <NoTemplates>
-                  No email templates yet. Click "Generate Templates" to create some!
+                  <p>No email templates found</p>
+                  <button onClick={() => setShowGenerateForm(true)}>
+                    <FiPlus /> Generate Templates
+                  </button>
                 </NoTemplates>
               ) : (
                 templates.map(template => (
                   <TemplateItem 
                     key={template.id} 
                     $isActive={selectedTemplate?.id === template.id}
-                    onClick={() => handleTemplateSelect(template)}
+                    onClick={() => setSelectedTemplate(template)}
                   >
                     <TemplateInfo>
                       <TemplateTitle>{template.title}</TemplateTitle>
-                      <TemplateSubject>{template.subject}</TemplateSubject>
-                      <TemplateMetadata>
-                        <StatusBadge $status={template.status}>
-                          {template.status.charAt(0).toUpperCase() + template.status.slice(1)}
-                        </StatusBadge>
-                        {template.scheduled_for && (
-                          <StatusBadge $status="scheduled">
-                            <FiCalendar style={{ marginRight: '4px' }} />
-                            {new Date(template.scheduled_for).toLocaleDateString()}
-                          </StatusBadge>
-                        )}
-                      </TemplateMetadata>
+                      <TemplateDate>
+                        {new Date(template.created_at).toLocaleDateString()}
+                      </TemplateDate>
                     </TemplateInfo>
-                    <ActionButton onClick={(e) => {
-                      e.stopPropagation();
-                      handleDeleteTemplate(template.id);
-                    }}>
-                      <FiTrash2 />
-                    </ActionButton>
+                    <TemplateStatus>
+                      <StatusBadge $status={template.status}>
+                        {template.status}
+                      </StatusBadge>
+                    </TemplateStatus>
                   </TemplateItem>
                 ))
               )}
             </TemplateList>
           </Sidebar>
+          
           <MainContent>
-            {isLoading ? (
-              <Card>
-                <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', padding: '40px' }}>
-                  <FiRefreshCw className="spinning" size={32} color="#999" />
-                  <div style={{ marginLeft: '16px', color: '#999' }}>
-                    Generating email content...
-                  </div>
-                </div>
-              </Card>
-            ) : showGenerateForm ? (
-              <Card>
-                <CardTitle>Generate Email Templates</CardTitle>
-                <Form onSubmit={handleGenerateTemplates}>
-                  <FormGroup>
-                    <Label>Email Purpose</Label>
-                    <Select 
-                      name="purpose" 
-                      value={generationOptions.purpose}
-                      onChange={handleOptionChange}
-                    >
-                      <option value="newsletter">Newsletter</option>
-                      <option value="promotional">Promotional</option>
-                      <option value="announcement">Announcement</option>
-                      <option value="seasonal">Seasonal</option>
-                    </Select>
-                  </FormGroup>
-                  <FormGroup>
-                    <Label>Tone</Label>
-                    <Select 
-                      name="tone" 
-                      value={generationOptions.tone}
-                      onChange={handleOptionChange}
-                    >
-                      <option value="professional">Professional</option>
-                      <option value="casual">Casual</option>
-                      <option value="enthusiastic">Enthusiastic</option>
-                      <option value="informative">Informative</option>
-                    </Select>
-                  </FormGroup>
-                  <FormGroup>
-                    <Label>Additional Instructions (Optional)</Label>
-                    <Textarea 
-                      name="additionalInstructions"
-                      value={generationOptions.additionalInstructions || ''}
-                      onChange={handleOptionChange}
-                      placeholder="Any additional instructions for the AI..."
-                    />
-                  </FormGroup>
-                  {error && <ErrorMessage>{error}</ErrorMessage>}
-                  <ButtonGroup>
-                    <Button 
-                      type="button" 
-                      $secondary 
-                      onClick={() => setShowGenerateForm(false)}
-                    >
-                      Cancel
-                    </Button>
-                    <Button type="submit" disabled={isLoading}>
-                      {isLoading ? 'Generating...' : 'Generate Templates'}
-                    </Button>
-                  </ButtonGroup>
-                </Form>
-              </Card>
-            ) : showCustomForm ? (
-              <Card>
-                <CardTitle>Generate Custom Email Template</CardTitle>
-                <Form onSubmit={handleGenerateCustomTemplate}>
-                  <FormGroup>
-                    <Label>Custom Content</Label>
-                    <Textarea 
-                      value={customContent}
-                      onChange={(e) => setCustomContent(e.target.value)}
-                      placeholder="Describe what you want in your email..."
-                      rows={6}
-                      required
-                    />
-                  </FormGroup>
-                  {error && <ErrorMessage>{error}</ErrorMessage>}
-                  <ButtonGroup>
-                    <Button 
-                      type="button" 
-                      $secondary 
-                      onClick={() => setShowCustomForm(false)}
-                    >
-                      Cancel
-                    </Button>
-                    <Button type="submit" disabled={isLoading}>
-                      {isLoading ? 'Generating...' : 'Generate Custom Template'}
-                    </Button>
-                  </ButtonGroup>
-                </Form>
-              </Card>
-            ) : showScheduleForm && selectedTemplate ? (
-              <Card>
-                <CardTitle>Schedule Email</CardTitle>
-                <Form onSubmit={handleScheduleTemplate}>
-                  <FormGroup>
-                    <Label>Email Template</Label>
-                    <Input 
-                      type="text" 
-                      value={selectedTemplate.title} 
-                      disabled 
-                    />
-                  </FormGroup>
-                  <FormGroup>
-                    <Label>Schedule Date</Label>
-                    <Input 
-                      type="datetime-local" 
-                      value={scheduledDate}
-                      onChange={(e) => setScheduledDate(e.target.value)}
-                      required
-                    />
-                  </FormGroup>
-                  {error && <ErrorMessage>{error}</ErrorMessage>}
-                  <ButtonGroup>
-                    <Button 
-                      type="button" 
-                      $secondary 
-                      onClick={() => setShowScheduleForm(false)}
-                    >
-                      Cancel
-                    </Button>
-                    <Button type="submit" disabled={isLoading}>
-                      Schedule
-                    </Button>
-                  </ButtonGroup>
-                </Form>
-              </Card>
+            {isLoading && !selectedTemplate ? (
+              <LoadingMessage>Loading...</LoadingMessage>
+            ) : error && !selectedTemplate ? (
+              <ErrorMessage>{error}</ErrorMessage>
             ) : selectedTemplate ? (
-              <>
-                <EmailPreviewHeader>
-                  <div>
-                    <EmailSubject>{selectedTemplate.subject}</EmailSubject>
-                    <EmailMetadata>
-                      <StatusBadge $status={selectedTemplate.status}>
-                        {selectedTemplate.status.charAt(0).toUpperCase() + selectedTemplate.status.slice(1)}
-                      </StatusBadge>
-                      {selectedTemplate.scheduled_for && (
-                        <StatusBadge $status="scheduled">
-                          <FiCalendar style={{ marginRight: '4px' }} />
-                          {new Date(selectedTemplate.scheduled_for).toLocaleDateString()}
-                        </StatusBadge>
-                      )}
-                    </EmailMetadata>
-                  </div>
+              <TemplateDisplay>
+                <EmailHeader>
+                  <EmailTitle>
+                    {isEditing ? (
+                      <EditInput 
+                        type="text" 
+                        value={editedTemplate.title || ''} 
+                        onChange={(e) => setEditedTemplate({...editedTemplate, title: e.target.value})}
+                      />
+                    ) : (
+                      selectedTemplate.title
+                    )}
+                  </EmailTitle>
                   <EmailActions>
-                    <Button $secondary onClick={handleCopyContent}>
-                      <FiCopy style={{ marginRight: '8px' }} /> Copy
-                    </Button>
-                    {selectedTemplate.status === 'draft' && (
-                      <Button onClick={() => handleApproveTemplate(selectedTemplate.id)}>
-                        <FiCheck style={{ marginRight: '8px' }} /> Approve
-                      </Button>
-                    )}
-                    {selectedTemplate.status === 'approved' && !selectedTemplate.scheduled_for && (
-                      <Button onClick={() => setShowScheduleForm(true)}>
-                        <FiCalendar style={{ marginRight: '8px' }} /> Schedule
-                      </Button>
-                    )}
-                    {selectedTemplate.status === 'approved' && !selectedTemplate.scheduled_for && (
-                      <Button>
-                        <FiSend style={{ marginRight: '8px' }} /> Send Now
-                      </Button>
+                    {isEditing ? (
+                      <>
+                        <ActionButton onClick={handleSaveEdit}>
+                          <FiCheck /> Save
+                        </ActionButton>
+                        <ActionButton onClick={handleCancelEdit}>
+                          <FiX /> Cancel
+                        </ActionButton>
+                      </>
+                    ) : (
+                      <>
+                        <ActionButton onClick={handleEditTemplate}>
+                          <FiEdit /> Edit
+                        </ActionButton>
+                        <ActionButton onClick={handleShowAIEditForm}>
+                          <FiRefreshCw /> Edit with AI
+                        </ActionButton>
+                        <ActionButton onClick={() => handleDeleteTemplate(selectedTemplate.id)}>
+                          <FiTrash2 /> Delete
+                        </ActionButton>
+                      </>
                     )}
                   </EmailActions>
-                </EmailPreviewHeader>
-                <EmailPreviewContainer>
-                  <EmailContent dangerouslySetInnerHTML={{ __html: selectedTemplate.content }} />
-                </EmailPreviewContainer>
-                <EmailTags>
-                  {selectedTemplate.tags.map((tag, index) => (
-                    <Tag key={index}>{tag}</Tag>
-                  ))}
-                </EmailTags>
-              </>
+                </EmailHeader>
+                
+                <EmailSubject>
+                  <SubjectLabel>Subject:</SubjectLabel>
+                  {isEditing ? (
+                    <EditInput 
+                      type="text" 
+                      value={editedTemplate.subject || ''} 
+                      onChange={(e) => setEditedTemplate({...editedTemplate, subject: e.target.value})}
+                    />
+                  ) : (
+                    <span>{selectedTemplate.subject}</span>
+                  )}
+                </EmailSubject>
+                
+                <EmailContent 
+                  dangerouslySetInnerHTML={{ 
+                    __html: fixImageUrl(selectedTemplate.content) 
+                  }} 
+                />
+                
+                <EmailActions>
+                  <FooterButton onClick={() => handleUpdateStatus(selectedTemplate.id, 'scheduled')}>
+                    <FiCalendar /> Schedule
+                  </FooterButton>
+                  <FooterButton onClick={() => handleUpdateStatus(selectedTemplate.id, 'sent')}>
+                    <FiSend /> Send Now
+                  </FooterButton>
+                </EmailActions>
+                
+                {/* AI Edit Form */}
+                {showAIEditForm && (
+                  <Modal onClose={() => setShowAIEditForm(false)}>
+                    <ModalContent>
+                      <ModalHeader>
+                        <h3>Edit Template with AI</h3>
+                        <CloseButton onClick={() => setShowAIEditForm(false)}>
+                          <FiX />
+                        </CloseButton>
+                      </ModalHeader>
+                      
+                      <FormGroup>
+                        <FormLabel>What changes would you like to make?</FormLabel>
+                        <FormTextarea 
+                          value={aiEditPrompt}
+                          onChange={(e) => setAIEditPrompt(e.target.value)}
+                          placeholder="E.g., Make the tone more friendly, add a section about our new product, etc."
+                          rows={4}
+                        />
+                      </FormGroup>
+                      
+                      <ModalFooter>
+                        <Button 
+                          onClick={handleUpdateWithAI}
+                          disabled={isUpdatingWithAI || !aiEditPrompt}
+                        >
+                          {isUpdatingWithAI ? 'Updating...' : 'Update Template'}
+                        </Button>
+                        <Button onClick={() => setShowAIEditForm(false)}>
+                          Cancel
+                        </Button>
+                      </ModalFooter>
+                    </ModalContent>
+                  </Modal>
+                )}
+              </TemplateDisplay>
             ) : (
               <NoSelection>
                 Select an email template from the sidebar or create a new one
@@ -513,6 +574,8 @@ const EmailMarketingPage: React.FC<EmailMarketingPageProps> = ({
             <FiChevronDown className="bounce" /> Scroll down for more content <FiChevronDown className="bounce" />
           </ScrollIndicator>
         )}
+        {/* Add EmailDebugger for troubleshooting */}
+        <EmailDebugger clientId={clientId} />
       </Container>
     </GlobalStyle>
   );
@@ -576,10 +639,6 @@ const Button = styled.button`
   font-weight: 600;
   cursor: pointer;
   transition: background-color 0.2s;
-  margin: 0 4px;
-  white-space: nowrap;
-  position: relative;
-  z-index: 30; /* Same high z-index to ensure buttons are clickable */
 
   &:hover {
     background-color: #444;
@@ -654,7 +713,7 @@ const TemplateTitle = styled.div`
   text-overflow: ellipsis;
 `;
 
-const TemplateSubject = styled.div`
+const TemplateDate = styled.div`
   font-size: 12px;
   color: #999;
   margin-bottom: 8px;
@@ -663,7 +722,7 @@ const TemplateSubject = styled.div`
   text-overflow: ellipsis;
 `;
 
-const TemplateMetadata = styled.div`
+const TemplateStatus = styled.div`
   display: flex;
   align-items: center;
   gap: 8px;
@@ -733,203 +792,80 @@ const NoSelection = styled.div`
   display: flex;
   justify-content: center;
   align-items: center;
-  height: 100%;
+  padding: 40px;
   color: #999;
   font-size: 16px;
 `;
 
-const Card = styled.div`
-  background-color: #262626;
+const TemplateDisplay = styled.div`
+  background-color: #fff;
   border-radius: 8px;
+  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.05);
   padding: 24px;
-  margin-bottom: 24px;
-`;
-
-const CardTitle = styled.h2`
-  font-size: 18px;
-  font-weight: 600;
-  margin: 0 0 24px 0;
-`;
-
-const Form = styled.form`
-  display: flex;
-  flex-direction: column;
-  gap: 16px;
-`;
-
-const FormGroup = styled.div`
-  display: flex;
-  flex-direction: column;
-  gap: 8px;
-`;
-
-const Label = styled.label`
-  font-size: 14px;
-  font-weight: 500;
-`;
-
-const Input = styled.input`
-  background-color: #333;
-  color: #ffffff;
-  border: 1px solid #444;
-  border-radius: 4px;
-  padding: 10px 12px;
-  font-size: 14px;
-
-  &:focus {
-    outline: none;
-    border-color: ${LIBERTY_BEANS_COLORS.secondary};
-  }
-
-  &:disabled {
-    opacity: 0.7;
-    cursor: not-allowed;
-  }
-`;
-
-const Select = styled.select`
-  background-color: #333;
-  color: #ffffff;
-  border: 1px solid #444;
-  border-radius: 4px;
-  padding: 10px 12px;
-  font-size: 14px;
-
-  &:focus {
-    outline: none;
-    border-color: ${LIBERTY_BEANS_COLORS.secondary};
-  }
-`;
-
-const Textarea = styled.textarea`
-  background-color: #333;
-  color: #ffffff;
-  border: 1px solid #444;
-  border-radius: 4px;
-  padding: 10px 12px;
-  font-size: 14px;
-  min-height: 100px;
-  resize: vertical;
-
-  &:focus {
-    outline: none;
-    border-color: ${LIBERTY_BEANS_COLORS.secondary};
-  }
-`;
-
-const CheckboxLabel = styled.label`
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  font-size: 14px;
-  cursor: pointer;
-`;
-
-const Checkbox = styled.input`
-  cursor: pointer;
-`;
-
-const ButtonGroup = styled.div`
-  display: flex;
-  justify-content: flex-end;
-  gap: 12px;
-  margin-top: 8px;
-`;
-
-const ErrorMessage = styled.div`
-  color: #ff3b30;
-  font-size: 14px;
-  margin-top: 8px;
-`;
-
-const EmailPreviewHeader = styled.div`
-  display: flex;
-  justify-content: space-between;
-  align-items: flex-start;
-  margin-bottom: 24px;
-`;
-
-const EmailSubject = styled.h2`
-  font-size: 20px;
-  font-weight: 600;
-  margin: 0 0 8px 0;
-`;
-
-const EmailMetadata = styled.div`
-  display: flex;
-  align-items: center;
-  gap: 8px;
-`;
-
-const EmailActions = styled.div`
-  display: flex;
-  gap: 8px;
-`;
-
-const EmailPreviewContainer = styled.div`
-  background-color: #ffffff;
-  border-radius: 8px;
-  padding: 24px;
-  margin-bottom: 16px;
+  margin-top: 24px;
   max-width: 800px;
   overflow-y: auto;
   max-height: 600px;
 `;
 
+const EmailHeader = styled.div`
+  margin-bottom: 24px;
+`;
+
+const EmailTitle = styled.h2`
+  font-size: 24px;
+  margin-bottom: 8px;
+`;
+
+const EmailSubject = styled.div`
+  font-size: 16px;
+  color: #666;
+  margin-bottom: 16px;
+  display: flex;
+  align-items: center;
+  
+  strong {
+    margin-right: 8px;
+  }
+`;
+
 const EmailContent = styled.div`
-  color: #000000;
-  font-family: Arial, sans-serif;
+  font-size: 16px;
   line-height: 1.6;
-
-  h1, h2, h3, h4, h5, h6 {
-    color: ${LIBERTY_BEANS_COLORS.primary} !important;
-    background: none !important;
-    background-image: none !important;
-    background-clip: unset !important;
-    -webkit-background-clip: unset !important;
-    -webkit-text-fill-color: ${LIBERTY_BEANS_COLORS.primary} !important;
-    text-fill-color: ${LIBERTY_BEANS_COLORS.primary} !important;
-    background-color: transparent !important;
-  }
-
-  p {
-    margin-bottom: 16px;
-  }
-
-  a {
-    color: ${LIBERTY_BEANS_COLORS.secondary};
-    text-decoration: none;
-  }
-
+  color: #333;
+  
   img {
     max-width: 100%;
     height: auto;
-  }
-
-  .button {
-    display: inline-block;
-    background-color: ${LIBERTY_BEANS_COLORS.secondary};
-    color: #ffffff;
-    padding: 10px 20px;
-    border-radius: 4px;
-    font-weight: bold;
-    text-decoration: none;
+    margin: 16px 0;
   }
 `;
 
-const EmailTags = styled.div`
+const EmailActions = styled.div`
   display: flex;
+  gap: 12px;
+  margin-top: 24px;
   flex-wrap: wrap;
-  gap: 8px;
-  margin-top: 16px;
 `;
 
-const Tag = styled.span`
-  background-color: rgba(255, 255, 255, 0.1);
+const FooterButton = styled.button`
+  background-color: #333;
   color: #ffffff;
-  font-size: 12px;
-  padding: 4px 8px;
+  border: none;
   border-radius: 4px;
+  padding: 10px 16px;
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background-color 0.2s;
+
+  &:hover {
+    background-color: #444;
+  }
+
+  svg {
+    margin-right: 8px;
+  }
 `;
 
 const ScrollIndicator = styled.div`
@@ -956,6 +892,24 @@ const ScrollIndicator = styled.div`
   .bounce {
     animation: bounce 1.5s infinite;
   }
+`;
+
+const ErrorMessage = styled.div`
+  color: #ff3b30;
+  font-size: 14px;
+  margin-top: 8px;
+`;
+
+const SubjectLabel = styled.span`
+  font-size: 14px;
+  font-weight: 500;
+`;
+
+const FormGroup = styled.div`
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin-bottom: 16px;
 `;
 
 const GlobalStyle = styled.div`
@@ -994,6 +948,95 @@ const GlobalStyle = styled.div`
       transform: translate(-50%, 0);
     }
   }
+`;
+
+const EditInput = styled.input`
+  width: 100%;
+  padding: 8px 12px;
+  background: #333;
+  border: 1px solid #444;
+  border-radius: 4px;
+  color: white;
+  font-size: 16px;
+`;
+
+const Modal = styled.div`
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background-color: rgba(0, 0, 0, 0.5);
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  z-index: 1000;
+`;
+
+const ModalContent = styled.div`
+  background-color: #333;
+  color: #ffffff;
+  padding: 24px;
+  border-radius: 8px;
+  max-width: 600px;
+  width: 100%;
+`;
+
+const ModalHeader = styled.div`
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 24px;
+`;
+
+const CloseButton = styled.button`
+  background-color: transparent;
+  color: #999;
+  border: none;
+  padding: 4px;
+  cursor: pointer;
+  transition: color 0.2s;
+
+  &:hover {
+    color: #fff;
+  }
+`;
+
+const FormLabel = styled.label`
+  font-size: 14px;
+  font-weight: 500;
+`;
+
+const FormTextarea = styled.textarea`
+  background-color: #333;
+  color: #ffffff;
+  border: 1px solid #444;
+  border-radius: 4px;
+  padding: 10px 12px;
+  font-size: 14px;
+  min-height: 100px;
+  resize: vertical;
+
+  &:focus {
+    outline: none;
+    border-color: ${LIBERTY_BEANS_COLORS.secondary};
+  }
+`;
+
+const ModalFooter = styled.div`
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+  margin-top: 24px;
+`;
+
+const LoadingMessage = styled.div`
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  padding: 40px;
+  color: #999;
+  font-size: 16px;
 `;
 
 export default EmailMarketingPage;

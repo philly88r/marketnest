@@ -7,6 +7,7 @@ const supabaseAnonKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYm
 // Log Supabase connection details for debugging
 console.log('Supabase URL:', supabaseUrl);
 console.log('Supabase Anon Key (first 10 chars):', supabaseAnonKey.substring(0, 10) + '...');
+console.log('Current site URL:', typeof window !== 'undefined' ? window.location.origin : 'SSR');
 
 // Create custom fetch function that always includes the API key and proper Content-Type
 const customFetch = (url: RequestInfo | URL, options: RequestInit = {}) => {
@@ -30,7 +31,11 @@ const customFetch = (url: RequestInfo | URL, options: RequestInit = {}) => {
 const supabase = createClient(supabaseUrl, supabaseAnonKey, {
   auth: {
     autoRefreshToken: true,
-    persistSession: true
+    persistSession: true,
+    detectSessionInUrl: true,
+    flowType: 'implicit',
+    storage: localStorage,
+    storageKey: 'marketnest-auth'
   },
   global: {
     headers: {
@@ -41,6 +46,16 @@ const supabase = createClient(supabaseUrl, supabaseAnonKey, {
     },
     fetch: customFetch
   }
+});
+
+// Log authentication state for debugging
+supabase.auth.onAuthStateChange((event, session) => {
+  console.log('Supabase auth state changed:', event, session ? 'User logged in' : 'No session');
+});
+
+// Try to get the current session
+supabase.auth.getSession().then(({ data }) => {
+  console.log('Current auth session:', data.session ? 'Active' : 'None');
 });
 
 // Verify the client has been created with the API key
