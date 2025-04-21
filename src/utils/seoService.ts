@@ -6,6 +6,7 @@ import * as cheerio from 'cheerio';
 export interface SEOAudit {
   id: string;
   client_id: string;
+  user_id: string;
   url: string;
   status: 'in-progress' | 'processing' | 'completed' | 'failed';
   created_at: string;
@@ -923,7 +924,22 @@ const calculateScoreFromAIReport = (report: any): number => {
  */
 export const generateSEOAudit = async (url: string, clientId: string): Promise<SEOAudit> => {
   try {
-    // Generate a proper UUID for the audit
+    // First, get the client's user_id (UUID)
+    const { data: clientData, error: clientError } = await supabase
+      .from('clients')
+      .select('user_id')
+      .eq('id', clientId)
+      .single();
+    
+    if (clientError || !clientData) {
+      console.error('Error fetching client data:', clientError);
+      throw new Error('Could not fetch client data');
+    }
+    
+    // Use the client's user_id for the audit
+    const userId = clientData.user_id;
+    
+    // Generate a proper UUID for the audit itself
     const auditId = '00000000-0000-0000-0000-000000000000'.replace(/0/g, () => 
       Math.floor(Math.random() * 16).toString(16)
     );
@@ -932,6 +948,7 @@ export const generateSEOAudit = async (url: string, clientId: string): Promise<S
     const initialAudit: SEOAudit = {
       id: auditId,
       client_id: clientId,
+      user_id: userId,
       url,
       status: 'in-progress',
       created_at: new Date().toISOString(),
@@ -951,12 +968,30 @@ export const generateSEOAudit = async (url: string, clientId: string): Promise<S
     }
     
     // Start asynchronous processing
-    processAuditAsync(url, auditId);
+    processAuditAsync(url, auditId, userId);
     
     // Return the initial audit record
     return initialAudit;
   } catch (error) {
     console.error('Error generating SEO audit:', error);
+    
+    // Try to get the user_id again if we don't have it
+    let userId;
+    try {
+      const { data: clientData } = await supabase
+        .from('clients')
+        .select('user_id')
+        .eq('id', clientId)
+        .single();
+      
+      userId = clientData?.user_id;
+    } catch (clientError) {
+      console.error('Error fetching client data for failed audit:', clientError);
+      // Generate a fallback UUID if we can't get the user_id
+      userId = '00000000-0000-0000-0000-000000000000'.replace(/0/g, () => 
+        Math.floor(Math.random() * 16).toString(16)
+      );
+    }
     
     // Create a failed audit record
     const failedAudit: SEOAudit = {
@@ -964,6 +999,7 @@ export const generateSEOAudit = async (url: string, clientId: string): Promise<S
         Math.floor(Math.random() * 16).toString(16)
       ),
       client_id: clientId,
+      user_id: userId,
       url,
       status: 'failed' as 'failed',
       created_at: new Date().toISOString(),
@@ -988,7 +1024,7 @@ export const generateSEOAudit = async (url: string, clientId: string): Promise<S
 /**
  * Process the SEO audit asynchronously
  */
-const processAuditAsync = async (url: string, auditId: string) => {
+const processAuditAsync = async (url: string, auditId: string, userId: string) => {
   try {
     // Update status to processing
     await supabase
