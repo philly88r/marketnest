@@ -19,6 +19,7 @@ import PPCAdvertisingPage from './pages/PPCAdvertisingPage';
 import SocialMediaMarketingPage from './pages/SocialMediaMarketingPage';
 import ContentMarketingPage from './pages/ContentMarketingPage';
 import EmailMarketingPage from './pages/EmailMarketingPage';
+import EmailMarketingHub from './pages/EmailMarketingHub';
 import WebDesignPage from './pages/WebDesignPage';
 import AnalyticsReportingPage from './pages/AnalyticsReportingPage';
 import CROPage from './pages/CROPage';
@@ -146,7 +147,7 @@ function App() {
           <Route path="/admin-portal" element={<AdminPortalPage />} />
           <Route path="/admin" element={<DirectAdminPage />} />
           <Route path="/clients/liberty-beans/email" element={<LibertyBeansEmailPage />} />
-          <Route path="/email-marketing" element={<LibertyBeansEmailPage />} />
+          <Route path="/email-marketing" element={<EmailMarketingHub />} />
           <Route path="/" element={
             <ContentContainer>
               <div id="home">

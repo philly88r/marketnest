@@ -1210,12 +1210,11 @@ const ClientDashboard: React.FC<ClientDashboardProps> = ({ clientId, onBack }) =
         );
         
       case 'email':
-        // Only show for Liberty Beans
-        if (client?.id !== "client-liberty-beans") return null;
+        // Available to all clients
         return (
           <div style={{ padding: '20px' }}>
-            <h3>Email Marketing</h3>
-            <p>Create and manage email marketing campaigns for Liberty Beans Coffee.</p>
+            <h3>Email & Landing Page Marketing</h3>
+            <p>Create and manage email campaigns and landing pages for {client?.name || 'your business'}.</p>
             <div style={{ marginTop: '20px' }}>
               <button 
                 onClick={() => navigate(`/email-marketing?clientId=${clientId}`)}
@@ -1234,7 +1233,7 @@ const ClientDashboard: React.FC<ClientDashboardProps> = ({ clientId, onBack }) =
                 }}
               >
                 <FiMail size={18} />
-                Open Email Marketing Hub
+                Open Marketing Hub
               </button>
             </div>
           </div>

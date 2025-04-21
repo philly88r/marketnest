@@ -56,7 +56,7 @@ export const clientLogin = async (username: string, password: string) => {
     let { data, error } = await supabase
       .from('clients')
       .select('*')
-      .eq('username', username)
+      .ilike('username', username) 
       .eq('password', password)
       .single();
 

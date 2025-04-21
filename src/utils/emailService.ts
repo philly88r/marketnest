@@ -1,5 +1,6 @@
 import { supabase } from './supabaseClient';
 import { callGeminiAPI } from './apiProxy';
+import { generateAIImage, ImageGenerationOptions } from './imageService';
 
 // Brand colors for Liberty Beans
 export const LIBERTY_BEANS_COLORS = {
@@ -8,6 +9,26 @@ export const LIBERTY_BEANS_COLORS = {
   light: '#ffffff',
   dark: '#000000',
   accent: '#d4a24e' // Gold accent color that complements the primary and secondary colors
+};
+
+// Default brand colors (can be customized per client)
+export const DEFAULT_BRAND_COLORS = {
+  primary: '#1a1a1a',
+  secondary: '#3498db',
+  light: '#ffffff',
+  dark: '#000000',
+  accent: '#f39c12'
+};
+
+// Client brand colors mapping
+export const CLIENT_BRAND_COLORS: {[key: string]: typeof DEFAULT_BRAND_COLORS} = {
+  'client-liberty-beans': LIBERTY_BEANS_COLORS,
+  // Add more client brand colors here
+};
+
+// Get brand colors for a client
+export const getBrandColors = (clientId: string) => {
+  return CLIENT_BRAND_COLORS[clientId] || DEFAULT_BRAND_COLORS;
 };
 
 // Liberty Beans logo path
@@ -65,7 +86,7 @@ export interface EmailGenerationOptions {
   clientId: string;
   clientName: string;
   industry: string;
-  purpose: 'promotional' | 'newsletter' | 'announcement' | 'seasonal';
+  purpose: 'promotional' | 'newsletter' | 'announcement' | 'seasonal' | 'landing-page';
   tone: 'casual' | 'professional' | 'enthusiastic' | 'informative';
   includePromotion?: boolean;
   promotionDetails?: string;
@@ -73,6 +94,11 @@ export interface EmailGenerationOptions {
   productDetails?: string;
   additionalInstructions?: string;
   customContent?: string; // For "Write with AI" feature
+  imagePrompts?: string[]; // For image generation
+  isLandingPage?: boolean; // Flag for landing page generation
+  landingPageType?: 'product' | 'service' | 'event' | 'lead-generation';
+  title?: string; // Title for landing page
+  description?: string; // Description for landing page
 }
 
 /**
@@ -365,6 +391,223 @@ The HTML content should:
 Return the template as a single JSON object.`;
 
   return prompt;
+};
+
+/**
+ * Generate a landing page with AI-generated images
+ */
+export const generateLandingPage = async (
+  options: EmailGenerationOptions
+): Promise<EmailTemplate> => {
+  try {
+    // Generate a unique ID for the landing page
+    const templateId = `landing-${Date.now()}-${Math.floor(Math.random() * 1000)}`;
+    
+    // Set landing page flag
+    const landingPageOptions = {
+      ...options,
+      isLandingPage: true,
+      purpose: 'landing-page' as const
+    };
+    
+    // Generate the prompt for the AI
+    const prompt = generateLandingPagePrompt(landingPageOptions);
+    
+    // Call the AI API to generate landing page content
+    const aiResponse = await callGeminiAPI(prompt);
+    
+    // Parse the AI response into a landing page template
+    const template = parseAILandingPageResponse(aiResponse, options.clientId, templateId);
+    
+    // Generate images if image prompts are provided
+    if (template.content && options.imagePrompts && options.imagePrompts.length > 0) {
+      // Extract image placeholders from the content
+      const imagePlaceholders = template.content.match(/\{\{IMAGE_(\d+)\}\}/g) || [];
+      
+      // Generate images for each placeholder
+      for (let i = 0; i < Math.min(imagePlaceholders.length, options.imagePrompts.length); i++) {
+        try {
+          const imagePrompt = options.imagePrompts[i];
+          
+          // Generate the image
+          const generatedImage = await generateAIImage({
+            prompt: imagePrompt,
+            clientId: options.clientId,
+            width: 1024,
+            height: 768
+          });
+          
+          // Replace the placeholder with the image
+          template.content = template.content.replace(
+            `{{IMAGE_${i + 1}}}`,
+            `<img src="${generatedImage.image_url}" alt="${imagePrompt}" class="landing-page-image" />`
+          );
+        } catch (imageError) {
+          console.error(`Error generating image ${i + 1}:`, imageError);
+          // Replace with a placeholder if image generation fails
+          template.content = template.content.replace(
+            `{{IMAGE_${i + 1}}}`,
+            `<div class="image-placeholder">Image generation failed</div>`
+          );
+        }
+      }
+    }
+    
+    // Save the template to the database
+    const { error } = await supabase
+      .from('email_templates')
+      .insert(template);
+    
+    if (error) {
+      console.error('Error saving landing page template:', error);
+    }
+    
+    return template;
+  } catch (error) {
+    console.error('Error generating landing page:', error);
+    throw error;
+  }
+};
+
+/**
+ * Generate a prompt for the AI to create landing page content
+ */
+const generateLandingPagePrompt = (options: EmailGenerationOptions): string => {
+  const { clientName, industry, landingPageType = 'lead-generation', customContent, tone } = options;
+  
+  // Get the brand colors
+  const brandColors = getBrandColors(options.clientId);
+  
+  // Base prompt
+  let prompt = `Create an HTML landing page for ${clientName}, a ${industry} business. `;
+  
+  // Add landing page type
+  switch (landingPageType) {
+    case 'product':
+      prompt += `This is a product landing page that should showcase and sell a specific product. `;
+      break;
+    case 'service':
+      prompt += `This is a service landing page that should promote and explain a specific service offering. `;
+      break;
+    case 'event':
+      prompt += `This is an event landing page that should promote an upcoming event and encourage registrations. `;
+      break;
+    case 'lead-generation':
+    default:
+      prompt += `This is a lead generation landing page that should capture visitor information through a form. `;
+      break;
+  }
+  
+  // Add tone
+  prompt += `The tone should be ${tone}. `;
+  
+  // Add custom content if provided
+  if (customContent) {
+    prompt += `Use the following information as the basis for the landing page content: "${customContent}". `;
+  }
+  
+  // Add brand colors
+  prompt += `Use the following brand colors in the design: 
+    - Primary: ${brandColors.primary}
+    - Secondary: ${brandColors.secondary}
+    - Accent: ${brandColors.accent}
+    - Light: ${brandColors.light}
+    - Dark: ${brandColors.dark}
+  `;
+  
+  // Add image placeholders
+  prompt += `Include placeholders for images using the format {{IMAGE_1}}, {{IMAGE_2}}, etc. Place these strategically throughout the landing page where images would enhance the content. `;
+  
+  // Add form
+  prompt += `Include a lead capture form with fields for name, email, and any other relevant information. `;
+  
+  // Add structure instructions
+  prompt += `
+  The landing page should include:
+  1. A compelling headline
+  2. Subheadline that explains the value proposition
+  3. Key benefits section
+  4. Features section
+  5. Social proof/testimonials section
+  6. Call-to-action buttons
+  7. Lead capture form
+  8. Footer with contact information
+  
+  Format the response as a JSON object with the following structure:
+  {
+    "title": "Landing Page Title",
+    "subject": "Meta Description",
+    "content": "Full HTML content of the landing page",
+    "tags": ["landing-page", "other-relevant-tags"]
+  }
+  
+  The HTML should be clean, responsive, and use modern CSS. Use inline CSS for styling to ensure compatibility.
+  `;
+  
+  return prompt;
+};
+
+/**
+ * Parse the AI response for a landing page
+ */
+const parseAILandingPageResponse = (
+  response: any, 
+  clientId: string,
+  templateId: string
+): EmailTemplate => {
+  try {
+    // Handle both response formats (object with text property or direct text string)
+    const responseText = typeof response === 'string' ? response : response.text;
+    
+    if (!responseText) {
+      throw new Error('Empty response from AI');
+    }
+    
+    // Extract JSON from the response
+    const jsonMatch = responseText.match(/\{\s*"title"[\s\S]*\}/);
+    if (!jsonMatch) {
+      throw new Error('Could not extract JSON from AI response');
+    }
+    
+    const jsonStr = jsonMatch[0];
+    const template = JSON.parse(jsonStr);
+    
+    // Map the parsed template to our EmailTemplate interface
+    return {
+      id: templateId,
+      client_id: clientId,
+      title: template.title || 'Landing Page',
+      subject: template.subject || 'Landing Page',
+      content: template.content || '<p>Error generating landing page content. Please try again.</p>',
+      created_at: new Date().toISOString(),
+      status: 'draft',
+      tags: [...(template.tags || []), 'landing-page'],
+      metrics: {
+        opens: 0,
+        clicks: 0,
+        conversions: 0
+      }
+    };
+  } catch (error) {
+    console.error('Error parsing AI landing page response:', error);
+    
+    // Return fallback template if parsing fails
+    return {
+      id: templateId,
+      client_id: clientId,
+      title: 'Landing Page',
+      subject: 'Landing Page',
+      content: '<p>Error generating landing page content. Please try again.</p>',
+      created_at: new Date().toISOString(),
+      status: 'draft',
+      tags: ['error', 'landing-page'],
+      metrics: {
+        opens: 0,
+        clicks: 0,
+        conversions: 0
+      }
+    };
+  }
 };
 
 /**

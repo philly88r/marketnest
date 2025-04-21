@@ -66,6 +66,12 @@ export interface SEOReport {
     externalCount: number;
   };
   contentWordCount: number;
+  pageDetails?: {
+    url: string;
+    title: string;
+    score: number;
+    issueCount: number;
+  }[];
 }
 
 // Gemini API integration
@@ -1008,7 +1014,7 @@ const processAuditAsync = async (url: string, auditId: string, userId: string) =
 const generateEnhancedSEOReport = async (websiteData: any, url: string): Promise<SEOReport> => {
   try {
     // First generate a report based on the scraped data
-    const baseReport = generateSEOReport(websiteData, url);
+    const baseReport = generateRealSEOReport(websiteData, url);
     
     // Then enhance it with AI analysis
     const aiPrompt = generateSEOAuditPromptWithData(url, websiteData, baseReport);
@@ -1021,7 +1027,7 @@ const generateEnhancedSEOReport = async (websiteData: any, url: string): Promise
     console.error('Error generating enhanced SEO report:', error);
     
     // Fall back to the basic report if AI enhancement fails
-    return generateSEOReport(websiteData, url);
+    return generateRealSEOReport(websiteData, url);
   }
 };
 
@@ -1715,7 +1721,7 @@ const analyzePerformance = (report: SEOReport, websiteData: any) => {
         title: "Slow page load time",
         description: `The page takes ${Math.round(loadTime / 1000)} seconds to load.`,
         severity: "high",
-        impact: "Slow loading pages have higher bounce rates and lower conversions.",
+        impact: "Slow loading pages have higher bounce rates and lower conversion rates.",
         recommendation: "Optimize server response time, leverage browser caching, and use a content delivery network (CDN)."
       });
       score -= 15;
@@ -1801,7 +1807,7 @@ const generateReportRecommendations = (report: SEOReport) => {
       title: "Improve content quality",
       description: "The content could be more comprehensive and engaging.",
       severity: "medium",
-      impact: "Better content leads to higher engagement and rankings.",
+      impact: "Better content leads to higher engagement and search engine rankings.",
       recommendation: "Expand content with more in-depth information, examples, and visuals."
     });
   }
@@ -1831,9 +1837,9 @@ const generateOverallSummary = (report: SEOReport) => {
   if (overallScore >= 80) {
     summary = `The website has a strong SEO foundation with an overall score of ${overallScore}/100. There are still some opportunities for improvement.`;
   } else if (overallScore >= 60) {
-    summary = `The website has a moderate SEO score of ${overallScore}/100. Several important issues need to be addressed to improve search visibility.`;
+    summary = `The website has a moderate SEO score of ${overallScore}/100 with room for improvement.`;
   } else {
-    summary = `The website has significant SEO issues with a low score of ${overallScore}/100. Urgent attention is needed to improve search engine visibility.`;
+    summary = `The website has significant SEO issues with a low score of ${overallScore}/100 and requires significant improvements.`;
   }
   
   report.overall = {
@@ -1844,84 +1850,457 @@ const generateOverallSummary = (report: SEOReport) => {
 };
 
 /**
- * Generates an SEO audit for a given URL using real web data
+ * Process a comprehensive SEO audit that crawls all pages
  */
-const generateSEOReport = (websiteData: any, url: string): SEOReport => {
+const processComprehensiveSEOAudit = async (url: string, auditId: string, userId: string) => {
   try {
-    // Create an empty report
-    const report = createEmptyReport();
+    console.log(`Starting comprehensive SEO audit for ${url} (ID: ${auditId})`);
     
-    // Set the URL and timestamp
-    report.url = url;
-    report.overall.timestamp = new Date().toISOString();
+    // Update status to processing
+    await supabase
+      .from('seo_audits')
+      .update({ status: 'processing' })
+      .eq('id', auditId);
     
-    // Extract meta tags
-    if (websiteData.meta) {
-      report.metaTags.title = websiteData.meta.title || '';
-      report.metaTags.description = websiteData.meta.description || '';
-      report.metaTags.keywords = websiteData.meta.keywords?.join(', ') || '';
-    }
+    // Extract domain from URL
+    const domain = new URL(url).hostname;
     
-    // Extract headings
-    if (websiteData.meta?.headings) {
-      report.headings.h1 = websiteData.meta.headings.h1 || [];
-      report.headings.h2 = websiteData.meta.headings.h2 || [];
-      report.headings.h3 = websiteData.meta.headings.h3 || [];
-    }
+    // Fetch and analyze the main page
+    console.log(`Fetching main page data for ${url}`);
+    const mainPageData = await fetchWebsiteData(url);
     
-    // Extract image data
-    if (websiteData.meta?.images) {
-      report.images.total = websiteData.meta.images.total || 0;
-      report.images.withAlt = websiteData.meta.images.withAlt || 0;
-      report.images.withoutAlt = websiteData.meta.images.withoutAlt || 0;
-    }
+    // Create the initial report for the main page
+    const initialReport = await generateRealSEOReport(url, mainPageData);
     
-    // Extract link data
-    if (websiteData.meta?.links) {
-      report.links.internalCount = websiteData.meta.links.internalCount || 0;
-      report.links.externalCount = websiteData.meta.links.externalCount || 0;
-    }
+    // Extract all internal links to crawl
+    const internalLinks = extractInternalLinks(mainPageData, domain);
+    console.log(`Found ${internalLinks.length} internal links to crawl`);
     
-    // Extract content word count
-    report.contentWordCount = websiteData.meta?.contentWordCount || 0;
+    // Limit the number of pages to crawl to avoid overloading
+    const pagesToCrawl = internalLinks.slice(0, 100); // Analyze up to 100 pages for comprehensive coverage
     
-    // Analyze technical SEO
-    analyzeTechnicalSEO(report, websiteData);
-    
-    // Analyze on-page SEO
-    analyzeOnPageSEO(report, websiteData);
-    
-    // Analyze content
-    analyzeContent(report, websiteData);
-    
-    // Analyze performance
-    analyzePerformance(report, websiteData);
-    
-    // Analyze mobile-friendliness
-    analyzeMobile(report, websiteData);
-    
-    // Generate overall recommendations
-    generateReportRecommendations(report);
-    
-    // Generate overall summary and score
-    generateOverallSummary(report);
-    
-    return report;
-  } catch (error) {
-    console.error('Error generating SEO report from website data:', error);
-    
-    // Return a basic report with an error message
-    const emptyReport = createEmptyReport();
-    return {
-      ...emptyReport,
-      overall: {
-        score: 0,
-        summary: `Failed to generate SEO audit for ${url}. Error: ${error instanceof Error ? error.message : 'Unknown error'}`,
-        timestamp: new Date().toISOString()
-      },
-      url: url
+    // Create a map to store page-specific reports
+    const pageReports: { [key: string]: SEOReport } = {
+      [url]: initialReport
     };
+    
+    // Use a batch processing approach to avoid overwhelming the system
+    const batchSize = 5; // Process 5 pages at a time
+    const totalBatches = Math.ceil(pagesToCrawl.length / batchSize);
+    
+    // Process pages in batches
+    for (let batchIndex = 0; batchIndex < totalBatches; batchIndex++) {
+      const batchStart = batchIndex * batchSize;
+      const batchEnd = Math.min(batchStart + batchSize, pagesToCrawl.length);
+      const currentBatch = pagesToCrawl.slice(batchStart, batchEnd);
+      
+      console.log(`Processing batch ${batchIndex + 1}/${totalBatches} (pages ${batchStart + 1} to ${batchEnd})`);
+      
+      // Update the audit status with progress information
+      await supabase
+        .from('seo_audits')
+        .update({ 
+          status: 'processing',
+          report: {
+            overall: {
+              summary: `Analyzing pages ${batchStart + 1} to ${batchEnd} of ${pagesToCrawl.length} (${Math.round((batchEnd / pagesToCrawl.length) * 100)}% complete)`,
+              score: 0,
+              timestamp: new Date().toISOString()
+            }
+          }
+        })
+        .eq('id', auditId);
+      
+      // Process each page in the current batch in parallel
+      const batchPromises = currentBatch.map(async (pageUrl, index) => {
+        try {
+          console.log(`Crawling page ${batchStart + index + 1}/${pagesToCrawl.length}: ${pageUrl}`);
+          const pageData = await fetchWebsiteData(pageUrl);
+          const pageReport = await generateRealSEOReport(pageUrl, pageData);
+          return { url: pageUrl, report: pageReport };
+        } catch (error) {
+          console.error(`Error crawling page ${pageUrl}:`, error);
+          // Return null for failed pages
+          return null;
+        }
+      });
+      
+      // Wait for all pages in the batch to be processed
+      const batchResults = await Promise.all(batchPromises);
+      
+      // Add successful results to the pageReports map
+      batchResults.forEach(result => {
+        if (result) {
+          pageReports[result.url] = result.report;
+        }
+      });
+      
+      // Add a small delay between batches to avoid rate limiting
+      await new Promise(resolve => setTimeout(resolve, 1000));
+    }
+    
+    // Generate a comprehensive report that includes all pages
+    console.log(`Generating comprehensive report for ${Object.keys(pageReports).length} pages`);
+    const comprehensiveReport = generateComprehensiveReport(pageReports, domain);
+    
+    // Include page-specific details in the report
+    comprehensiveReport.pageDetails = Object.entries(pageReports).map(([pageUrl, report]) => ({
+      url: pageUrl,
+      title: report.metaTags?.title || 'No title',
+      score: report.overall.score,
+      issueCount: 
+        report.technical.issues.length + 
+        report.content.issues.length + 
+        report.onPage.issues.length + 
+        report.performance.issues.length
+    }));
+    
+    // Sort pages by score (ascending, so worst pages first)
+    comprehensiveReport.pageDetails.sort((a, b) => a.score - b.score);
+    
+    // Update the audit with the comprehensive report
+    const { error: updateError } = await supabase
+      .from('seo_audits')
+      .update({
+        status: 'completed',
+        score: comprehensiveReport.overall.score,
+        report: comprehensiveReport,
+        updated_at: new Date().toISOString()
+      })
+      .eq('id', auditId);
+    
+    if (updateError) {
+      console.error('Error updating SEO audit with comprehensive report:', updateError);
+      throw updateError;
+    }
+    
+    console.log(`Comprehensive SEO audit completed for ${url} (ID: ${auditId})`);
+  } catch (error) {
+    console.error(`Error in comprehensive SEO audit for ${url}:`, error);
+    
+    // Create a failed audit report
+    const failedReport = createFailedAuditReport(url, error);
+    
+    // Update the audit with the failed status
+    await supabase
+      .from('seo_audits')
+      .update({
+        status: 'failed',
+        report: failedReport,
+        updated_at: new Date().toISOString()
+      })
+      .eq('id', auditId);
   }
+};
+
+/**
+ * Extract internal links from website data
+ */
+const extractInternalLinks = ($: any, domain: string): string[] => {
+  const links: string[] = [];
+  
+  $('a').each((i: number, el: any) => {
+    const href = $(el).attr('href');
+    
+    if (href && (href.startsWith('/') || href.includes(domain))) {
+      // Convert relative URLs to absolute
+      let fullUrl = href;
+      if (href.startsWith('/')) {
+        fullUrl = `https://${domain}${href}`;
+      }
+      
+      // Filter out non-HTML resources and duplicates
+      if (
+        !fullUrl.endsWith('.jpg') && 
+        !fullUrl.endsWith('.jpeg') && 
+        !fullUrl.endsWith('.png') && 
+        !fullUrl.endsWith('.gif') && 
+        !fullUrl.endsWith('.pdf') && 
+        !fullUrl.endsWith('.zip') && 
+        !links.includes(fullUrl)
+      ) {
+        links.push(fullUrl);
+      }
+    }
+  });
+  
+  return links;
+};
+
+/**
+ * Generate a comprehensive report that includes all pages
+ */
+const generateComprehensiveReport = (pageReports: { [key: string]: SEOReport }, domain: string): SEOReport => {
+  // Start with an empty report
+  const comprehensiveReport = createEmptyReport();
+  
+  // Set the URL to the domain
+  comprehensiveReport.url = `https://${domain}`;
+  
+  // Collect all issues from all pages
+  const allTechnicalIssues: SEOIssue[] = [];
+  const allContentIssues: SEOIssue[] = [];
+  const allOnPageIssues: SEOIssue[] = [];
+  const allPerformanceIssues: SEOIssue[] = [];
+  const allRecommendations: SEORecommendation[] = [];
+  
+  // Track pages with specific issues
+  const pagesWithIssues: { [key: string]: string[] } = {};
+  
+  // Process each page report
+  Object.entries(pageReports).forEach(([pageUrl, report]) => {
+    // Add technical issues
+    report.technical.issues.forEach(issue => {
+      // Add page URL to the issue description
+      const issueWithPage = { 
+        ...issue, 
+        description: `[${pageUrl}] ${issue.description}` 
+      };
+      allTechnicalIssues.push(issueWithPage);
+      
+      // Track this page as having this type of issue
+      if (!pagesWithIssues[issue.title]) {
+        pagesWithIssues[issue.title] = [];
+      }
+      pagesWithIssues[issue.title].push(pageUrl);
+    });
+    
+    // Add content issues
+    report.content.issues.forEach(issue => {
+      const issueWithPage = { 
+        ...issue, 
+        description: `[${pageUrl}] ${issue.description}` 
+      };
+      allContentIssues.push(issueWithPage);
+      
+      if (!pagesWithIssues[issue.title]) {
+        pagesWithIssues[issue.title] = [];
+      }
+      pagesWithIssues[issue.title].push(pageUrl);
+    });
+    
+    // Add on-page issues
+    report.onPage.issues.forEach(issue => {
+      const issueWithPage = { 
+        ...issue, 
+        description: `[${pageUrl}] ${issue.description}` 
+      };
+      allOnPageIssues.push(issueWithPage);
+      
+      if (!pagesWithIssues[issue.title]) {
+        pagesWithIssues[issue.title] = [];
+      }
+      pagesWithIssues[issue.title].push(pageUrl);
+    });
+    
+    // Add performance issues
+    report.performance.issues.forEach(issue => {
+      const issueWithPage = { 
+        ...issue, 
+        description: `[${pageUrl}] ${issue.description}` 
+      };
+      allPerformanceIssues.push(issueWithPage);
+      
+      if (!pagesWithIssues[issue.title]) {
+        pagesWithIssues[issue.title] = [];
+      }
+      pagesWithIssues[issue.title].push(pageUrl);
+    });
+  });
+  
+  // Deduplicate issues by combining similar ones
+  const deduplicatedTechnicalIssues = deduplicateIssues(allTechnicalIssues, pagesWithIssues);
+  const deduplicatedContentIssues = deduplicateIssues(allContentIssues, pagesWithIssues);
+  const deduplicatedOnPageIssues = deduplicateIssues(allOnPageIssues, pagesWithIssues);
+  const deduplicatedPerformanceIssues = deduplicateIssues(allPerformanceIssues, pagesWithIssues);
+  
+  // Set the issues in the comprehensive report
+  comprehensiveReport.technical.issues = deduplicatedTechnicalIssues;
+  comprehensiveReport.content.issues = deduplicatedContentIssues;
+  comprehensiveReport.onPage.issues = deduplicatedOnPageIssues;
+  comprehensiveReport.performance.issues = deduplicatedPerformanceIssues;
+  
+  // Calculate scores for each section
+  comprehensiveReport.technical.score = calculateSectionScore(deduplicatedTechnicalIssues);
+  comprehensiveReport.content.score = calculateSectionScore(deduplicatedContentIssues);
+  comprehensiveReport.onPage.score = calculateSectionScore(deduplicatedOnPageIssues);
+  comprehensiveReport.performance.score = calculateSectionScore(deduplicatedPerformanceIssues);
+  
+  // Generate site-wide recommendations
+  comprehensiveReport.recommendations = generateSiteWideRecommendations(
+    deduplicatedTechnicalIssues,
+    deduplicatedContentIssues,
+    deduplicatedOnPageIssues,
+    deduplicatedPerformanceIssues,
+    domain
+  );
+  
+  // Calculate the overall score
+  comprehensiveReport.overall.score = calculateOverallScore(comprehensiveReport);
+  
+  // Generate an overall summary
+  comprehensiveReport.overall.summary = generateComprehensiveSummary(
+    comprehensiveReport,
+    Object.keys(pageReports).length,
+    domain
+  );
+  
+  // Set timestamp
+  comprehensiveReport.overall.timestamp = new Date().toISOString();
+  
+  return comprehensiveReport;
+};
+
+/**
+ * Deduplicate issues by combining similar ones
+ */
+const deduplicateIssues = (issues: SEOIssue[], pagesWithIssues: { [key: string]: string[] }): SEOIssue[] => {
+  const uniqueIssues: { [key: string]: SEOIssue } = {};
+  
+  issues.forEach(issue => {
+    if (!uniqueIssues[issue.title]) {
+      // Create a new issue with pages affected
+      const pagesAffected = pagesWithIssues[issue.title] || [];
+      const pageCount = pagesAffected.length;
+      
+      uniqueIssues[issue.title] = {
+        ...issue,
+        description: `Found on ${pageCount} page(s): ${issue.description.split('] ')[1]}`,
+        impact: `${issue.impact} Affects ${pageCount} page(s).`
+      };
+    }
+  });
+  
+  return Object.values(uniqueIssues);
+};
+
+/**
+ * Generate site-wide recommendations based on all issues
+ */
+const generateSiteWideRecommendations = (
+  technicalIssues: SEOIssue[],
+  contentIssues: SEOIssue[],
+  onPageIssues: SEOIssue[],
+  performanceIssues: SEOIssue[],
+  domain: string
+): SEORecommendation[] => {
+  const recommendations: SEORecommendation[] = [];
+  
+  // Add high-priority recommendations first
+  const highPriorityIssues = [
+    ...technicalIssues.filter(i => i.severity === 'high'),
+    ...contentIssues.filter(i => i.severity === 'high'),
+    ...onPageIssues.filter(i => i.severity === 'high'),
+    ...performanceIssues.filter(i => i.severity === 'high')
+  ];
+  
+  highPriorityIssues.forEach(issue => {
+    recommendations.push({
+      title: `Fix ${issue.title}`,
+      description: issue.description,
+      severity: issue.severity,
+      impact: issue.impact,
+      recommendation: issue.recommendation
+    });
+  });
+  
+  // Add medium-priority recommendations
+  const mediumPriorityIssues = [
+    ...technicalIssues.filter(i => i.severity === 'medium'),
+    ...contentIssues.filter(i => i.severity === 'medium'),
+    ...onPageIssues.filter(i => i.severity === 'medium'),
+    ...performanceIssues.filter(i => i.severity === 'medium')
+  ];
+  
+  mediumPriorityIssues.forEach(issue => {
+    recommendations.push({
+      title: `Improve ${issue.title}`,
+      description: issue.description,
+      severity: issue.severity,
+      impact: issue.impact,
+      recommendation: issue.recommendation
+    });
+  });
+  
+  // Add site-wide recommendations
+  recommendations.push({
+    title: 'Implement Consistent SEO Strategy',
+    description: `Create a consistent SEO strategy across all pages of ${domain}`,
+    severity: 'medium',
+    impact: 'A consistent SEO strategy improves overall site visibility and ranking potential.',
+    recommendation: 'Develop and implement a site-wide SEO strategy that addresses meta tags, content quality, internal linking, and keyword optimization across all pages.'
+  });
+  
+  // Add recommendations for content improvement if content issues exist
+  if (contentIssues.length > 0) {
+    recommendations.push({
+      title: 'Develop a Content Improvement Plan',
+      description: `Improve content quality across ${domain}`,
+      severity: 'medium',
+      impact: 'High-quality, relevant content improves user engagement and search engine rankings.',
+      recommendation: 'Create a content calendar to regularly update existing content and add new, valuable content that addresses user needs and incorporates relevant keywords.'
+    });
+  }
+  
+  // Add recommendations for technical improvements if technical issues exist
+  if (technicalIssues.length > 0) {
+    recommendations.push({
+      title: 'Resolve Technical SEO Issues',
+      description: `Fix technical issues across ${domain}`,
+      severity: 'high',
+      impact: 'Technical issues can prevent search engines from properly indexing and ranking your site.',
+      recommendation: 'Prioritize fixing technical issues like broken links, slow loading times, and mobile responsiveness problems across all pages.'
+    });
+  }
+  
+  return recommendations;
+};
+
+/**
+ * Generate a comprehensive summary for the entire site
+ */
+const generateComprehensiveSummary = (report: SEOReport, pageCount: number, domain: string): string => {
+  const overallScore = report.overall.score;
+  const technicalScore = report.technical.score;
+  const contentScore = report.content.score;
+  const onPageScore = report.onPage.score;
+  const performanceScore = report.performance.score;
+  
+  const technicalIssueCount = report.technical.issues.length;
+  const contentIssueCount = report.content.issues.length;
+  const onPageIssueCount = report.onPage.issues.length;
+  const performanceIssueCount = report.performance.issues.length;
+  const totalIssueCount = technicalIssueCount + contentIssueCount + onPageIssueCount + performanceIssueCount;
+  
+  let summaryText = `Comprehensive SEO audit of ${domain} analyzing ${pageCount} pages. `;
+  
+  if (overallScore >= 80) {
+    summaryText += `The site has a strong overall SEO score of ${overallScore}/100. `;
+  } else if (overallScore >= 60) {
+    summaryText += `The site has a moderate overall SEO score of ${overallScore}/100 with room for improvement. `;
+  } else {
+    summaryText += `The site has a low overall SEO score of ${overallScore}/100 and requires significant improvements. `;
+  }
+  
+  summaryText += `We identified ${totalIssueCount} issues across all pages: `;
+  summaryText += `${technicalIssueCount} technical issues, ${contentIssueCount} content issues, `;
+  summaryText += `${onPageIssueCount} on-page issues, and ${performanceIssueCount} performance issues. `;
+  
+  // Identify the weakest area
+  const scores = [
+    { area: 'technical', score: technicalScore },
+    { area: 'content', score: contentScore },
+    { area: 'on-page', score: onPageScore },
+    { area: 'performance', score: performanceScore }
+  ];
+  
+  scores.sort((a, b) => a.score - b.score);
+  const weakestArea = scores[0];
+  
+  summaryText += `The weakest area is ${weakestArea.area} SEO with a score of ${weakestArea.score}/100. `;
+  summaryText += `Addressing the recommendations in this report will help improve the site's search engine visibility and ranking potential.`;
+  
+  return summaryText;
 };
 
 /**
@@ -2001,99 +2380,46 @@ export const getSEOAuditById = async (auditId: string): Promise<SEOAudit | null>
  */
 export const generateSEOAudit = async (url: string, clientId: string): Promise<SEOAudit> => {
   try {
-    // First, get the client's user_id (UUID)
-    const { data: clientData, error: clientError } = await supabase
-      .from('clients')
-      .select('user_id')
-      .eq('id', clientId)
+    // Normalize the URL
+    if (!url.startsWith('http')) {
+      url = 'https://' + url;
+    }
+    
+    // Create a unique ID for the audit
+    const auditId = `audit-${Date.now()}-${Math.floor(Math.random() * 1000)}`;
+    
+    // Create an initial audit record
+    const { data: auditData, error: auditError } = await supabase
+      .from('seo_audits')
+      .insert([
+        {
+          id: auditId,
+          client_id: clientId,
+          url: url,
+          status: 'in-progress',
+          score: 0,
+          report: null
+        }
+      ])
+      .select()
       .single();
     
-    if (clientError || !clientData) {
-      console.error('Error fetching client data:', clientError);
-      throw new Error('Could not fetch client data');
+    if (auditError) {
+      console.error('Error creating SEO audit:', auditError);
+      throw auditError;
     }
     
-    // Use the client's user_id for the audit
-    const userId = clientData.user_id;
+    // Get the user ID from the session
+    const { data: sessionData } = await supabase.auth.getSession();
+    const userId = sessionData?.session?.user?.id || 'anonymous';
     
-    // Generate a proper UUID for the audit itself
-    const auditId = '00000000-0000-0000-0000-000000000000'.replace(/0/g, () => 
-      Math.floor(Math.random() * 16).toString(16)
-    );
+    // Start the audit process asynchronously
+    // This will crawl all pages and generate a comprehensive report
+    processComprehensiveSEOAudit(url, auditId, userId);
     
-    // Create initial audit record with all required fields
-    const initialAudit: SEOAudit = {
-      id: auditId,
-      client_id: clientId,
-      user_id: userId,
-      url,
-      status: 'in-progress',
-      created_at: new Date().toISOString(),
-      updated_at: new Date().toISOString(),
-      score: 0,
-      report: null
-    };
-    
-    // Insert initial audit record
-    const { error: insertError } = await supabase
-      .from('seo_audits')
-      .insert(initialAudit);
-    
-    if (insertError) {
-      console.error('Error creating initial SEO audit record:', insertError);
-      throw insertError;
-    }
-    
-    // Start asynchronous processing
-    processAuditAsync(url, auditId, userId);
-    
-    // Return the initial audit record
-    return initialAudit;
+    return auditData;
   } catch (error) {
     console.error('Error generating SEO audit:', error);
-    
-    // Try to get the user_id again if we don't have it
-    let userId;
-    try {
-      const { data: clientData } = await supabase
-        .from('clients')
-        .select('user_id')
-        .eq('id', clientId)
-        .single();
-      
-      userId = clientData?.user_id;
-    } catch (clientError) {
-      console.error('Error fetching client data for failed audit:', clientError);
-      // Generate a fallback UUID if we can't get the user_id
-      userId = '00000000-0000-0000-0000-000000000000'.replace(/0/g, () => 
-        Math.floor(Math.random() * 16).toString(16)
-      );
-    }
-    
-    // Create a failed audit record
-    const failedAudit: SEOAudit = {
-      id: '00000000-0000-0000-0000-000000000000'.replace(/0/g, () => 
-        Math.floor(Math.random() * 16).toString(16)
-      ),
-      client_id: clientId,
-      user_id: userId,
-      url,
-      status: 'failed' as 'failed',
-      created_at: new Date().toISOString(),
-      updated_at: new Date().toISOString(),
-      score: 0,
-      report: null
-    };
-    
-    // Try to insert the failed audit, but don't throw if this fails
-    try {
-      await supabase
-        .from('seo_audits')
-        .insert(failedAudit);
-    } catch (insertError) {
-      console.error('Error creating failed audit record:', insertError);
-    }
-    
-    return failedAudit;
+    throw error;
   }
 };
