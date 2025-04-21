@@ -1,5 +1,5 @@
 // Interface for AI chat requests
-interface AIChatRequest {
+export interface AIChatRequest {
   message: string;
   userId?: string;
   context?: string;
@@ -7,7 +7,7 @@ interface AIChatRequest {
 }
 
 // Interface for AI chat responses
-interface AIChatResponse {
+export interface AIChatResponse {
   response: string;
   error?: string;
 }

@@ -4,6 +4,7 @@ import { FiSend, FiMessageCircle } from 'react-icons/fi';
 import { renderIcon } from '../utils/iconUtils';
 import { ChatMessage, getClientMessages, sendMessage, subscribeToClientMessages } from '../utils/chatService';
 import { getCurrentUser } from '../utils/authService';
+import { sendMessageToAI, AIChatResponse } from '../utils/aiChatService';
 
 interface ClientChatProps {
   clientId: string;
@@ -15,7 +16,9 @@ const ClientChat: React.FC<ClientChatProps> = ({ clientId }) => {
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [isChatOpen, setIsChatOpen] = useState(false);
+  const [isAIResponding, setIsAIResponding] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
+  const [conversationHistory, setConversationHistory] = useState<Array<{role: 'user' | 'assistant', content: string}>>([]);
   
   // Fetch messages on component mount
   useEffect(() => {
@@ -24,6 +27,13 @@ const ClientChat: React.FC<ClientChatProps> = ({ clientId }) => {
       try {
         const fetchedMessages = await getClientMessages(clientId);
         setMessages(fetchedMessages);
+        
+        // Build conversation history from fetched messages
+        const history = fetchedMessages.map(msg => ({
+          role: msg.sender_type === 'client' ? ('user' as 'user' | 'assistant') : ('assistant' as 'user' | 'assistant'),
+          content: msg.content
+        }));
+        setConversationHistory(history);
       } catch (err) {
         console.error('Error fetching messages:', err);
         setError('Failed to load chat messages');
@@ -37,6 +47,15 @@ const ClientChat: React.FC<ClientChatProps> = ({ clientId }) => {
     // Subscribe to new messages
     const subscription = subscribeToClientMessages(clientId, (newMessage) => {
       setMessages(prev => [...prev, newMessage]);
+      
+      // Update conversation history
+      setConversationHistory(prev => [
+        ...prev,
+        {
+          role: newMessage.sender_type === 'client' ? ('user' as 'user' | 'assistant') : ('assistant' as 'user' | 'assistant'),
+          content: newMessage.content
+        }
+      ]);
     });
     
     return () => {
@@ -56,7 +75,8 @@ const ClientChat: React.FC<ClientChatProps> = ({ clientId }) => {
       const user = getCurrentUser();
       const userId = user?.id || 'anonymous';
       
-      const message = {
+      // Create and send client message
+      const clientMessage = {
         client_id: clientId,
         admin_id: null,
         content: newMessage,
@@ -64,10 +84,55 @@ const ClientChat: React.FC<ClientChatProps> = ({ clientId }) => {
         read: false
       };
       
-      const sentMessage = await sendMessage(message);
+      const sentMessage = await sendMessage(clientMessage);
       if (sentMessage) {
         setMessages(prev => [...prev, sentMessage]);
+        
+        // Update conversation history
+        const updatedHistory = [
+          ...conversationHistory,
+          { role: 'user' as const, content: newMessage }
+        ];
+        setConversationHistory(updatedHistory);
+        
         setNewMessage('');
+        
+        // Get AI response
+        setIsAIResponding(true);
+        
+        try {
+          const aiResponse = await sendMessageToAI({
+            message: newMessage,
+            userId: clientId,
+            conversationHistory: updatedHistory.slice(-10) // Keep last 10 messages for context
+          });
+          
+          if (aiResponse && aiResponse.response) {
+            // Create and send AI response message
+            const aiMessage = {
+              client_id: clientId,
+              admin_id: 'ai-assistant',
+              content: aiResponse.response,
+              sender_type: 'admin' as const,
+              read: true
+            };
+            
+            const sentAIMessage = await sendMessage(aiMessage);
+            if (sentAIMessage) {
+              setMessages(prev => [...prev, sentAIMessage]);
+              
+              // Update conversation history
+              setConversationHistory(prev => [
+                ...prev,
+                { role: 'assistant' as const, content: aiResponse.response }
+              ]);
+            }
+          }
+        } catch (aiErr) {
+          console.error('Error getting AI response:', aiErr);
+        } finally {
+          setIsAIResponding(false);
+        }
       }
     } catch (err) {
       console.error('Error sending message:', err);
@@ -83,13 +148,13 @@ const ClientChat: React.FC<ClientChatProps> = ({ clientId }) => {
     <>
       <ChatButton onClick={toggleChat}>
         {renderIcon(FiMessageCircle)}
-        <span>Chat</span>
+        <span>Marketing Chat</span>
       </ChatButton>
       
       {isChatOpen && (
         <ChatContainer>
           <ChatHeader>
-            <h3>Chat with MarketNest</h3>
+            <h3>Marketing Assistant</h3>
             <CloseButton onClick={toggleChat}>×</CloseButton>
           </ChatHeader>
           
@@ -99,7 +164,9 @@ const ClientChat: React.FC<ClientChatProps> = ({ clientId }) => {
             ) : error ? (
               <ErrorMessage>{error}</ErrorMessage>
             ) : messages.length === 0 ? (
-              <EmptyMessage>No messages yet. Start the conversation!</EmptyMessage>
+              <EmptyMessage>
+                Welcome to our Marketing Chat! Ask any questions about our marketing services, campaigns, or strategies.
+              </EmptyMessage>
             ) : (
               messages.map(message => (
                 <MessageBubble 
@@ -113,6 +180,13 @@ const ClientChat: React.FC<ClientChatProps> = ({ clientId }) => {
                 </MessageBubble>
               ))
             )}
+            {isAIResponding && (
+              <TypingIndicator>
+                <TypingDot />
+                <TypingDot />
+                <TypingDot />
+              </TypingIndicator>
+            )}
             <div ref={messagesEndRef} />
           </MessagesContainer>
           
@@ -120,10 +194,11 @@ const ClientChat: React.FC<ClientChatProps> = ({ clientId }) => {
             <MessageInput 
               value={newMessage}
               onChange={(e) => setNewMessage(e.target.value)}
-              placeholder="Type your message..."
+              placeholder="Ask about marketing strategies..."
               onKeyPress={(e) => e.key === 'Enter' && handleSendMessage()}
+              disabled={isAIResponding}
             />
-            <SendButton onClick={handleSendMessage}>
+            <SendButton onClick={handleSendMessage} disabled={isAIResponding}>
               {renderIcon(FiSend)}
             </SendButton>
           </InputContainer>
@@ -258,6 +333,11 @@ const MessageInput = styled.input`
     outline: none;
     background: rgba(255, 255, 255, 0.15);
   }
+  
+  &:disabled {
+    opacity: 0.7;
+    cursor: not-allowed;
+  }
 `;
 
 const SendButton = styled.button`
@@ -275,6 +355,11 @@ const SendButton = styled.button`
   
   &:hover {
     transform: scale(1.05);
+  }
+  
+  &:disabled {
+    opacity: 0.7;
+    cursor: not-allowed;
   }
 `;
 
@@ -294,6 +379,48 @@ const EmptyMessage = styled.div`
   color: rgba(255, 255, 255, 0.5);
   text-align: center;
   padding: 20px;
+`;
+
+const TypingIndicator = styled.div`
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  padding: 12px 16px;
+  background: rgba(255, 255, 255, 0.05);
+  border-radius: 16px;
+  align-self: flex-start;
+  margin-top: 4px;
+`;
+
+const TypingDot = styled.div`
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.5);
+  animation: typingAnimation 1.4s infinite ease-in-out both;
+  
+  &:nth-child(1) {
+    animation-delay: 0s;
+  }
+  
+  &:nth-child(2) {
+    animation-delay: 0.2s;
+  }
+  
+  &:nth-child(3) {
+    animation-delay: 0.4s;
+  }
+  
+  @keyframes typingAnimation {
+    0%, 80%, 100% {
+      transform: scale(0.6);
+      opacity: 0.6;
+    }
+    40% {
+      transform: scale(1);
+      opacity: 1;
+    }
+  }
 `;
 
 export default ClientChat;

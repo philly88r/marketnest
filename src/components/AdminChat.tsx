@@ -169,7 +169,7 @@ const AdminChat: React.FC = () => {
     <>
       <ChatButton onClick={toggleChat}>
         {renderIcon(FiMessageCircle)}
-        <span>Client Messages</span>
+        <span>Chat</span>
         {getTotalUnreadCount() > 0 && (
           <UnreadBadge>{getTotalUnreadCount()}</UnreadBadge>
         )}
@@ -186,7 +186,7 @@ const AdminChat: React.FC = () => {
                 <h3>{getClientName(selectedClientId)}</h3>
               </>
             ) : (
-              <h3>Client Messages</h3>
+              <h3>Chat</h3>
             )}
             <CloseButton onClick={toggleChat}>×</CloseButton>
           </ChatHeader>

@@ -1215,8 +1215,8 @@ const ClientDashboard: React.FC<ClientDashboardProps> = ({ clientId, onBack }) =
             <h3>Email Marketing</h3>
             <p>Create and manage email marketing campaigns for Liberty Beans Coffee.</p>
             <div style={{ marginTop: '20px' }}>
-              <a 
-                href="/clients/liberty-beans/email" 
+              <button 
+                onClick={() => window.location.href = `/email-marketing?clientId=${clientId}`}
                 style={{
                   display: 'inline-flex',
                   alignItems: 'center',
@@ -1226,11 +1226,13 @@ const ClientDashboard: React.FC<ClientDashboardProps> = ({ clientId, onBack }) =
                   color: 'white',
                   borderRadius: '5px',
                   textDecoration: 'none',
-                  fontWeight: '600'
+                  fontWeight: '600',
+                  border: 'none',
+                  cursor: 'pointer'
                 }}
               >
                 {renderIcon(FiMail)} Open Email Marketing Hub
-              </a>
+              </button>
             </div>
           </div>
         );

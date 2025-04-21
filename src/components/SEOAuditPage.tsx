@@ -242,9 +242,9 @@ const SEOAuditPage: React.FC<SEOAuditPageProps> = ({ clientId }) => {
                         </StatusBadge>
                       )}
                     </AuditDate>
-                    {selectedAudit.status === 'completed' && selectedAudit.report && selectedAudit.report.overall && (
-                      <AuditScore $score={selectedAudit.report.overall.score}>
-                        Score: {selectedAudit.report.overall.score}/100
+                    {selectedAudit.status === 'completed' && selectedAudit?.report?.overall && (
+                      <AuditScore $score={selectedAudit?.report?.overall?.score || 0}>
+                        Score: {selectedAudit?.report?.overall?.score || 'N/A'}/100
                       </AuditScore>
                     )}
                   </AuditMeta>
@@ -326,12 +326,12 @@ const SEOAuditPage: React.FC<SEOAuditPageProps> = ({ clientId }) => {
                     </TabsContainer>
 
                     <TabContent>
-                      {activeTab === 'overview' && selectedAudit.report && (
+                      {activeTab === 'overview' && selectedAudit?.report && (
                         <OverviewSection>
                           <SectionTitle>Overview</SectionTitle>
                           <SummaryCard>
                             <SummaryText>
-                              {selectedAudit.report.overall.summary}
+                              {selectedAudit?.report?.overall?.summary || 'No summary available for this audit.'}
                             </SummaryText>
                           </SummaryCard>
                           
@@ -339,46 +339,46 @@ const SEOAuditPage: React.FC<SEOAuditPageProps> = ({ clientId }) => {
                           <ScoreGrid>
                             <ScoreCard>
                               <ScoreLabel>Overall Score</ScoreLabel>
-                              <ScoreValue $score={selectedAudit.report.overall.score}>
-                                {selectedAudit.report.overall.score}/100
+                              <ScoreValue $score={selectedAudit?.report?.overall?.score || 0}>
+                                {selectedAudit?.report?.overall?.score || 'N/A'}
                               </ScoreValue>
                             </ScoreCard>
                             <ScoreCard>
                               <ScoreLabel>Technical SEO</ScoreLabel>
-                              <ScoreValue $score={selectedAudit.report.technical.score}>
-                                {selectedAudit.report.technical.score}/100
+                              <ScoreValue $score={selectedAudit?.report?.technical?.score || 0}>
+                                {selectedAudit?.report?.technical?.score || 'N/A'}
                               </ScoreValue>
                             </ScoreCard>
                             <ScoreCard>
                               <ScoreLabel>Content Quality</ScoreLabel>
-                              <ScoreValue $score={selectedAudit.report.content.score}>
-                                {selectedAudit.report.content.score}/100
+                              <ScoreValue $score={selectedAudit?.report?.content?.score || 0}>
+                                {selectedAudit?.report?.content?.score || 'N/A'}
                               </ScoreValue>
                             </ScoreCard>
                             <ScoreCard>
                               <ScoreLabel>On-Page SEO</ScoreLabel>
-                              <ScoreValue $score={selectedAudit.report.onPage.score}>
-                                {selectedAudit.report.onPage.score}/100
+                              <ScoreValue $score={selectedAudit?.report?.onPage?.score || 0}>
+                                {selectedAudit?.report?.onPage?.score || 'N/A'}
                               </ScoreValue>
                             </ScoreCard>
                             <ScoreCard>
                               <ScoreLabel>Performance</ScoreLabel>
-                              <ScoreValue $score={selectedAudit.report.performance.score}>
-                                {selectedAudit.report.performance.score}/100
+                              <ScoreValue $score={selectedAudit?.report?.performance?.score || 0}>
+                                {selectedAudit?.report?.performance?.score || 'N/A'}
                               </ScoreValue>
                             </ScoreCard>
                             <ScoreCard>
                               <ScoreLabel>Mobile-Friendly</ScoreLabel>
-                              <ScoreValue $score={selectedAudit.report.mobile.score}>
-                                {selectedAudit.report.mobile.score}/100
+                              <ScoreValue $score={selectedAudit?.report?.mobile?.score || 0}>
+                                {selectedAudit?.report?.mobile?.score || 'N/A'}
                               </ScoreValue>
                             </ScoreCard>
                           </ScoreGrid>
                         </OverviewSection>
                       )}
                       
-                      {activeTab === 'technical' && selectedAudit.report && (
-                        <SEOTechnicalSection technicalData={selectedAudit.report.technical} />
+                      {activeTab === 'technical' && selectedAudit?.report && (
+                        <SEOTechnicalSection technicalData={selectedAudit?.report?.technical} />
                       )}
                       
                       {/* Other tab contents would go here */}
