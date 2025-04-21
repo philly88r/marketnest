@@ -24,6 +24,7 @@ const ClientChecklist: React.FC<ClientChecklistProps> = ({ clientId, projectId }
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [isAddingItem, setIsAddingItem] = useState(false);
+  const [filterMode, setFilterMode] = useState<'all' | 'pending' | 'completed'>('all');
   
   // Load checklist items
   useEffect(() => {
@@ -132,96 +133,164 @@ const ClientChecklist: React.FC<ClientChecklistProps> = ({ clientId, projectId }
   return (
     <ChecklistContainer>
       <ChecklistHeader>
-        <h3>Checklist</h3>
-        <AddItemButton onClick={() => setIsAddingItem(true)}>
-          <FiPlus /> Add Item
-        </AddItemButton>
+        <div>
+          <h3>Task Checklist</h3>
+          <div style={{ fontSize: '14px', color: 'rgba(255, 255, 255, 0.6)', marginTop: '5px' }}>
+            {checklist.filter(item => item.is_completed).length} of {checklist.length} tasks completed
+          </div>
+        </div>
+        
+        <AddButton onClick={() => setIsAddingItem(true)}>
+          <FiPlus /> Add Task
+        </AddButton>
       </ChecklistHeader>
       
       {error && <ErrorMessage>{error}</ErrorMessage>}
       
-      {isAddingItem && (
-        <AddItemForm>
-          <InputGroup>
-            <input
-              type="text"
-              placeholder="Task description"
-              value={newItemText}
-              onChange={(e) => setNewItemText(e.target.value)}
-              autoFocus
-            />
-          </InputGroup>
-          <InputGroup>
-            <InputWithIcon>
-              <FiCalendar />
-              <input
-                type="date"
-                placeholder="Due date (optional)"
-                value={newItemDueDate}
-                onChange={(e) => setNewItemDueDate(e.target.value)}
-              />
-            </InputWithIcon>
-          </InputGroup>
-          <InputGroup>
-            <InputWithIcon>
-              <FiUser />
-              <input
-                type="text"
-                placeholder="Assignee (optional)"
-                value={newItemAssignee}
-                onChange={(e) => setNewItemAssignee(e.target.value)}
-              />
-            </InputWithIcon>
-          </InputGroup>
-          <AddItemActions>
-            <ActionButton onClick={handleAddItem}>
-              Add Item
-            </ActionButton>
-            <CancelButton onClick={() => setIsAddingItem(false)}>
-              Cancel
-            </CancelButton>
-          </AddItemActions>
-        </AddItemForm>
-      )}
+      <FilterTabs>
+        <FilterTab 
+          $active={filterMode === 'all'} 
+          onClick={() => setFilterMode('all')}
+        >
+          All ({checklist.length})
+        </FilterTab>
+        <FilterTab 
+          $active={filterMode === 'pending'} 
+          onClick={() => setFilterMode('pending')}
+        >
+          Pending ({checklist.filter(item => !item.is_completed).length})
+        </FilterTab>
+        <FilterTab 
+          $active={filterMode === 'completed'} 
+          onClick={() => setFilterMode('completed')}
+        >
+          Completed ({checklist.filter(item => item.is_completed).length})
+        </FilterTab>
+      </FilterTabs>
+      
+      <AnimatePresence>
+        {isAddingItem && (
+          <motion.div
+            initial={{ opacity: 0, y: -10 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: -10 }}
+            transition={{ duration: 0.2 }}
+          >
+            <AddItemForm>
+              <InputGroup>
+                <input
+                  type="text"
+                  placeholder="Enter task description..."
+                  value={newItemText}
+                  onChange={(e) => setNewItemText(e.target.value)}
+                  autoFocus
+                />
+              </InputGroup>
+              
+              <div style={{ display: 'flex', gap: '10px' }}>
+                <InputGroup style={{ flex: 1 }}>
+                  <InputWithIcon>
+                    <FiCalendar />
+                    <input
+                      type="date"
+                      placeholder="Due date (optional)"
+                      value={newItemDueDate}
+                      onChange={(e) => setNewItemDueDate(e.target.value)}
+                    />
+                  </InputWithIcon>
+                </InputGroup>
+                
+                <InputGroup style={{ flex: 1 }}>
+                  <InputWithIcon>
+                    <FiUser />
+                    <input
+                      type="text"
+                      placeholder="Assignee (optional)"
+                      value={newItemAssignee}
+                      onChange={(e) => setNewItemAssignee(e.target.value)}
+                    />
+                  </InputWithIcon>
+                </InputGroup>
+              </div>
+              
+              <AddItemActions>
+                <ActionButton onClick={handleAddItem}>Add Task</ActionButton>
+                <CancelButton onClick={() => {
+                  setIsAddingItem(false);
+                  setNewItemText('');
+                  setNewItemDueDate('');
+                  setNewItemAssignee('');
+                }}>Cancel</CancelButton>
+              </AddItemActions>
+            </AddItemForm>
+          </motion.div>
+        )}
+      </AnimatePresence>
       
       {isLoading ? (
-        <LoadingMessage>Loading checklist...</LoadingMessage>
+        <LoadingMessage>Loading tasks...</LoadingMessage>
       ) : (
-        <ChecklistItems>
+        <>
           {checklist.length === 0 ? (
-            <EmptyMessage>No checklist items yet. Add your first item above.</EmptyMessage>
+            <EmptyMessage>No tasks found. Add your first task to get started.</EmptyMessage>
           ) : (
-            <>
-              {checklist.map(item => (
-                <ChecklistItemRow key={item.id}>
-                  <CheckboxContainer onClick={() => handleToggleItem(item)}>
-                    <Checkbox $checked={item.is_completed}>
-                      {item.is_completed && <FiCheck />}
-                    </Checkbox>
-                    <ItemText $completed={item.is_completed}>
-                      {item.content}
-                    </ItemText>
-                  </CheckboxContainer>
-                  <ItemDetails>
-                    {item.due_date && (
-                      <ItemDetail>
-                        <FiCalendar /> {formatDate(item.due_date)}
-                      </ItemDetail>
-                    )}
-                    {item.assigned_to && (
-                      <ItemDetail>
-                        <FiUser /> {item.assigned_to}
-                      </ItemDetail>
-                    )}
-                    <DeleteButton onClick={() => handleDeleteItem(item.id)}>
-                      <FiTrash2 />
-                    </DeleteButton>
-                  </ItemDetails>
-                </ChecklistItemRow>
-              ))}
-            </>
+            <ChecklistItems>
+              <AnimatePresence>
+                {checklist
+                  .filter(item => {
+                    if (filterMode === 'pending') return !item.is_completed;
+                    if (filterMode === 'completed') return item.is_completed;
+                    return true; // 'all' mode
+                  })
+                  .map(item => (
+                    <motion.div
+                      key={item.id}
+                      initial={{ opacity: 0, y: -10 }}
+                      animate={{ opacity: 1, y: 0 }}
+                      exit={{ opacity: 0, height: 0, marginBottom: 0 }}
+                      transition={{ duration: 0.2 }}
+                    >
+                      <ChecklistItemRow style={{
+                        background: item.is_completed 
+                          ? 'rgba(13, 249, 182, 0.05)' 
+                          : 'rgba(255, 255, 255, 0.05)',
+                        borderLeft: item.is_completed 
+                          ? '3px solid rgba(13, 249, 182, 0.5)' 
+                          : '3px solid transparent'
+                      }}>
+                        <CheckboxContainer onClick={() => handleToggleItem(item)}>
+                          <Checkbox $checked={item.is_completed}>
+                            {item.is_completed && <FiCheck />}
+                          </Checkbox>
+                          <ItemText $completed={item.is_completed}>{item.content}</ItemText>
+                        </CheckboxContainer>
+                        
+                        <ItemDetails>
+                          {item.due_date && (
+                            <ItemDetail>
+                              <FiCalendar />
+                              {formatDate(item.due_date)}
+                            </ItemDetail>
+                          )}
+                          
+                          {item.assigned_to && (
+                            <ItemDetail>
+                              <FiUser />
+                              {item.assigned_to}
+                            </ItemDetail>
+                          )}
+                          
+                          <DeleteButton onClick={() => handleDeleteItem(item.id)}>
+                            <FiTrash2 />
+                          </DeleteButton>
+                        </ItemDetails>
+                      </ChecklistItemRow>
+                    </motion.div>
+                  ))}
+              </AnimatePresence>
+            </ChecklistItems>
           )}
-        </ChecklistItems>
+        </>
       )}
     </ChecklistContainer>
   );
@@ -248,7 +317,7 @@ const ChecklistHeader = styled.div`
   }
 `;
 
-const AddItemButton = styled.button`
+const AddButton = styled.button`
   background: rgba(13, 249, 182, 0.1);
   border: 1px solid rgba(13, 249, 182, 0.3);
   color: #0df9b6;
@@ -463,6 +532,33 @@ const ErrorMessage = styled.div`
   padding: 10px;
   border-radius: 6px;
   margin-bottom: 15px;
+`;
+
+const FilterTabs = styled.div`
+  display: flex;
+  gap: 10px;
+  margin-bottom: 20px;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+  padding-bottom: 10px;
+`;
+
+interface FilterTabProps {
+  $active: boolean;
+}
+
+const FilterTab = styled.button<FilterTabProps>`
+  background: ${props => props.$active ? 'rgba(13, 249, 182, 0.1)' : 'transparent'};
+  color: ${props => props.$active ? '#0df9b6' : 'rgba(255, 255, 255, 0.6)'};
+  border: ${props => props.$active ? '1px solid rgba(13, 249, 182, 0.3)' : '1px solid transparent'};
+  border-radius: 6px;
+  padding: 8px 12px;
+  font-size: 14px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  
+  &:hover {
+    background: ${props => props.$active ? 'rgba(13, 249, 182, 0.15)' : 'rgba(255, 255, 255, 0.05)'};
+  }
 `;
 
 export default ClientChecklist;
