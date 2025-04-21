@@ -32,6 +32,7 @@ import ClientLoginPage from './pages/ClientLoginPage';
 import AdminLoginPage from './pages/AdminLoginPage';
 import AdminPortalPage from './pages/AdminPortalPage';
 import DirectAdminPage from './pages/DirectAdminPage';
+import LibertyBeansEmailPage from './pages/LibertyBeansEmailPage';
 
 const GlobalStyle = createGlobalStyle`
   @import url('https://fonts.googleapis.com/css2?family=DM+Sans:wght@300;400;500;600;700;900&family=Plus+Jakarta+Sans:wght@400;500&display=swap');
@@ -42,12 +43,19 @@ const GlobalStyle = createGlobalStyle`
     box-sizing: border-box;
   }
   
+  html, body {
+    width: 100%;
+    overflow-x: hidden;
+  }
+  
   body {
     font-family: 'DM Sans', sans-serif;
     background-color: #000;
     color: white;
     overflow-x: hidden;
     max-width: 100vw;
+    margin: 0;
+    padding: 0;
   }
 
   img {
@@ -83,19 +91,22 @@ const GradientCircle = styled(motion.div)<{ left: string; top: string; variant?:
 `;
 
 const AppContainer = styled.div`
-  width: 100%;
+  width: 100vw;
   max-width: 100vw;
   position: relative;
   background: black;
-  overflow: hidden;
+  overflow-x: hidden;
+  margin: 0;
+  padding: 0;
 `;
 
 const ContentContainer = styled.div`
   position: relative;
   z-index: 1;
-  max-width: 1200px;
-  margin: 0 auto 0 60px; /* Shifted to the left with left margin of 60px */
-  width: calc(100% - 60px);
+  width: 100%;
+  margin: 0;
+  padding: 0;
+  overflow-x: hidden;
 `;
 
 function App() {
@@ -134,6 +145,7 @@ function App() {
           <Route path="/admin-login" element={<AdminLoginPage />} />
           <Route path="/admin-portal" element={<AdminPortalPage />} />
           <Route path="/admin" element={<DirectAdminPage />} />
+          <Route path="/clients/liberty-beans/email" element={<LibertyBeansEmailPage />} />
           <Route path="/" element={
             <ContentContainer>
               <div id="home">

@@ -6,13 +6,15 @@ import { motion } from 'framer-motion';
 const HeroContainer = styled.div`
   position: relative;
   min-height: 100vh;
-  width: 100%;
+  width: 100vw;
   display: flex;
   align-items: center;
   justify-content: center;
   padding: 120px 20px 40px;
   overflow: hidden;
   background-color: #080B16;
+  margin: 0;
+  box-sizing: border-box;
 `;
 
 // Background blob elements
@@ -48,11 +50,11 @@ interface StyledProps {
 const LavaLayout = styled.div<StyledProps>`
   position: relative;
   width: 100%;
-  max-width: 1400px;
+  max-width: 1600px;
   display: grid;
   grid-template-columns: repeat(12, 1fr);
   grid-auto-rows: minmax(50px, auto);
-  gap: 20px;
+  gap: 30px;
   z-index: 5;
   
   @media (max-width: 1200px) {
@@ -69,7 +71,7 @@ const LavaLayout = styled.div<StyledProps>`
 
 // Heading section
 const HeadingSection = styled(motion.div)<StyledProps>`
-  grid-column: 2 / 9;
+  grid-column: 1 / 6;
   grid-row: 1 / 3;
   border-radius: 30px 80px 120px 20px;
   background: rgba(255, 255, 255, 0.03);
@@ -96,7 +98,7 @@ const HeadingSection = styled(motion.div)<StyledProps>`
   }
   
   @media (max-width: 1200px) {
-    grid-column: 1 / 6;
+    grid-column: 1 / 5;
   }
   
   @media (max-width: 768px) {
@@ -131,7 +133,7 @@ const Title = styled.h1<StyledProps>`
 
 // Image blob section
 const ImageBlob = styled(motion.div)<StyledProps>`
-  grid-column: 8 / 13;
+  grid-column: 7 / 13;
   grid-row: 1 / 4;
   display: flex;
   align-items: center;
@@ -169,7 +171,7 @@ const BlobImage = styled(motion.img)<StyledProps>`
 
 // Description section
 const DescriptionSection = styled(motion.div)<StyledProps>`
-  grid-column: 2 / 8;
+  grid-column: 1 / 6;
   grid-row: 3 / 5;
   border-radius: 80px 30px 60px 40px;
   background: rgba(31, 83, 255, 0.05);
@@ -197,7 +199,7 @@ const Description = styled.p<StyledProps>`
 
 // CTA section
 const CTASection = styled(motion.div)<StyledProps>`
-  grid-column: 8 / 12;
+  grid-column: 7 / 13;
   grid-row: 4 / 6;
   border-radius: 60px 40px 30px 70px;
   background: rgba(255, 255, 255, 0.03);
