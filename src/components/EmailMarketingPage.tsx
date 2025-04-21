@@ -673,7 +673,7 @@ const Container = styled.div`
   background-color: #1a1a1a;
   color: #ffffff;
   overflow-y: auto;
-  padding-top: 80px; /* Add padding to ensure content is below the header */
+  margin-top: 80px; /* Use margin instead of padding to position below the header */
 `;
 
 const Header = styled.div`
@@ -684,7 +684,7 @@ const Header = styled.div`
   background-color: ${LIBERTY_BEANS_COLORS.primary};
   border-bottom: 1px solid #333;
   position: fixed; /* Make header fixed */
-  top: 0;
+  top: 80px; /* Position below the site header */
   left: 0;
   right: 0;
   z-index: 100; /* Ensure header is on top */
