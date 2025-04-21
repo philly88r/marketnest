@@ -8,6 +8,7 @@ import ClientFileManager from './ClientFileManager';
 import TasksPage from './TasksPage';
 import ProjectEditor from './ProjectEditor';
 import ClientChecklist from './ClientChecklist';
+import Client004Checklist from './Client004Checklist';
 import SEOAuditPage from './SEOAuditPage';
 import FundraiserPage from './FundraiserPage';
 import { renderIcon } from '../utils/iconUtils';
@@ -1180,6 +1181,10 @@ const ClientDashboard: React.FC<ClientDashboardProps> = ({ clientId, onBack }) =
         return <TasksPage clientId={clientId} />;
         
       case 'checklist':
+        // Show the enhanced checklist for Altare, fallback to ClientChecklist for others
+        if (client?.name?.toLowerCase() === 'altare') {
+          return <Client004Checklist />;
+        }
         return <ClientChecklist clientId={clientId} />;
         
       case 'analytics':

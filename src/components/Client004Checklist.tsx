@@ -2,19 +2,6 @@ import React, { useState, useEffect } from 'react';
 import styled from 'styled-components';
 import { supabase } from '../utils/supabaseClient';
 import Modal from "./Modal";
-import { DragDropContext, Droppable, Draggable } from 'react-beautiful-dnd';
-
-// Icons
-import { 
-  FaCheck, 
-  FaTimes, 
-  FaEdit, 
-  FaPlus, 
-  FaSearch, 
-  FaSort, 
-  FaCalendarAlt,
-  FaExclamationTriangle
-} from 'react-icons/fa';
 
 // This component is dedicated for client-004's custom checklist table
 interface ChecklistItem {
@@ -76,7 +63,7 @@ const Client004Checklist: React.FC = () => {
       const { data, error } = await supabase
         .from('client_004_checklist')
         .select('*')
-        .order('order', { ascending: true }); // Use order field if available
+        .order('id', { ascending: true }); // Use order field if available, fallback to id
       
       if (error) throw error;
       console.log('Fetched items:', data);
@@ -285,31 +272,37 @@ const Client004Checklist: React.FC = () => {
     }
   }
 
-  // Handle drag and drop reordering
-  const handleDragEnd = async (result: any) => {
-    if (!result.destination) return;
+  // Handle manual reordering (replacing drag and drop)
+  const moveItem = async (itemId: number, direction: 'up' | 'down') => {
+    const itemIndex = filteredItems.findIndex(item => item.id === itemId);
+    if (itemIndex === -1) return;
     
-    const startIndex = result.source.index;
-    const endIndex = result.destination.index;
+    const newIndex = direction === 'up' ? itemIndex - 1 : itemIndex + 1;
+    if (newIndex < 0 || newIndex >= filteredItems.length) return;
     
-    if (startIndex === endIndex) return;
+    // Update local order for visual feedback
+    const reorderedItems = [...items];
+    const itemToMove = reorderedItems.find(i => i.id === itemId);
+    const targetItem = reorderedItems.find(i => i.id === filteredItems[newIndex].id);
     
-    // Reorder the items array
-    const reorderedItems = [...filteredItems];
-    const [removed] = reorderedItems.splice(startIndex, 1);
-    reorderedItems.splice(endIndex, 0, removed);
+    if (!itemToMove || !targetItem) return;
     
-    // Update the order field for all affected items
+    // Swap orders
+    const tempOrder = itemToMove.order;
+    itemToMove.order = targetItem.order;
+    targetItem.order = tempOrder;
+    
+    setItems(reorderedItems);
+    
+    // Update in database
     setIsLoading(true);
     try {
-      const updates = reorderedItems.map((item, index) => ({
-        id: item.id,
-        order: index + 1
-      }));
-      
       const { error } = await supabase
         .from('client_004_checklist')
-        .upsert(updates);
+        .upsert([
+          { id: itemToMove.id, order: itemToMove.order },
+          { id: targetItem.id, order: targetItem.order }
+        ]);
         
       if (error) throw error;
       
@@ -381,6 +374,72 @@ const Client004Checklist: React.FC = () => {
     setCurrentPage(Math.max(1, Math.min(page, totalPages)));
   };
 
+  // Icons as SVG components to avoid dependency issues
+  const IconCheck = () => (
+    <svg width="1em" height="1em" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+      <polyline points="20 6 9 17 4 12" />
+    </svg>
+  );
+  
+  const IconTimes = () => (
+    <svg width="1em" height="1em" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+      <line x1="18" y1="6" x2="6" y2="18" />
+      <line x1="6" y1="6" x2="18" y2="18" />
+    </svg>
+  );
+  
+  const IconEdit = () => (
+    <svg width="1em" height="1em" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+      <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7" />
+      <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z" />
+    </svg>
+  );
+  
+  const IconPlus = () => (
+    <svg width="1em" height="1em" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+      <line x1="12" y1="5" x2="12" y2="19" />
+      <line x1="5" y1="12" x2="19" y2="12" />
+    </svg>
+  );
+  
+  const IconSearch = () => (
+    <svg width="1em" height="1em" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+      <circle cx="11" cy="11" r="8" />
+      <line x1="21" y1="21" x2="16.65" y2="16.65" />
+    </svg>
+  );
+  
+  const IconCalendar = () => (
+    <svg width="1em" height="1em" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+      <rect x="3" y="4" width="18" height="18" rx="2" ry="2" />
+      <line x1="16" y1="2" x2="16" y2="6" />
+      <line x1="8" y1="2" x2="8" y2="6" />
+      <line x1="3" y1="10" x2="21" y2="10" />
+    </svg>
+  );
+  
+  const IconWarning = () => (
+    <svg width="1em" height="1em" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+      <path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z" />
+      <line x1="12" y1="9" x2="12" y2="13" />
+      <line x1="12" y1="17" x2="12.01" y2="17" />
+    </svg>
+  );
+  
+  const IconArrowUp = () => (
+    <svg width="1em" height="1em" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+      <line x1="12" y1="19" x2="12" y2="5" />
+      <polyline points="5 12 12 5 19 12" />
+    </svg>
+  );
+  
+  const IconArrowDown = () => (
+    <svg width="1em" height="1em" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+      <line x1="12" y1="5" x2="12" y2="19" />
+      <polyline points="19 12 12 19 5 12" />
+    </svg>
+  );
+
   return (
     <Container>
       <Header>
@@ -430,11 +489,11 @@ const Client004Checklist: React.FC = () => {
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
           />
-          <SearchIcon><FaSearch /></SearchIcon>
+          <SearchIcon><IconSearch /></SearchIcon>
         </SearchContainer>
         
         <AddButton onClick={openCreateModal}>
-          <FaPlus /> Add Item
+          <IconPlus /> Add Item
         </AddButton>
       </ControlsContainer>
 
@@ -457,96 +516,92 @@ const Client004Checklist: React.FC = () => {
         </EmptyState>
       ) : (
         <>
-          <DragDropContext onDragEnd={handleDragEnd}>
-            <Droppable droppableId="checklist-items">
-              {(provided) => (
-                <CardList
-                  {...provided.droppableProps}
-                  ref={provided.innerRef}
-                >
-                  {paginatedItems.map((item, idx) => (
-                    <Draggable 
-                      key={item.id.toString()} 
-                      draggableId={item.id.toString()} 
-                      index={idx}
+          <CardList>
+            {paginatedItems.map((item, idx) => (
+              <ItemCard 
+                key={item.id.toString()} 
+                complete={item.complete}
+              >
+                <ItemHeader>
+                  <ItemTitle>{item.feature}</ItemTitle>
+                  <ToggleButton
+                    complete={item.complete}
+                    onClick={() => handleToggleComplete(item)}
+                    title={item.complete ? 'Mark as incomplete' : 'Mark as complete'}
+                  >
+                    {item.complete ? <IconCheck /> : <IconTimes />}
+                  </ToggleButton>
+                </ItemHeader>
+                
+                <ItemDetails>
+                  {item.to_adjust && (
+                    <ItemProperty>
+                      <PropertyLabel>To Adjust:</PropertyLabel>
+                      <PropertyValue>{item.to_adjust}</PropertyValue>
+                    </ItemProperty>
+                  )}
+                  
+                  {item.complete_by && (
+                    <ItemProperty>
+                      <PropertyLabel>
+                        <IconCalendar /> Complete By:
+                      </PropertyLabel>
+                      <PropertyValue>
+                        {formatDate(item.complete_by)}
+                        {isDateApproaching(item.complete_by) && !item.complete && (
+                          <DueSoonBadge>
+                            <IconWarning /> Due Soon
+                          </DueSoonBadge>
+                        )}
+                      </PropertyValue>
+                    </ItemProperty>
+                  )}
+                  
+                  {item.assigned_to && (
+                    <ItemProperty>
+                      <PropertyLabel>Assigned To:</PropertyLabel>
+                      <PropertyValue>{item.assigned_to}</PropertyValue>
+                    </ItemProperty>
+                  )}
+                  
+                  {item.notes_from && (
+                    <ItemProperty>
+                      <PropertyLabel>Notes:</PropertyLabel>
+                      <PropertyValue>{item.notes_from}</PropertyValue>
+                    </ItemProperty>
+                  )}
+                </ItemDetails>
+                
+                <ItemActions>
+                  <EditButton onClick={() => openEditModal(item)}>
+                    <IconEdit /> Edit
+                  </EditButton>
+                  <OrderButtons>
+                    <OrderButton 
+                      disabled={idx === 0}
+                      onClick={() => moveItem(item.id, 'up')}
+                      title="Move up"
                     >
-                      {(provided) => (
-                        <ItemCard
-                          ref={provided.innerRef}
-                          {...provided.draggableProps}
-                          {...provided.dragHandleProps}
-                          complete={item.complete}
-                        >
-                          <ItemHeader>
-                            <ItemTitle>{item.feature}</ItemTitle>
-                            <ToggleButton
-                              complete={item.complete}
-                              onClick={() => handleToggleComplete(item)}
-                              title={item.complete ? 'Mark as incomplete' : 'Mark as complete'}
-                            >
-                              {item.complete ? <FaCheck /> : <FaTimes />}
-                            </ToggleButton>
-                          </ItemHeader>
-                          
-                          <ItemDetails>
-                            {item.to_adjust && (
-                              <ItemProperty>
-                                <PropertyLabel>To Adjust:</PropertyLabel>
-                                <PropertyValue>{item.to_adjust}</PropertyValue>
-                              </ItemProperty>
-                            )}
-                            
-                            {item.complete_by && (
-                              <ItemProperty>
-                                <PropertyLabel>
-                                  <FaCalendarAlt /> Complete By:
-                                </PropertyLabel>
-                                <PropertyValue>
-                                  {formatDate(item.complete_by)}
-                                  {isDateApproaching(item.complete_by) && !item.complete && (
-                                    <DueSoonBadge>
-                                      <FaExclamationTriangle /> Due Soon
-                                    </DueSoonBadge>
-                                  )}
-                                </PropertyValue>
-                              </ItemProperty>
-                            )}
-                            
-                            {item.assigned_to && (
-                              <ItemProperty>
-                                <PropertyLabel>Assigned To:</PropertyLabel>
-                                <PropertyValue>{item.assigned_to}</PropertyValue>
-                              </ItemProperty>
-                            )}
-                            
-                            {item.notes_from && (
-                              <ItemProperty>
-                                <PropertyLabel>Notes:</PropertyLabel>
-                                <PropertyValue>{item.notes_from}</PropertyValue>
-                              </ItemProperty>
-                            )}
-                          </ItemDetails>
-                          
-                          <ItemActions>
-                            <EditButton onClick={() => openEditModal(item)}>
-                              <FaEdit /> Edit
-                            </EditButton>
-                            <StatusBadge
-                              priority={item.priority}
-                              style={{ backgroundColor: getPriorityColor(item.priority) }}
-                            >
-                              {item.priority || 'normal'}
-                            </StatusBadge>
-                          </ItemActions>
-                        </ItemCard>
-                      )}
-                    </Draggable>
-                  ))}
-                  {provided.placeholder}
-                </CardList>
-              )}
-            </Droppable>
-          </DragDropContext>
+                      <IconArrowUp />
+                    </OrderButton>
+                    <OrderButton 
+                      disabled={idx === paginatedItems.length - 1}
+                      onClick={() => moveItem(item.id, 'down')}
+                      title="Move down"
+                    >
+                      <IconArrowDown />
+                    </OrderButton>
+                  </OrderButtons>
+                  <StatusBadge
+                    priority={item.priority}
+                    style={{ backgroundColor: getPriorityColor(item.priority) }}
+                  >
+                    {item.priority || 'normal'}
+                  </StatusBadge>
+                </ItemActions>
+              </ItemCard>
+            ))}
+          </CardList>
           
           {totalPages > 1 && (
             <Pagination>
@@ -1001,6 +1056,34 @@ const EditButton = styled.button`
   
   &:hover {
     background: rgba(255, 255, 255, 0.1);
+  }
+`;
+
+const OrderButtons = styled.div`
+  display: flex;
+  gap: 4px;
+`;
+
+const OrderButton = styled.button`
+  background: transparent;
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  border-radius: 4px;
+  color: #fff;
+  padding: 4px;
+  font-size: 10px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.2s ease;
+  
+  &:hover:not(:disabled) {
+    background: rgba(255, 255, 255, 0.1);
+  }
+  
+  &:disabled {
+    opacity: 0.3;
+    cursor: not-allowed;
   }
 `;
 
