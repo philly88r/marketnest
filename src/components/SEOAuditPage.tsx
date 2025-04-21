@@ -99,21 +99,39 @@ const SEOAuditPage: React.FC<SEOAuditPageProps> = ({ clientId }) => {
       // Create an initial audit with 'in-progress' status
       const newAudit = await generateSEOAudit(url, clientId);
       
+      // Verify we have a valid audit object with an ID
+      if (!newAudit || !newAudit.id) {
+        throw new Error('Failed to create audit - invalid response');
+      }
+      
       // Add the new audit to the list and select it
       setAudits(prevAudits => [newAudit, ...prevAudits]);
       setSelectedAudit(newAudit);
       setUrl('');
       setShowNewAuditForm(false);
       
-      // Set up polling to check for audit updates
+      // Start polling for updates
       const pollInterval = setInterval(async () => {
         try {
           // Fetch the latest audits
           const updatedAudits = await getSEOAuditsByClientId(clientId);
+          
+          if (!updatedAudits || !Array.isArray(updatedAudits)) {
+            console.error('Invalid audit data received:', updatedAudits);
+            return;
+          }
+          
           setAudits(updatedAudits);
           
+          // Make sure we have a valid newAudit with an ID before trying to find it
+          if (!newAudit || !newAudit.id) {
+            console.error('Invalid newAudit object:', newAudit);
+            clearInterval(pollInterval);
+            return;
+          }
+          
           // Find the current audit in the updated list
-          const updatedAudit = updatedAudits.find(audit => audit.id === newAudit.id);
+          const updatedAudit = updatedAudits.find(audit => audit && audit.id === newAudit.id);
           
           // Update the selected audit if it exists
           if (updatedAudit) {
@@ -243,7 +261,7 @@ const SEOAuditPage: React.FC<SEOAuditPageProps> = ({ clientId }) => {
             ) : audits.length === 0 ? (
               <NoData>No audits found</NoData>
             ) : (
-              audits.map(audit => (
+              audits.filter(audit => audit && audit.id).map(audit => (
                 <AuditItem 
                   key={audit.id} 
                   $isSelected={selectedAudit?.id === audit.id}
@@ -259,10 +277,13 @@ const SEOAuditPage: React.FC<SEOAuditPageProps> = ({ clientId }) => {
                     {formatDate(audit.created_at)}
                   </AuditItemMeta>
                   <AuditItemActions>
-                    <ActionIcon onClick={(e) => {
-                      e.stopPropagation();
-                      handleDeleteAudit(audit.id);
-                    }}>
+                    <ActionIcon 
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        handleDeleteAudit(audit.id);
+                      }}
+                      title="Delete Audit"
+                    >
                       <FiTrash2 size={16} />
                     </ActionIcon>
                   </AuditItemActions>

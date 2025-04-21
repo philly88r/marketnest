@@ -861,6 +861,12 @@ export const generateSEOAudit = async (url: string, clientId: string): Promise<S
       throw insertError;
     }
     
+    // Check if data is null or undefined
+    if (!data) {
+      console.error('No data returned from insert operation');
+      throw new Error('Failed to create audit record - no data returned');
+    }
+    
     // Get the generated audit ID
     const auditId = data.id;
     
