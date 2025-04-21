@@ -1,7 +1,8 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import styled from 'styled-components';
 import { motion } from 'framer-motion';
-import { FiGrid, FiTrendingUp, FiTarget, FiDownload, FiMail } from 'react-icons/fi';
+import { FiGrid, FiTrendingUp, FiTarget, FiDownload, FiMail, FiSearch } from 'react-icons/fi';
+import { getSearchConsoleData, getTopPages, getTopQueries, SearchConsoleData } from '../utils/searchConsoleService';
 
 // Mock data for analytics
 const analyticsData = {
@@ -65,7 +66,10 @@ const AnalyticsDashboard: React.FC<AnalyticsDashboardProps> = ({
   dateRange = 'month'
 }) => {
   const [activeDateRange, setActiveDateRange] = useState<'week' | 'month' | 'quarter' | 'year'>(dateRange);
-  const [activeTab, setActiveTab] = useState<'overview' | 'traffic' | 'campaigns'>('overview');
+  const [activeTab, setActiveTab] = useState<'overview' | 'traffic' | 'campaigns' | 'search-console'>('overview');
+  const [searchConsoleData, setSearchConsoleData] = useState<SearchConsoleData | null>(null);
+  const [isLoadingSearchConsole, setIsLoadingSearchConsole] = useState(false);
+  const [searchConsoleError, setSearchConsoleError] = useState<string | null>(null);
   
   // Function to format numbers with commas
   const formatNumber = (num: number) => {
@@ -98,6 +102,53 @@ const AnalyticsDashboard: React.FC<AnalyticsDashboardProps> = ({
     });
     
     return points.trim();
+  };
+  
+  // Load Search Console data when component mounts or date range changes
+  useEffect(() => {
+    if (clientId) {
+      loadSearchConsoleData();
+    }
+  }, [clientId, activeDateRange]);
+
+  // Function to load Search Console data
+  const loadSearchConsoleData = async () => {
+    if (!clientId) return;
+    
+    setIsLoadingSearchConsole(true);
+    setSearchConsoleError(null);
+    
+    try {
+      // Calculate date range
+      const endDate = new Date().toISOString().split('T')[0]; // Today in YYYY-MM-DD format
+      let startDate = new Date();
+      
+      switch (activeDateRange) {
+        case 'week':
+          startDate.setDate(startDate.getDate() - 7);
+          break;
+        case 'month':
+          startDate.setMonth(startDate.getMonth() - 1);
+          break;
+        case 'quarter':
+          startDate.setMonth(startDate.getMonth() - 3);
+          break;
+        case 'year':
+          startDate.setFullYear(startDate.getFullYear() - 1);
+          break;
+      }
+      
+      const formattedStartDate = startDate.toISOString().split('T')[0];
+      
+      // Fetch Search Console data
+      const data = await getSearchConsoleData(clientId, formattedStartDate, endDate);
+      setSearchConsoleData(data);
+    } catch (error) {
+      console.error('Error loading Search Console data:', error);
+      setSearchConsoleError('Failed to load Search Console data');
+    } finally {
+      setIsLoadingSearchConsole(false);
+    }
   };
   
   return (
@@ -158,6 +209,13 @@ const AnalyticsDashboard: React.FC<AnalyticsDashboardProps> = ({
         >
           <span>{FiTarget({ size: 16 })}</span>
           <span>Campaigns</span>
+        </TabButton>
+        <TabButton 
+          $active={activeTab === 'search-console'} 
+          onClick={() => setActiveTab('search-console')}
+        >
+          <span>{FiSearch({ size: 16 })}</span>
+          <span>Search Console</span>
         </TabButton>
       </TabsContainer>
       
@@ -389,6 +447,188 @@ const AnalyticsDashboard: React.FC<AnalyticsDashboardProps> = ({
             </DataCard>
           </DashboardColumn>
         </DashboardRow>
+      )}
+      
+      {activeTab === 'search-console' && (
+        <TabContent>
+          <SectionTitle>Search Console Performance</SectionTitle>
+          
+          {isLoadingSearchConsole ? (
+            <LoadingMessage>Loading Search Console data...</LoadingMessage>
+          ) : searchConsoleError ? (
+            <ErrorMessage>{searchConsoleError}</ErrorMessage>
+          ) : !searchConsoleData ? (
+            <EmptyMessage>No Search Console data available</EmptyMessage>
+          ) : (
+            <>
+              <MetricsGrid>
+                <MetricCard>
+                  <MetricTitle>Clicks</MetricTitle>
+                  <MetricValue>{formatNumber(searchConsoleData.clicks)}</MetricValue>
+                  <MetricDescription>Total clicks from Google Search</MetricDescription>
+                </MetricCard>
+                
+                <MetricCard>
+                  <MetricTitle>Impressions</MetricTitle>
+                  <MetricValue>{formatNumber(searchConsoleData.impressions)}</MetricValue>
+                  <MetricDescription>Total impressions in search results</MetricDescription>
+                </MetricCard>
+                
+                <MetricCard>
+                  <MetricTitle>CTR</MetricTitle>
+                  <MetricValue>{(searchConsoleData.ctr * 100).toFixed(2)}%</MetricValue>
+                  <MetricDescription>Click-through rate</MetricDescription>
+                </MetricCard>
+                
+                <MetricCard>
+                  <MetricTitle>Avg. Position</MetricTitle>
+                  <MetricValue>{searchConsoleData.position.toFixed(1)}</MetricValue>
+                  <MetricDescription>Average ranking position</MetricDescription>
+                </MetricCard>
+              </MetricsGrid>
+              
+              <SectionGrid>
+                <Section>
+                  <SectionTitle>Top Performing Pages</SectionTitle>
+                  <TableContainer>
+                    <Table>
+                      <thead>
+                        <tr>
+                          <th>Page</th>
+                          <th>Clicks</th>
+                          <th>Impressions</th>
+                          <th>CTR</th>
+                          <th>Position</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {searchConsoleData.pages && searchConsoleData.pages.length > 0 ? (
+                          searchConsoleData.pages.map((page, index) => (
+                            <tr key={index}>
+                              <td>{page.page.replace(/^https?:\/\/[^/]+/, '')}</td>
+                              <td>{formatNumber(page.clicks)}</td>
+                              <td>{formatNumber(page.impressions)}</td>
+                              <td>{(page.ctr * 100).toFixed(2)}%</td>
+                              <td>{page.position.toFixed(1)}</td>
+                            </tr>
+                          ))
+                        ) : (
+                          <tr>
+                            <td colSpan={5}>No page data available</td>
+                          </tr>
+                        )}
+                      </tbody>
+                    </Table>
+                  </TableContainer>
+                </Section>
+                
+                <Section>
+                  <SectionTitle>Top Search Queries</SectionTitle>
+                  <TableContainer>
+                    <Table>
+                      <thead>
+                        <tr>
+                          <th>Query</th>
+                          <th>Clicks</th>
+                          <th>Impressions</th>
+                          <th>CTR</th>
+                          <th>Position</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {searchConsoleData.queries && searchConsoleData.queries.length > 0 ? (
+                          searchConsoleData.queries.map((query, index) => (
+                            <tr key={index}>
+                              <td>{query.query}</td>
+                              <td>{formatNumber(query.clicks)}</td>
+                              <td>{formatNumber(query.impressions)}</td>
+                              <td>{(query.ctr * 100).toFixed(2)}%</td>
+                              <td>{query.position.toFixed(1)}</td>
+                            </tr>
+                          ))
+                        ) : (
+                          <tr>
+                            <td colSpan={5}>No query data available</td>
+                          </tr>
+                        )}
+                      </tbody>
+                    </Table>
+                  </TableContainer>
+                </Section>
+              </SectionGrid>
+              
+              <SectionGrid>
+                <Section>
+                  <SectionTitle>Device Breakdown</SectionTitle>
+                  <TableContainer>
+                    <Table>
+                      <thead>
+                        <tr>
+                          <th>Device</th>
+                          <th>Clicks</th>
+                          <th>Impressions</th>
+                          <th>CTR</th>
+                          <th>Position</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {searchConsoleData.devices && searchConsoleData.devices.length > 0 ? (
+                          searchConsoleData.devices.map((device, index) => (
+                            <tr key={index}>
+                              <td>{device.device}</td>
+                              <td>{formatNumber(device.clicks)}</td>
+                              <td>{formatNumber(device.impressions)}</td>
+                              <td>{(device.ctr * 100).toFixed(2)}%</td>
+                              <td>{device.position.toFixed(1)}</td>
+                            </tr>
+                          ))
+                        ) : (
+                          <tr>
+                            <td colSpan={5}>No device data available</td>
+                          </tr>
+                        )}
+                      </tbody>
+                    </Table>
+                  </TableContainer>
+                </Section>
+                
+                <Section>
+                  <SectionTitle>Country Breakdown</SectionTitle>
+                  <TableContainer>
+                    <Table>
+                      <thead>
+                        <tr>
+                          <th>Country</th>
+                          <th>Clicks</th>
+                          <th>Impressions</th>
+                          <th>CTR</th>
+                          <th>Position</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {searchConsoleData.countries && searchConsoleData.countries.length > 0 ? (
+                          searchConsoleData.countries.map((country, index) => (
+                            <tr key={index}>
+                              <td>{country.country}</td>
+                              <td>{formatNumber(country.clicks)}</td>
+                              <td>{formatNumber(country.impressions)}</td>
+                              <td>{(country.ctr * 100).toFixed(2)}%</td>
+                              <td>{country.position.toFixed(1)}</td>
+                            </tr>
+                          ))
+                        ) : (
+                          <tr>
+                            <td colSpan={5}>No country data available</td>
+                          </tr>
+                        )}
+                      </tbody>
+                    </Table>
+                  </TableContainer>
+                </Section>
+              </SectionGrid>
+            </>
+          )}
+        </TabContent>
       )}
       
       <ExportSection>
@@ -693,6 +933,94 @@ const ExportButton = styled.button`
   svg {
     color: #0df9b6;
   }
+`;
+
+const LoadingMessage = styled.div`
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  height: 200px;
+  color: #888;
+  font-size: 16px;
+`;
+
+const ErrorMessage = styled.div`
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  height: 200px;
+  color: #e74c3c;
+  font-size: 16px;
+`;
+
+const EmptyMessage = styled.div`
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  height: 200px;
+  color: #888;
+  font-size: 16px;
+`;
+
+const TabContent = styled.div`
+  padding: 24px;
+`;
+
+const SectionTitle = styled.h3`
+  font-size: 18px;
+  font-weight: 500;
+  margin-bottom: 16px;
+`;
+
+const SectionGrid = styled.div`
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 16px;
+  margin-bottom: 24px;
+  
+  @media (max-width: 768px) {
+    grid-template-columns: 1fr;
+  }
+`;
+
+const Section = styled.div`
+  background: rgba(255, 255, 255, 0.05);
+  border-radius: 8px;
+  padding: 16px;
+`;
+
+const TableContainer = styled.div`
+  overflow-x: auto;
+`;
+
+const Table = styled.table`
+  width: 100%;
+  border-collapse: collapse;
+  
+  th, td {
+    padding: 12px 8px;
+    text-align: left;
+    font-size: 14px;
+  }
+  
+  th {
+    color: rgba(255, 255, 255, 0.7);
+    font-weight: 500;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+  }
+  
+  td {
+    border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+  }
+  
+  tr:last-child td {
+    border-bottom: none;
+  }
+`;
+
+const MetricDescription = styled.div`
+  font-size: 12px;
+  color: rgba(255, 255, 255, 0.5);
 `;
 
 export default AnalyticsDashboard;
