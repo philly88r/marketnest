@@ -185,6 +185,56 @@ const SEOAuditPage: React.FC<SEOAuditPageProps> = ({ clientId }) => {
           </ErrorContainer>
         )}
 
+        {showNewAuditForm && (
+          <div style={{ 
+            position: 'fixed', 
+            top: 0, 
+            left: 0, 
+            right: 0, 
+            bottom: 0, 
+            background: 'rgba(0, 0, 0, 0.7)', 
+            display: 'flex', 
+            justifyContent: 'center', 
+            alignItems: 'center',
+            zIndex: 1000
+          }}>
+            <Card>
+              <CardTitle>Create New SEO Audit</CardTitle>
+              <Form onSubmit={handleCreateAudit}>
+                <FormGroup>
+                  <Label>Website URL</Label>
+                  <Input 
+                    type="url" 
+                    value={url} 
+                    onChange={(e) => setUrl(e.target.value)} 
+                    placeholder="https://example.com" 
+                    required 
+                  />
+                </FormGroup>
+                <ButtonGroup>
+                  <Button 
+                    type="button" 
+                    $secondary 
+                    onClick={() => setShowNewAuditForm(false)}
+                  >
+                    Cancel
+                  </Button>
+                  <Button type="submit" disabled={isLoading}>
+                    {isLoading ? (
+                      <>
+                        <FiRefreshCw size={16} style={{ marginRight: '8px', animation: 'spin 2s linear infinite' }} />
+                        Creating...
+                      </>
+                    ) : (
+                      'Create Audit'
+                    )}
+                  </Button>
+                </ButtonGroup>
+              </Form>
+            </Card>
+          </div>
+        )}
+
         <ContentContainer>
           <Sidebar>
             <SidebarTitle>Audit History</SidebarTitle>
