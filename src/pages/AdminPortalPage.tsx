@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import styled from 'styled-components';
 import { motion } from 'framer-motion';
-import { FiUsers, FiPieChart, FiSettings, FiLogOut, FiEdit, FiEye, FiDatabase } from 'react-icons/fi';
+import { FiUsers, FiPieChart, FiSettings, FiLogOut, FiEdit, FiEye, FiDatabase, FiLayout } from 'react-icons/fi';
 import { Link, useNavigate } from 'react-router-dom';
 import { renderIcon } from '../utils/iconUtils';
 import Header from '../components/Header';
@@ -20,7 +20,7 @@ const adminUser = {
 };
 
 const AdminPortalPage: React.FC = () => {
-  const [activeTab, setActiveTab] = useState<'clients' | 'dashboard' | 'settings' | 'liberty-test' | 'database-test'>('clients');
+  const [activeTab, setActiveTab] = useState<'clients' | 'dashboard' | 'settings' | 'liberty-test' | 'database-test' | 'landing-page-generator'>('clients');
   const [selectedClientId, setSelectedClientId] = useState<string | null>(null);
   const navigate = useNavigate();
   
@@ -30,6 +30,13 @@ const AdminPortalPage: React.FC = () => {
       console.log('Selected client ID in AdminPortalPage:', selectedClientId);
     }
   }, [selectedClientId]);
+  
+  // Handle navigation to landing page generator
+  useEffect(() => {
+    if (activeTab === 'landing-page-generator') {
+      navigate('/admin/landing-page-generator');
+    }
+  }, [activeTab, navigate]);
   
   // Special handler for Liberty Beans Coffee
   const handleLibertyBeansSelection = () => {
@@ -195,6 +202,13 @@ const AdminPortalPage: React.FC = () => {
               style={{ background: activeTab === 'database-test' ? 'rgba(0, 128, 255, 0.25)' : 'transparent' }}
             >
               {renderIcon(FiDatabase)} Database Test
+            </NavItem>
+            <NavItem
+              $active={activeTab === 'landing-page-generator'}
+              onClick={() => setActiveTab('landing-page-generator')}
+              style={{ background: activeTab === 'landing-page-generator' ? 'rgba(0, 128, 0, 0.25)' : 'transparent' }}
+            >
+              {renderIcon(FiLayout)} Landing Page Generator
             </NavItem>
           </NavMenu>
           

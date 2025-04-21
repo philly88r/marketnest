@@ -889,317 +889,6 @@ const generateSEORecommendations = (websiteData: any, domain: string): SEOIssue[
 };
 
 /**
- * Calculate a score from an SEO report
- */
-const calculateScore = (report: SEOReport): number => {
-  if (!report) return 0;
-  
-  let score = 0;
-  const maxScore = 100;
-  
-  // Calculate score based on various factors
-  if (report.metaTags && report.metaTags.title) score += 10;
-  if (report.metaTags && report.metaTags.description) score += 10;
-  if (report.headings && report.headings.h1 && report.headings.h1.length > 0) score += 10;
-  if (report.images && report.images.withAlt / Math.max(1, report.images.total) > 0.8) score += 10;
-  if (report.performance && report.performance.score > 80) score += 15;
-  if (report.technical && report.technical.score > 80) score += 15;
-  if (report.links && report.links.internalCount > 0) score += 10;
-  if (report.links && report.links.externalCount > 0) score += 10;
-  if (report.contentWordCount > 300) score += 10;
-  
-  // Ensure score is between 0 and 100
-  return Math.min(maxScore, Math.max(0, score));
-};
-
-/**
- * Process the SEO audit asynchronously
- */
-const processAuditAsync = async (url: string, auditId: string, userId: string) => {
-  try {
-    // Update status to processing
-    await supabase
-      .from('seo_audits')
-      .update({
-        status: 'processing',
-        updated_at: new Date().toISOString(),
-        score: 0
-      })
-      .eq('id', auditId);
-    
-    // Try to fetch website data
-    let websiteData;
-    try {
-      websiteData = await fetchWebsiteData(url);
-    } catch (fetchError) {
-      console.error('Error fetching website data:', fetchError);
-      
-      // Try AI-generated report as fallback
-      try {
-        console.log('Falling back to AI-generated report');
-        const aiReport = await generateAIReport(url);
-        
-        // Calculate a score based on AI report
-        const score = calculateScoreFromAIReport(aiReport);
-        
-        // Update the audit record with the AI-generated report
-        await supabase
-          .from('seo_audits')
-          .update({
-            status: 'completed',
-            updated_at: new Date().toISOString(),
-            score,
-            report: aiReport
-          })
-          .eq('id', auditId);
-        
-        return;
-      } catch (aiError) {
-        console.error('Error generating AI report:', aiError);
-        
-        // Update the audit record with failed status
-        await supabase
-          .from('seo_audits')
-          .update({
-            status: 'failed',
-            updated_at: new Date().toISOString(),
-            score: 0,
-            report: null
-          })
-          .eq('id', auditId);
-        
-        return;
-      }
-    }
-    
-    // Generate SEO report from website data AND enhance with AI
-    const report = await generateEnhancedSEOReport(websiteData, url);
-    
-    // Calculate score from report
-    const score = calculateScore(report);
-    
-    // Update the audit record with the completed report
-    await supabase
-      .from('seo_audits')
-      .update({
-        status: 'completed',
-        updated_at: new Date().toISOString(),
-        score,
-        report
-      })
-      .eq('id', auditId);
-    
-  } catch (error) {
-    console.error('Error processing SEO audit:', error);
-    
-    // Update the audit record with failed status
-    await supabase
-      .from('seo_audits')
-      .update({
-        status: 'failed',
-        updated_at: new Date().toISOString(),
-        score: 0,
-        report: null
-      })
-      .eq('id', auditId);
-  }
-};
-
-/**
- * Generate an enhanced SEO report using both website data and AI analysis
- */
-const generateEnhancedSEOReport = async (websiteData: any, url: string): Promise<SEOReport> => {
-  try {
-    // First generate a report based on the scraped data
-    const baseReport = generateRealSEOReport(websiteData, url);
-    
-    // Then enhance it with AI analysis
-    const aiPrompt = generateSEOAuditPromptWithData(url, websiteData, baseReport);
-    const aiResponse = await callGeminiAPI(aiPrompt);
-    const aiReport = parseGeminiResponse(aiResponse, url);
-    
-    // Merge the reports, prioritizing AI insights but keeping technical data
-    return mergeReports(baseReport, aiReport);
-  } catch (error) {
-    console.error('Error generating enhanced SEO report:', error);
-    
-    // Fall back to the basic report if AI enhancement fails
-    return generateRealSEOReport(websiteData, url);
-  }
-};
-
-/**
- * Merge two SEO reports, prioritizing AI insights but keeping technical data
- */
-const mergeReports = (baseReport: SEOReport, aiReport: SEOReport): SEOReport => {
-  return {
-    overall: aiReport.overall || baseReport.overall,
-    technical: {
-      score: aiReport.technical?.score || baseReport.technical.score,
-      issues: [...(baseReport.technical.issues || []), ...(aiReport.technical?.issues || [])]
-    },
-    content: {
-      score: aiReport.content?.score || baseReport.content.score,
-      issues: [...(baseReport.content.issues || []), ...(aiReport.content?.issues || [])]
-    },
-    onPage: {
-      score: aiReport.onPage?.score || baseReport.onPage.score,
-      issues: [...(baseReport.onPage.issues || []), ...(aiReport.onPage?.issues || [])]
-    },
-    performance: {
-      score: aiReport.performance?.score || baseReport.performance.score,
-      issues: [...(baseReport.performance.issues || []), ...(aiReport.performance?.issues || [])]
-    },
-    mobile: {
-      score: aiReport.mobile?.score || baseReport.mobile.score,
-      issues: [...(baseReport.mobile.issues || []), ...(aiReport.mobile?.issues || [])]
-    },
-    backlinks: {
-      score: aiReport.backlinks?.score || baseReport.backlinks.score,
-      issues: [...(baseReport.backlinks.issues || []), ...(aiReport.backlinks?.issues || [])]
-    },
-    keywords: {
-      score: aiReport.keywords?.score || baseReport.keywords.score,
-      issues: [...(baseReport.keywords.issues || []), ...(aiReport.keywords?.issues || [])]
-    },
-    recommendations: [
-      ...(baseReport.recommendations || []),
-      ...(aiReport.recommendations || [])
-    ],
-    url: baseReport.url,
-    metaTags: baseReport.metaTags,
-    headings: baseReport.headings,
-    images: baseReport.images,
-    links: baseReport.links,
-    contentWordCount: baseReport.contentWordCount
-  };
-};
-
-/**
- * Generate an AI prompt with detailed website data for more accurate analysis
- */
-const generateSEOAuditPromptWithData = (url: string, websiteData: any, baseReport: SEOReport): string => {
-  // Extract a sample of the raw HTML (first 10000 chars)
-  const htmlSample = websiteData.rawHtml ? 
-    `HTML Sample (first 10000 chars): ${websiteData.rawHtml.substring(0, 10000)}` : 
-    'HTML Sample: Not available';
-  
-  return `
-Please perform a comprehensive SEO audit for the website: ${url}
-
-I have already performed a technical analysis and found the following data:
-
-METADATA:
-- Title: ${websiteData.meta?.title || 'Unknown'}
-- Meta Description: ${websiteData.meta?.description || 'Missing'}
-- Meta Keywords: ${websiteData.meta?.keywords?.join(', ') || 'Missing'}
-- Has Structured Data: ${websiteData.meta?.structuredData ? 'Yes' : 'No'}
-
-HEADINGS:
-- H1 Tags (${websiteData.meta?.headings?.h1?.length || 0}): ${JSON.stringify(websiteData.meta?.headings?.h1 || [])}
-- H2 Tags (${websiteData.meta?.headings?.h2?.length || 0}): ${JSON.stringify((websiteData.meta?.headings?.h2 || []).slice(0, 5))}${(websiteData.meta?.headings?.h2?.length || 0) > 5 ? ' (truncated)' : ''}
-- H3 Tags (${websiteData.meta?.headings?.h3?.length || 0}): ${JSON.stringify((websiteData.meta?.headings?.h3 || []).slice(0, 5))}${(websiteData.meta?.headings?.h3?.length || 0) > 5 ? ' (truncated)' : ''}
-
-LINKS:
-- Internal Links: ${websiteData.meta?.links?.internalCount || 0}
-- External Links: ${websiteData.meta?.links?.externalCount || 0}
-
-IMAGES:
-- Total Images: ${websiteData.meta?.images?.total || 0}
-- Images with Alt Text: ${websiteData.meta?.images?.withAlt || 0}
-- Images without Alt Text: ${websiteData.meta?.images?.withoutAlt || 0}
-
-SOCIAL MEDIA:
-- Open Graph Title: ${websiteData.meta?.socialMedia?.openGraph?.title || 'Missing'}
-- Open Graph Description: ${websiteData.meta?.socialMedia?.openGraph?.description || 'Missing'}
-- Open Graph Image: ${websiteData.meta?.socialMedia?.openGraph?.image || 'Missing'}
-- Twitter Card: ${websiteData.meta?.socialMedia?.twitter?.card || 'Missing'}
-
-PERFORMANCE:
-- Performance Score: ${websiteData.performance?.score || 'Unknown'}/100
-- Load Time: ${websiteData.performance?.metrics?.loadTime || 'Unknown'} ms
-- Total Page Size: ${websiteData.performance?.metrics?.totalSize ? Math.round(websiteData.performance.metrics.totalSize / 1024) + ' KB' : 'Unknown'}
-
-MOBILE:
-- Mobile-Friendly: ${websiteData.mobile?.isMobileFriendly ? 'Yes' : 'No'}
-- Has Viewport Meta: ${websiteData.mobile?.hasViewportMeta ? 'Yes' : 'No'}
-- Is Responsive: ${websiteData.mobile?.isResponsive ? 'Yes' : 'No'}
-
-SECURITY:
-- HTTPS: ${websiteData.security?.isHttps ? 'Yes' : 'No'}
-
-${htmlSample}
-
-I need a detailed analysis in JSON format with the following structure:
-
-{
-  "overall": {
-    "score": <number between 0-100>,
-    "summary": "<brief summary of overall SEO health>",
-    "timestamp": "<current date and time>"
-  },
-  "technical": {
-    "score": <number between 0-100>,
-    "issues": [
-      {
-        "title": "<issue title>",
-        "description": "<detailed description>",
-        "severity": "<high|medium|low>",
-        "impact": "<impact on SEO>",
-        "recommendation": "<how to fix>"
-      }
-    ]
-  },
-  "content": {
-    "score": <number between 0-100>,
-    "issues": [<same structure as technical issues>]
-  },
-  "onPage": {
-    "score": <number between 0-100>,
-    "issues": [<same structure as technical issues>]
-  },
-  "performance": {
-    "score": <number between 0-100>,
-    "issues": [<same structure as technical issues>]
-  },
-  "mobile": {
-    "score": <number between 0-100>,
-    "issues": [<same structure as technical issues>]
-  },
-  "backlinks": {
-    "score": <number between 0-100>,
-    "issues": [<same structure as technical issues>]
-  },
-  "keywords": {
-    "score": <number between 0-100>,
-    "issues": [<same structure as technical issues>]
-  },
-  "recommendations": [
-    {
-      "title": "<recommendation title>",
-      "description": "<detailed description>",
-      "severity": "<high|medium|low>",
-      "impact": "<expected impact>",
-      "recommendation": "<how to fix>"
-    }
-  ]
-}
-
-Please analyze the website thoroughly, including:
-1. Technical SEO (crawlability, indexability, site structure, SSL, mobile-friendliness, etc.)
-2. On-page SEO (meta tags, headings, content quality, internal linking, etc.)
-3. Performance (page speed, Core Web Vitals, etc.)
-4. Content quality and optimization
-5. Backlink profile
-6. Keyword targeting and opportunities
-
-For each issue, provide specific details and actionable recommendations. Assign appropriate severity levels and prioritize recommendations based on potential impact and implementation effort.
-
-Return ONLY the JSON object with no additional text or explanation.
-`;
-};
-
-/**
  * Calculate a score from an AI-generated report
  */
 const calculateScoreFromAIReport = (report: any): number => {
@@ -1613,7 +1302,7 @@ const analyzeOnPageSEO = (report: SEOReport, websiteData: any) => {
   // Check H1 tags
   if (!websiteData.meta?.headings?.h1 || websiteData.meta.headings.h1.length === 0) {
     issues.push({
-      title: "Missing H1 tag",
+      title: "Missing H1 heading",
       description: "The page does not have an H1 heading.",
       severity: "high",
       impact: "H1 headings help search engines understand the main topic of the page.",
@@ -1801,7 +1490,7 @@ const generateReportRecommendations = (report: SEOReport) => {
   // Add some general recommendations if we don't have many specific ones
   if (recommendations.length < 3) {
     recommendations.push({
-      title: "Improve content quality",
+      title: 'Improve content quality',
       description: "The content could be more comprehensive and engaging.",
       severity: "medium",
       impact: "Better content leads to higher engagement and search engine rankings.",
@@ -2262,9 +1951,9 @@ const generateSiteWideRecommendations = (
   recommendations.push({
     title: 'Implement Consistent SEO Strategy',
     description: `Create a consistent SEO strategy across all pages of ${domain}`,
-    severity: 'medium',
-    impact: 'A consistent SEO strategy improves overall site visibility and ranking potential.',
-    recommendation: 'Develop and implement a site-wide SEO strategy that addresses meta tags, content quality, internal linking, and keyword optimization across all pages.'
+    severity: "medium",
+    impact: "A consistent SEO strategy improves overall site visibility and ranking potential.",
+    recommendation: "Develop and implement a site-wide SEO strategy that addresses meta tags, content quality, internal linking, and keyword optimization across all pages."
   });
   
   // Add recommendations for content improvement if content issues exist
@@ -2272,9 +1961,9 @@ const generateSiteWideRecommendations = (
     recommendations.push({
       title: 'Develop a Content Improvement Plan',
       description: `Improve content quality across ${domain}`,
-      severity: 'medium',
-      impact: 'High-quality, relevant content improves user engagement and search engine rankings.',
-      recommendation: 'Create a content calendar to regularly update existing content and add new, valuable content that addresses user needs and incorporates relevant keywords.'
+      severity: "medium",
+      impact: "High-quality, relevant content improves user engagement and search engine rankings.",
+      recommendation: "Create a content calendar to regularly update existing content and add new, valuable content that addresses user needs and incorporates relevant keywords."
     });
   }
   
@@ -2283,9 +1972,9 @@ const generateSiteWideRecommendations = (
     recommendations.push({
       title: 'Resolve Technical SEO Issues',
       description: `Fix technical issues across ${domain}`,
-      severity: 'high',
-      impact: 'Technical issues can prevent search engines from properly indexing and ranking your site.',
-      recommendation: 'Prioritize fixing technical issues like broken links, slow loading times, and mobile responsiveness problems across all pages.'
+      severity: "high",
+      impact: "Technical issues can prevent search engines from properly indexing and ranking your site.",
+      recommendation: "Prioritize fixing technical issues like broken links, slow loading times, and mobile responsiveness problems across all pages."
     });
   }
   
@@ -2346,6 +2035,55 @@ export const getSEOAuditsByClientId = async (clientId: string): Promise<SEOAudit
   try {
     console.log(`Getting SEO audits for client: ${clientId}`);
     
+    // Get the current user from Supabase session
+    const { data: { session } } = await supabase.auth.getSession();
+    const user = session?.user;
+    
+    if (!user) {
+      console.error('No authenticated user found');
+      return [];
+    }
+    
+    // Get the user's role from metadata
+    const isAdmin = user.user_metadata?.role === 'admin';
+    
+    // If admin, get all audits for the specified client
+    if (isAdmin) {
+      const { data, error } = await supabase
+        .from('seo_audits')
+        .select('*')
+        .eq('client_id', clientId)
+        .order('created_at', { ascending: false });
+      
+      if (error) {
+        console.error('Error fetching SEO audits:', error);
+        return [];
+      }
+      
+      return data || [];
+    }
+    
+    // For regular clients, check if they're accessing their own data
+    // Get the client record associated with this user
+    const { data: clientData, error: clientError } = await supabase
+      .from('clients')
+      .select('id')
+      .eq('user_id', user.id)
+      .single();
+      
+    if (clientError || !clientData) {
+      console.error('Error fetching client data:', clientError);
+      return [];
+    }
+    
+    const currentClientId = clientData.id;
+    
+    // Ensure the client can only access their own audits
+    if (currentClientId !== clientId) {
+      console.warn(`Client ${currentClientId} attempted to access SEO audits for client ${clientId}`);
+      return [];
+    }
+    
     const { data, error } = await supabase
       .from('seo_audits')
       .select('*')
@@ -2360,7 +2098,7 @@ export const getSEOAuditsByClientId = async (clientId: string): Promise<SEOAudit
     return data || [];
   } catch (error) {
     console.error('Error fetching SEO audits:', error);
-    return [];
+    return []; // Return empty array instead of throwing to avoid breaking the UI
   }
 };
 
@@ -2414,46 +2152,70 @@ export const getSEOAuditById = async (auditId: string): Promise<SEOAudit | null>
 /**
  * Generates an SEO audit for a given URL using real web data
  */
-export const generateSEOAudit = async (url: string, clientId: string): Promise<SEOAudit> => {
+export const generateSEOAudit = async (url: string, clientId: string, auditId?: string): Promise<SEOAudit> => {
   try {
     // Normalize the URL
     if (!url.startsWith('http')) {
       url = 'https://' + url;
     }
     
-    // Create a proper UUID for the audit
-    const auditId = generateUUID();
+    // Get the user ID from the session
+    const { data: { session } } = await supabase.auth.getSession();
+    const userId = session?.user?.id || 'anonymous';
+    
+    // Use provided auditId or generate a new one if not provided
+    const id = auditId || generateUUID();
+    
+    console.log(`Creating SEO audit with ID: ${id} for URL: ${url}`);
+    
+    const timestamp = new Date().toISOString();
+    
+    // Create the audit object
+    const auditObject = {
+      id,
+      client_id: clientId,
+      user_id: userId,
+      url,
+      status: 'in-progress',
+      score: 0,
+      report: null,
+      created_at: timestamp,
+      updated_at: timestamp
+    };
     
     // Create an initial audit record
-    const { data: auditData, error: auditError } = await supabase
+    const { error: auditError } = await supabase
       .from('seo_audits')
-      .insert([
-        {
-          id: auditId,
-          client_id: clientId,
-          url: url,
-          status: 'in-progress',
-          score: 0,
-          report: null
-        }
-      ])
-      .select()
-      .single();
+      .insert([auditObject]);
     
     if (auditError) {
       console.error('Error creating SEO audit:', auditError);
       throw auditError;
     }
     
-    // Get the user ID from the session
-    const { data: sessionData } = await supabase.auth.getSession();
-    const userId = sessionData?.session?.user?.id || 'anonymous';
+    // Fetch the newly created audit
+    const { data: fetchedAudit, error: fetchError } = await supabase
+      .from('seo_audits')
+      .select('*')
+      .eq('id', id)
+      .single();
+    
+    if (fetchError || !fetchedAudit) {
+      console.error('Error fetching created audit:', fetchError);
+      // If we can't fetch the audit, return the object we tried to create
+      console.log('Using created audit object as fallback');
+      // Start the audit process asynchronously
+      processComprehensiveSEOAudit(url, id, userId);
+      return auditObject as SEOAudit;
+    }
+    
+    console.log('Successfully created SEO audit:', fetchedAudit);
     
     // Start the audit process asynchronously
     // This will crawl all pages and generate a comprehensive report
-    processComprehensiveSEOAudit(url, auditId, userId);
+    processComprehensiveSEOAudit(url, id, userId);
     
-    return auditData;
+    return fetchedAudit;
   } catch (error) {
     console.error('Error generating SEO audit:', error);
     throw error;
@@ -2461,9 +2223,17 @@ export const generateSEOAudit = async (url: string, clientId: string): Promise<S
 };
 
 /**
- * Generates a random UUID v4
+ * Generates a random UUID v4 that is PostgreSQL compatible
  */
 const generateUUID = (): string => {
+  // Use the native crypto.randomUUID if available (modern browsers)
+  if (typeof crypto !== 'undefined' && crypto.randomUUID) {
+    return crypto.randomUUID();
+  }
+  
+  // Fallback implementation for older browsers
+  // Format: xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx
+  // Where y is 8, 9, a, or b
   return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, function(c) {
     const r = Math.random() * 16 | 0;
     const v = c === 'x' ? r : (r & 0x3 | 0x8);

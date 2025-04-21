@@ -64,7 +64,7 @@ export const clientLogin = async (username: string, password: string): Promise<C
   console.log('Attempting login with email:', email);
   
   try {
-    // Authenticate with Supabase Auth
+    // Standard authentication flow with Supabase Auth
     const { data, error } = await supabase.auth.signInWithPassword({ email, password });
     
     if (error) {
@@ -82,14 +82,6 @@ export const clientLogin = async (username: string, password: string): Promise<C
     console.log('Successfully authenticated with Supabase Auth. User ID:', userId);
     console.log('Looking up client with user_id:', userId);
 
-    // First, let's check what's in the clients table
-    const { data: allClients, error: allClientsError } = await supabase
-      .from('clients')
-      .select('id, name, user_id');
-    
-    console.log('All clients with their user_id values:', allClients);
-    console.log('Any error fetching clients:', allClientsError);
-
     // Try to find the client by user_id
     const { data: clientData, error: clientError } = await supabase
       .from('clients')
@@ -106,9 +98,37 @@ export const clientLogin = async (username: string, password: string): Promise<C
       console.log('Extracted client from array:', client);
     }
 
+    // Special case for Altare - if email is hello@joinaltare.com, use client-004
+    if (email.toLowerCase() === 'hello@joinaltare.com' && !client) {
+      console.log('Special case for Altare detected by email');
+      
+      const { data: altareData, error: altareError } = await supabase
+        .from('clients')
+        .select('*')
+        .eq('id', 'client-004')
+        .single();
+        
+      if (!altareError && altareData) {
+        client = altareData;
+        console.log('Found Altare client by ID:', client);
+        
+        // Update the client record with the user_id for future logins
+        const { error: updateError } = await supabase
+          .from('clients')
+          .update({ user_id: userId })
+          .eq('id', 'client-004');
+          
+        if (updateError) {
+          console.error('Error updating Altare with user_id:', updateError);
+        } else {
+          console.log('Updated Altare client record with user_id:', userId);
+        }
+      }
+    }
+
     // If no client found by user_id, try by email/username as fallback
     if (clientError || !client) {
-      console.log('No client found by user_id, trying by username/email:', email);
+      console.log('No client found by user_id, trying by email:', email);
       
       const { data: emailClientData, error: emailClientError } = await supabase
         .from('clients')

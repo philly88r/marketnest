@@ -181,6 +181,54 @@ export const generateCustomEmailTemplate = async (
  */
 export const getEmailTemplatesByClientId = async (clientId: string): Promise<EmailTemplate[]> => {
   try {
+    // Get the current user from Supabase session
+    const { data: { session } } = await supabase.auth.getSession();
+    const user = session?.user;
+    
+    if (!user) {
+      console.error('No authenticated user found');
+      return [];
+    }
+    
+    // Get the user's role from metadata
+    const isAdmin = user.user_metadata?.role === 'admin';
+    
+    // If admin, get all templates for the specified client
+    if (isAdmin) {
+      const { data, error } = await supabase
+        .from('email_templates')
+        .select('*')
+        .eq('client_id', clientId)
+        .order('created_at', { ascending: false });
+      
+      if (error) {
+        throw error;
+      }
+      
+      return data || [];
+    }
+    
+    // For regular clients, check if they're accessing their own data
+    // Get the client record associated with this user
+    const { data: clientData, error: clientError } = await supabase
+      .from('clients')
+      .select('id')
+      .eq('user_id', user.id)
+      .single();
+      
+    if (clientError || !clientData) {
+      console.error('Error fetching client data:', clientError);
+      return [];
+    }
+    
+    const currentClientId = clientData.id;
+    
+    // Ensure the client can only access their own templates
+    if (currentClientId !== clientId) {
+      console.warn(`Client ${currentClientId} attempted to access email templates for client ${clientId}`);
+      return [];
+    }
+    
     const { data, error } = await supabase
       .from('email_templates')
       .select('*')
@@ -194,7 +242,7 @@ export const getEmailTemplatesByClientId = async (clientId: string): Promise<Ema
     return data || [];
   } catch (error) {
     console.error('Error fetching email templates:', error);
-    throw error;
+    return []; // Return empty array instead of throwing to avoid breaking the UI
   }
 };
 
