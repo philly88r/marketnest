@@ -538,7 +538,7 @@ const PageTitle = styled.div`
   background-color: ${LIBERTY_BEANS_COLORS.primary};
   border-bottom: 1px solid #333;
   position: relative;
-  z-index: 10;
+  z-index: 20; /* Increased z-index to ensure it's above the site header */
   margin-bottom: 20px;
   border-radius: 8px;
   margin: 0 20px 20px 20px;
@@ -559,6 +559,35 @@ const TitleText = styled.h1`
 const ActionButtons = styled.div`
   display: flex;
   gap: 12px;
+  position: relative;
+  z-index: 30; /* Higher z-index than PageTitle to ensure buttons are clickable */
+`;
+
+const Button = styled.button`
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background-color: #333;
+  color: #ffffff;
+  border: none;
+  border-radius: 4px;
+  padding: 10px 16px;
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background-color 0.2s;
+  margin: 0 4px;
+  white-space: nowrap;
+  position: relative;
+  z-index: 30; /* Same high z-index to ensure buttons are clickable */
+
+  &:hover {
+    background-color: #444;
+  }
+
+  svg {
+    margin-right: 8px;
+  }
 `;
 
 const Content = styled.div`
@@ -805,31 +834,6 @@ const ButtonGroup = styled.div`
   justify-content: flex-end;
   gap: 12px;
   margin-top: 8px;
-`;
-
-const Button = styled.button`
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  background-color: #333;
-  color: #ffffff;
-  border: none;
-  border-radius: 4px;
-  padding: 10px 16px;
-  font-size: 14px;
-  font-weight: 600;
-  cursor: pointer;
-  transition: background-color 0.2s;
-  margin: 0 4px;
-  white-space: nowrap;
-
-  &:hover {
-    background-color: #444;
-  }
-
-  svg {
-    margin-right: 8px;
-  }
 `;
 
 const ErrorMessage = styled.div`

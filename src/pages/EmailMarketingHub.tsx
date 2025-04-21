@@ -18,7 +18,7 @@ const PageContainer = styled.div`
 
 const ContentContainer = styled.div`
   position: relative;
-  z-index: 1;
+  z-index: 5; /* Ensure this is lower than the buttons but high enough to be above other elements */
   max-width: 100%;
   padding-top: 120px; /* Increased padding to ensure content is well below the header */
 `;
