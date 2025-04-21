@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
+import { useNavigate, useParams } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import styled from 'styled-components';
 import { FiArrowLeft, FiEdit, FiMail, FiPhone, FiActivity, FiCalendar, FiCheckCircle, FiClock, FiCircle, FiFolder, FiList, FiSave, FiX, FiPlus, FiTrash2 } from 'react-icons/fi';
@@ -560,6 +561,7 @@ const ClientDashboard: React.FC<ClientDashboardProps> = ({ clientId, onBack }) =
   const [selectedProject, setSelectedProject] = useState<Project | null>(null);
   const [isCreatingProject, setIsCreatingProject] = useState<boolean>(false);
   const isEditingRef = useRef<boolean>(false);
+  const navigate = useNavigate();
 
   // Function to fetch projects
   const fetchProjects = async () => {
@@ -1216,7 +1218,7 @@ const ClientDashboard: React.FC<ClientDashboardProps> = ({ clientId, onBack }) =
             <p>Create and manage email marketing campaigns for Liberty Beans Coffee.</p>
             <div style={{ marginTop: '20px' }}>
               <button 
-                onClick={() => window.location.href = `/email-marketing?clientId=${clientId}`}
+                onClick={() => navigate(`/email-marketing?clientId=${clientId}`)}
                 style={{
                   display: 'inline-flex',
                   alignItems: 'center',
@@ -1231,7 +1233,8 @@ const ClientDashboard: React.FC<ClientDashboardProps> = ({ clientId, onBack }) =
                   cursor: 'pointer'
                 }}
               >
-                {renderIcon(FiMail)} Open Email Marketing Hub
+                <FiMail size={18} />
+                Open Email Marketing Hub
               </button>
             </div>
           </div>

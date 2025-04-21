@@ -3,7 +3,7 @@ import styled from 'styled-components';
 import { supabase } from '../utils/supabaseClient';
 import Modal from "./Modal";
 
-// This component is dedicated for client-004's custom checklist table
+// This component is dedicated for Altare's custom checklist table
 interface ChecklistItem {
   id: number;
   feature: string;
@@ -19,7 +19,7 @@ interface ChecklistItem {
 type FilterType = 'all' | 'completed' | 'pending';
 type SortType = 'id' | 'feature' | 'complete_by' | 'complete';
 
-const Client004Checklist: React.FC = () => {
+const AltareChecklist: React.FC = () => {
   const [items, setItems] = useState<ChecklistItem[]>([]);
   const [filteredItems, setFilteredItems] = useState<ChecklistItem[]>([]);
   const [isLoading, setIsLoading] = useState(true);
@@ -443,7 +443,7 @@ const Client004Checklist: React.FC = () => {
   return (
     <Container>
       <Header>
-        <h2>Client 004 Feature Checklist</h2>
+        <h2>Altare Feature Checklist</h2>
         <StatsContainer>
           <Stat>
             <StatValue>{completedCount}</StatValue>
@@ -626,7 +626,7 @@ const Client004Checklist: React.FC = () => {
       )}
       
       <StyledModal open={modalOpen} onClose={closeModal}>
-        <ModalContent>
+        <ModalContent onClick={e => e.stopPropagation()}>
           <h3>{isNewItem ? 'Add New Checklist Item' : 'Edit Checklist Item'}</h3>
           
           <FormGroup>
@@ -854,6 +854,7 @@ const SearchInput = styled.input`
   
   &:focus {
     outline: none;
+    border-color: #0df9b6;
     box-shadow: 0 0 0 2px rgba(13, 249, 182, 0.5);
   }
 `;
@@ -1291,4 +1292,4 @@ const CancelButton = styled.button`
   }
 `;
 
-export default Client004Checklist;
+export default AltareChecklist;
