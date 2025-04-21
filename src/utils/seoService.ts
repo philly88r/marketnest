@@ -156,14 +156,11 @@ const fetchWebsiteData = async (url: string): Promise<any> => {
       throw new Error(`Failed to fetch website data: ${response.statusText}`);
     }
     
-    const data = await response.json();
-    
-    if (data.error) {
-      throw new Error(`Proxy error: ${data.message || data.error}`);
-    }
+    // Get the HTML content directly as text
+    const html = await response.text();
     
     // Parse the HTML content with Cheerio
-    const $ = cheerio.load(data.html);
+    const $ = cheerio.load(html);
     
     // Extract metadata
     const metaData = extractMetaData($, url);
@@ -183,7 +180,7 @@ const fetchWebsiteData = async (url: string): Promise<any> => {
       mobile: mobileData,
       security: securityData,
       timestamp: new Date().toISOString(),
-      rawHtml: data.html.substring(0, 50000) // Store a portion of the raw HTML for AI analysis
+      rawHtml: html.substring(0, 50000) // Store a portion of the raw HTML for AI analysis
     };
   } catch (error) {
     console.error('Error fetching website data:', error);

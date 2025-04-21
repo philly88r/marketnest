@@ -23,15 +23,15 @@ router.get('/fetch', async (req, res) => {
         'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36'
       },
       timeout: 10000, // 10 second timeout
-      maxContentLength: 5000000 // Limit response size to 5MB
+      maxContentLength: 5000000, // Limit response size to 5MB
+      responseType: 'text' // Ensure we get the raw HTML as text
     });
     
     // Return the HTML content and headers
-    res.json({
-      html: response.data,
-      headers: response.headers,
-      status: response.status
-    });
+    res.set("Content-Type", response.headers['content-type']);
+    res.set("Server", response.headers['server']);
+    res.set("Last-Modified", response.headers['last-modified']);
+    res.status(response.status).send(response.data);
   } catch (error) {
     console.error('Error in SEO proxy:', error.message);
     
