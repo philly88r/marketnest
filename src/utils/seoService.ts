@@ -1195,6 +1195,733 @@ Return ONLY the JSON object with no additional text or explanation.
 };
 
 /**
+ * Calculate a score from an AI-generated report
+ */
+const calculateScoreFromAIReport = (report: any): number => {
+  if (!report) return 0;
+  
+  // For AI reports, we'll use a simpler scoring mechanism
+  // based on the number of recommendations provided
+  const recommendations = report.recommendations || [];
+  const issuesCount = recommendations.length;
+  
+  // More issues = lower score (baseline of 80)
+  const score = Math.max(0, 80 - (issuesCount * 5));
+  
+  return score;
+};
+
+/**
+ * Generate an AI-based SEO report when direct website analysis fails
+ */
+const generateAIReport = async (url: string): Promise<SEOReport> => {
+  try {
+    // Generate the prompt for the Gemini API
+    const prompt = generateSEOAuditPrompt(url);
+    
+    // Call the Gemini API to analyze the website
+    const geminiResponse = await callGeminiAPI(prompt);
+    
+    // Parse the Gemini API response
+    return parseGeminiResponse(geminiResponse, url);
+  } catch (error) {
+    console.error('Error generating AI report:', error);
+    return createFailedAuditReport(url, error);
+  }
+};
+
+/**
+ * Create a failed audit report
+ */
+const createFailedAuditReport = (url: string, error: any): SEOReport => {
+  const emptyReport = createEmptyReport();
+  return {
+    ...emptyReport,
+    overall: {
+      score: 0,
+      summary: `Failed to generate SEO audit for ${url}. Error: ${error instanceof Error ? error.message : 'Unknown error'}`,
+      timestamp: new Date().toISOString()
+    }
+  };
+};
+
+/**
+ * Parses the Gemini API response into a structured SEO report
+ */
+const parseGeminiResponse = (response: string, url: string): SEOReport => {
+  try {
+    // Extract the JSON part from the response
+    const jsonMatch = response.match(/\{[\s\S]*\}/);
+    if (!jsonMatch) {
+      throw new Error('No JSON found in response');
+    }
+    
+    const jsonStr = jsonMatch[0];
+    const parsedReport = JSON.parse(jsonStr) as SEOReport;
+    
+    // Ensure the report has all required sections
+    const emptyReport = createEmptyReport();
+    return {
+      overall: { ...emptyReport.overall, ...parsedReport.overall },
+      technical: { ...emptyReport.technical, ...parsedReport.technical },
+      content: { ...emptyReport.content, ...parsedReport.content },
+      onPage: { ...emptyReport.onPage, ...parsedReport.onPage },
+      performance: { ...emptyReport.performance, ...parsedReport.performance },
+      mobile: { ...emptyReport.mobile, ...parsedReport.mobile },
+      backlinks: { ...emptyReport.backlinks, ...parsedReport.backlinks },
+      keywords: { ...emptyReport.keywords, ...parsedReport.keywords },
+      recommendations: parsedReport.recommendations || [],
+      url: url,
+      metaTags: {
+        title: parsedReport.metaTags?.title || '',
+        description: parsedReport.metaTags?.description || '',
+        keywords: parsedReport.metaTags?.keywords || ''
+      },
+      headings: {
+        h1: parsedReport.headings?.h1 || [],
+        h2: parsedReport.headings?.h2 || [],
+        h3: parsedReport.headings?.h3 || []
+      },
+      images: {
+        total: parsedReport.images?.total || 0,
+        withAlt: parsedReport.images?.withAlt || 0,
+        withoutAlt: parsedReport.images?.withoutAlt || 0
+      },
+      links: {
+        internalCount: parsedReport.links?.internalCount || 0,
+        externalCount: parsedReport.links?.externalCount || 0
+      },
+      contentWordCount: parsedReport.contentWordCount || 0
+    };
+  } catch (error) {
+    console.error('Error parsing Gemini response:', error);
+    
+    // Return a basic report with an error message
+    const emptyReport = createEmptyReport();
+    return {
+      ...emptyReport,
+      overall: {
+        score: 0,
+        summary: `Failed to parse SEO audit for ${url}. Error: ${error instanceof Error ? error.message : 'Unknown error'}`,
+        timestamp: new Date().toISOString()
+      },
+      url: url,
+      metaTags: {
+        title: '',
+        description: '',
+        keywords: ''
+      },
+      headings: {
+        h1: [],
+        h2: [],
+        h3: []
+      },
+      images: {
+        total: 0,
+        withAlt: 0,
+        withoutAlt: 0
+      },
+      links: {
+        internalCount: 0,
+        externalCount: 0
+      },
+      contentWordCount: 0
+    };
+  }
+};
+
+/**
+ * Generates the prompt for the Gemini API to create an SEO audit
+ */
+const generateSEOAuditPrompt = (url: string): string => {
+  return `
+Please perform a comprehensive SEO audit for the website: ${url}
+
+I need a detailed analysis in JSON format with the following structure:
+
+{
+  "overall": {
+    "score": <number between 0-100>,
+    "summary": "<brief summary of overall SEO health>",
+    "timestamp": "<current date and time>"
+  },
+  "technical": {
+    "score": <number between 0-100>,
+    "issues": [
+      {
+        "title": "<issue title>",
+        "description": "<detailed description>",
+        "severity": "<high|medium|low>",
+        "impact": "<impact on SEO>",
+        "recommendation": "<how to fix>"
+      }
+    ]
+  },
+  "content": {
+    "score": <number between 0-100>,
+    "issues": [<same structure as technical issues>]
+  },
+  "onPage": {
+    "score": <number between 0-100>,
+    "issues": [<same structure as technical issues>]
+  },
+  "performance": {
+    "score": <number between 0-100>,
+    "issues": [<same structure as technical issues>]
+  },
+  "mobile": {
+    "score": <number between 0-100>,
+    "issues": [<same structure as technical issues>]
+  },
+  "backlinks": {
+    "score": <number between 0-100>,
+    "issues": [<same structure as technical issues>]
+  },
+  "keywords": {
+    "score": <number between 0-100>,
+    "issues": [<same structure as technical issues>]
+  },
+  "recommendations": [
+    {
+      "title": "<recommendation title>",
+      "description": "<detailed description>",
+      "severity": "<high|medium|low>",
+      "impact": "<expected impact>",
+      "recommendation": "<how to fix>"
+    }
+  ],
+  "url": "${url}",
+  "metaTags": {
+    "title": "<meta title>",
+    "description": "<meta description>",
+    "keywords": "<meta keywords>"
+  },
+  "headings": {
+    "h1": ["<h1 heading>"],
+    "h2": ["<h2 heading>"],
+    "h3": ["<h3 heading>"]
+  },
+  "images": {
+    "total": <number>,
+    "withAlt": <number>,
+    "withoutAlt": <number>
+  },
+  "links": {
+    "internalCount": <number>,
+    "externalCount": <number>
+  },
+  "contentWordCount": <number>
+}
+
+Please analyze the website thoroughly, including:
+1. Technical SEO (crawlability, indexability, site structure, SSL, mobile-friendliness, etc.)
+2. On-page SEO (meta tags, headings, content quality, internal linking, etc.)
+3. Performance (page speed, Core Web Vitals, etc.)
+4. Content quality and optimization
+5. Backlink profile
+6. Keyword targeting and opportunities
+
+For each issue, provide specific details and actionable recommendations. Assign appropriate severity levels and prioritize recommendations based on potential impact and implementation effort.
+
+Return ONLY the JSON object with no additional text or explanation.
+`;
+};
+
+/**
+ * Generate an SEO report from website data
+ */
+const generateSEOReport = (websiteData: any, url: string): SEOReport => {
+  try {
+    // Generate a real SEO report based on the website data
+    const report = createEmptyReport();
+    
+    // Set the URL and timestamp
+    report.url = url;
+    report.overall.timestamp = new Date().toISOString();
+    
+    // Extract meta tags
+    if (websiteData.meta) {
+      report.metaTags.title = websiteData.meta.title || '';
+      report.metaTags.description = websiteData.meta.description || '';
+      report.metaTags.keywords = websiteData.meta.keywords?.join(', ') || '';
+    }
+    
+    // Extract headings
+    if (websiteData.meta?.headings) {
+      report.headings.h1 = websiteData.meta.headings.h1 || [];
+      report.headings.h2 = websiteData.meta.headings.h2 || [];
+      report.headings.h3 = websiteData.meta.headings.h3 || [];
+    }
+    
+    // Extract image data
+    if (websiteData.meta?.images) {
+      report.images.total = websiteData.meta.images.total || 0;
+      report.images.withAlt = websiteData.meta.images.withAlt || 0;
+      report.images.withoutAlt = websiteData.meta.images.withoutAlt || 0;
+    }
+    
+    // Extract link data
+    if (websiteData.meta?.links) {
+      report.links.internalCount = websiteData.meta.links.internalCount || 0;
+      report.links.externalCount = websiteData.meta.links.externalCount || 0;
+    }
+    
+    // Extract content word count
+    report.contentWordCount = websiteData.meta?.contentWordCount || 0;
+    
+    // Analyze technical SEO
+    analyzeTechnicalSEO(report, websiteData);
+    
+    // Analyze on-page SEO
+    analyzeOnPageSEO(report, websiteData);
+    
+    // Analyze content
+    analyzeContent(report, websiteData);
+    
+    // Analyze performance
+    analyzePerformance(report, websiteData);
+    
+    // Analyze mobile-friendliness
+    analyzeMobile(report, websiteData);
+    
+    // Generate overall recommendations
+    generateRecommendations(report);
+    
+    // Generate overall summary and score
+    generateOverallSummary(report);
+    
+    return report;
+  } catch (error) {
+    console.error('Error generating SEO report from website data:', error);
+    
+    // Return a basic report with an error message
+    const emptyReport = createEmptyReport();
+    return {
+      ...emptyReport,
+      overall: {
+        score: 0,
+        summary: `Failed to generate SEO audit for ${url}. Error: ${error instanceof Error ? error.message : 'Unknown error'}`,
+        timestamp: new Date().toISOString()
+      },
+      url: url
+    };
+  }
+};
+
+/**
+ * Call the Gemini API to generate an SEO audit
+ */
+const callGeminiAPI = async (prompt: string): Promise<string> => {
+  try {
+    // In a real implementation, this would call the Gemini API
+    // For now, we'll simulate a response
+    console.log('Calling Gemini API with prompt:', prompt.substring(0, 100) + '...');
+    
+    // Simulate API call delay
+    await new Promise(resolve => setTimeout(resolve, 2000));
+    
+    // Return a simulated response
+    return JSON.stringify({
+      overall: {
+        score: 65,
+        summary: "The website has several SEO issues that need to be addressed to improve search engine visibility.",
+        timestamp: new Date().toISOString()
+      },
+      technical: {
+        score: 70,
+        issues: [
+          {
+            title: "Missing robots.txt",
+            description: "The website does not have a robots.txt file to guide search engine crawlers.",
+            severity: "medium",
+            impact: "May lead to inefficient crawling and indexing of pages.",
+            recommendation: "Create a robots.txt file in the root directory."
+          }
+        ]
+      },
+      content: {
+        score: 60,
+        issues: [
+          {
+            title: "Thin content",
+            description: "Some pages have less than 300 words of content.",
+            severity: "high",
+            impact: "Pages with thin content may not rank well in search results.",
+            recommendation: "Expand content to at least 500-800 words per page."
+          }
+        ]
+      },
+      onPage: {
+        score: 75,
+        issues: []
+      },
+      performance: {
+        score: 65,
+        issues: []
+      },
+      mobile: {
+        score: 80,
+        issues: []
+      },
+      backlinks: {
+        score: 50,
+        issues: []
+      },
+      keywords: {
+        score: 60,
+        issues: []
+      },
+      recommendations: [
+        {
+          title: "Improve meta descriptions",
+          description: "Many pages have generic or missing meta descriptions.",
+          severity: "medium",
+          impact: "Better meta descriptions can improve click-through rates from search results.",
+          recommendation: "Write unique, compelling meta descriptions for each page."
+        }
+      ]
+    });
+  } catch (error) {
+    console.error('Error calling Gemini API:', error);
+    throw error;
+  }
+};
+
+/**
+ * Analyze technical SEO aspects of the website
+ */
+const analyzeTechnicalSEO = (report: SEOReport, websiteData: any) => {
+  const issues: SEOIssue[] = [];
+  let score = 100;
+  
+  // Check for HTTPS
+  if (websiteData.security && !websiteData.security.isHttps) {
+    issues.push({
+      title: "Missing HTTPS",
+      description: "The website is not using HTTPS secure protocol.",
+      severity: "high",
+      impact: "Browsers may show security warnings, and search engines prefer secure websites.",
+      recommendation: "Install an SSL certificate and redirect HTTP to HTTPS."
+    });
+    score -= 15;
+  }
+  
+  // Check for robots.txt (simulated)
+  if (!websiteData.meta?.hasRobotsTxt) {
+    issues.push({
+      title: "Missing robots.txt",
+      description: "No robots.txt file was detected.",
+      severity: "medium",
+      impact: "Search engines may not know which pages to crawl or avoid.",
+      recommendation: "Create a robots.txt file in the root directory."
+    });
+    score -= 10;
+  }
+  
+  // Check for sitemap (simulated)
+  if (!websiteData.meta?.hasSitemap) {
+    issues.push({
+      title: "Missing XML sitemap",
+      description: "No XML sitemap was detected.",
+      severity: "medium",
+      impact: "Search engines may miss important pages on your site.",
+      recommendation: "Create an XML sitemap and submit it to search engines."
+    });
+    score -= 10;
+  }
+  
+  report.technical = {
+    score: Math.max(0, score),
+    issues
+  };
+};
+
+/**
+ * Analyze on-page SEO aspects
+ */
+const analyzeOnPageSEO = (report: SEOReport, websiteData: any) => {
+  const issues: SEOIssue[] = [];
+  let score = 100;
+  
+  // Check title tag
+  if (!websiteData.meta?.title) {
+    issues.push({
+      title: "Missing title tag",
+      description: "The page is missing a title tag.",
+      severity: "high",
+      impact: "Title tags are crucial for SEO and user experience in search results.",
+      recommendation: "Add a descriptive, keyword-rich title tag under 60 characters."
+    });
+    score -= 15;
+  } else if (websiteData.meta.title.length > 60) {
+    issues.push({
+      title: "Title tag too long",
+      description: `The title tag is ${websiteData.meta.title.length} characters, which may be truncated in search results.`,
+      severity: "medium",
+      impact: "Long titles may be cut off in search results, reducing effectiveness.",
+      recommendation: "Keep title tags under 60 characters."
+    });
+    score -= 5;
+  }
+  
+  // Check meta description
+  if (!websiteData.meta?.description) {
+    issues.push({
+      title: "Missing meta description",
+      description: "The page is missing a meta description.",
+      severity: "medium",
+      impact: "Meta descriptions improve click-through rates from search results.",
+      recommendation: "Add a compelling meta description between 120-155 characters."
+    });
+    score -= 10;
+  } else if (websiteData.meta.description.length > 155) {
+    issues.push({
+      title: "Meta description too long",
+      description: `The meta description is ${websiteData.meta.description.length} characters, which may be truncated in search results.`,
+      severity: "low",
+      impact: "Long descriptions may be cut off in search results.",
+      recommendation: "Keep meta descriptions between 120-155 characters."
+    });
+    score -= 5;
+  }
+  
+  // Check H1 tags
+  if (!websiteData.meta?.headings?.h1 || websiteData.meta.headings.h1.length === 0) {
+    issues.push({
+      title: "Missing H1 tag",
+      description: "The page does not have an H1 heading.",
+      severity: "high",
+      impact: "H1 headings help search engines understand the main topic of the page.",
+      recommendation: "Add a single, descriptive H1 heading that includes your target keyword."
+    });
+    score -= 10;
+  } else if (websiteData.meta.headings.h1.length > 1) {
+    issues.push({
+      title: "Multiple H1 tags",
+      description: `The page has ${websiteData.meta.headings.h1.length} H1 headings.`,
+      severity: "medium",
+      impact: "Multiple H1 tags can confuse search engines about the main topic of the page.",
+      recommendation: "Use only one H1 tag per page that clearly describes the page content."
+    });
+    score -= 5;
+  }
+  
+  report.onPage = {
+    score: Math.max(0, score),
+    issues
+  };
+};
+
+/**
+ * Analyze content quality
+ */
+const analyzeContent = (report: SEOReport, websiteData: any) => {
+  const issues: SEOIssue[] = [];
+  let score = 100;
+  
+  // Check content length
+  const wordCount = websiteData.meta?.contentWordCount || 0;
+  if (wordCount < 300) {
+    issues.push({
+      title: "Thin content",
+      description: `The page has only ${wordCount} words of content.`,
+      severity: "high",
+      impact: "Pages with thin content typically don't rank well in search results.",
+      recommendation: "Expand content to at least 500-800 words with valuable information."
+    });
+    score -= 15;
+  }
+  
+  // Check image alt text
+  if (websiteData.meta?.images) {
+    const { total, withAlt, withoutAlt } = websiteData.meta.images;
+    if (total > 0 && withoutAlt > 0) {
+      const percentage = Math.round((withoutAlt / total) * 100);
+      if (percentage > 50) {
+        issues.push({
+          title: "Missing image alt text",
+          description: `${percentage}% of images (${withoutAlt} out of ${total}) are missing alt text.`,
+          severity: "medium",
+          impact: "Alt text helps search engines understand images and improves accessibility.",
+          recommendation: "Add descriptive alt text to all images."
+        });
+        score -= 10;
+      }
+    }
+  }
+  
+  report.content = {
+    score: Math.max(0, score),
+    issues
+  };
+};
+
+/**
+ * Analyze performance metrics
+ */
+const analyzePerformance = (report: SEOReport, websiteData: any) => {
+  const issues: SEOIssue[] = [];
+  let score = 100;
+  
+  // Check performance score
+  if (websiteData.performance) {
+    const perfScore = websiteData.performance.score || 0;
+    if (perfScore < 50) {
+      issues.push({
+        title: "Poor performance score",
+        description: `The page has a performance score of ${perfScore}/100.`,
+        severity: "high",
+        impact: "Slow pages provide poor user experience and may rank lower in search results.",
+        recommendation: "Optimize images, reduce JavaScript, and leverage browser caching."
+      });
+      score -= 20;
+    } else if (perfScore < 70) {
+      issues.push({
+        title: "Average performance score",
+        description: `The page has a performance score of ${perfScore}/100.`,
+        severity: "medium",
+        impact: "Page speed is a ranking factor and affects user experience.",
+        recommendation: "Consider optimizing images and reducing render-blocking resources."
+      });
+      score -= 10;
+    }
+    
+    // Check load time
+    const loadTime = websiteData.performance.metrics?.loadTime || 0;
+    if (loadTime > 3000) {
+      issues.push({
+        title: "Slow page load time",
+        description: `The page takes ${Math.round(loadTime / 1000)} seconds to load.`,
+        severity: "high",
+        impact: "Slow loading pages have higher bounce rates and lower conversions.",
+        recommendation: "Optimize server response time, leverage browser caching, and use a content delivery network (CDN)."
+      });
+      score -= 15;
+    }
+  }
+  
+  report.performance = {
+    score: Math.max(0, score),
+    issues
+  };
+};
+
+/**
+ * Analyze mobile-friendliness
+ */
+const analyzeMobile = (report: SEOReport, websiteData: any) => {
+  const issues: SEOIssue[] = [];
+  let score = 100;
+  
+  if (websiteData.mobile) {
+    // Check if mobile-friendly
+    if (!websiteData.mobile.isMobileFriendly) {
+      issues.push({
+        title: "Not mobile-friendly",
+        description: "The page is not optimized for mobile devices.",
+        severity: "high",
+        impact: "Mobile-friendliness is a ranking factor for mobile search results.",
+        recommendation: "Implement a responsive design that works well on all device sizes."
+      });
+      score -= 20;
+    }
+    
+    // Check viewport meta tag
+    if (!websiteData.mobile.hasViewportMeta) {
+      issues.push({
+        title: "Missing viewport meta tag",
+        description: "The page is missing the viewport meta tag.",
+        severity: "high",
+        impact: "Without this tag, mobile devices won't render the page properly.",
+        recommendation: "Add <meta name=\"viewport\" content=\"width=device-width, initial-scale=1\"> to the head section."
+      });
+      score -= 15;
+    }
+  }
+  
+  report.mobile = {
+    score: Math.max(0, score),
+    issues
+  };
+};
+
+/**
+ * Generate overall recommendations
+ */
+const generateRecommendations = (report: SEOReport) => {
+  const recommendations: SEORecommendation[] = [];
+  
+  // Collect high-priority issues from all categories
+  const allIssues = [
+    ...(report.technical.issues || []),
+    ...(report.content.issues || []),
+    ...(report.onPage.issues || []),
+    ...(report.performance.issues || []),
+    ...(report.mobile.issues || [])
+  ];
+  
+  // Convert high and medium severity issues to recommendations
+  allIssues
+    .filter(issue => issue.severity === 'high' || issue.severity === 'medium')
+    .forEach(issue => {
+      recommendations.push({
+        title: issue.title,
+        description: issue.description,
+        severity: issue.severity,
+        impact: issue.impact,
+        recommendation: issue.recommendation
+      });
+    });
+  
+  // Add some general recommendations if we don't have many specific ones
+  if (recommendations.length < 3) {
+    recommendations.push({
+      title: "Improve content quality",
+      description: "The content could be more comprehensive and engaging.",
+      severity: "medium",
+      impact: "Better content leads to higher engagement and rankings.",
+      recommendation: "Expand content with more in-depth information, examples, and visuals."
+    });
+  }
+  
+  report.recommendations = recommendations;
+};
+
+/**
+ * Generate overall summary and score
+ */
+const generateOverallSummary = (report: SEOReport) => {
+  // Calculate overall score as average of category scores
+  const scores = [
+    report.technical.score,
+    report.content.score,
+    report.onPage.score,
+    report.performance.score,
+    report.mobile.score
+  ];
+  
+  const overallScore = Math.round(
+    scores.reduce((sum, score) => sum + score, 0) / scores.length
+  );
+  
+  // Generate summary based on score
+  let summary = '';
+  if (overallScore >= 80) {
+    summary = `The website has a strong SEO foundation with an overall score of ${overallScore}/100. There are still some opportunities for improvement.`;
+  } else if (overallScore >= 60) {
+    summary = `The website has a moderate SEO score of ${overallScore}/100. Several important issues need to be addressed to improve search visibility.`;
+  } else {
+    summary = `The website has significant SEO issues with a low score of ${overallScore}/100. Urgent attention is needed to improve search engine visibility.`;
+  }
+  
+  report.overall = {
+    score: overallScore,
+    summary,
+    timestamp: new Date().toISOString()
+  };
+};
+
+/**
  * Generates an SEO audit for a given URL using real web data
  */
 export const generateSEOAudit = async (url: string, clientId: string): Promise<SEOAudit> => {
