@@ -1,7 +1,6 @@
 import { supabase } from './supabaseClient';
 import { callGeminiAPI, analyzeWebsite } from './apiProxy';
 import * as cheerio from 'cheerio';
-import * as crypto from 'crypto';
 
 // Types for SEO data
 export interface SEOAudit {
@@ -43,6 +42,27 @@ export interface SEOReport {
   backlinks: SEOScoreSection;
   keywords: SEOScoreSection;
   recommendations: SEOIssue[];
+  url: string;
+  metaTags: {
+    title: string;
+    description: string;
+    keywords: string;
+  };
+  headings: {
+    h1: string[];
+    h2: string[];
+    h3: string[];
+  };
+  images: {
+    total: number;
+    withAlt: number;
+    withoutAlt: number;
+  };
+  links: {
+    internalCount: number;
+    externalCount: number;
+  };
+  contentWordCount: number;
 }
 
 // Gemini API integration
@@ -88,6 +108,27 @@ const createEmptyReport = (): SEOReport => {
       issues: []
     },
     recommendations: [],
+    url: '',
+    metaTags: {
+      title: '',
+      description: '',
+      keywords: ''
+    },
+    headings: {
+      h1: [],
+      h2: [],
+      h3: []
+    },
+    images: {
+      total: 0,
+      withAlt: 0,
+      withoutAlt: 0
+    },
+    links: {
+      internalCount: 0,
+      externalCount: 0
+    },
+    contentWordCount: 0
   };
 };
 
@@ -850,11 +891,11 @@ const calculateScore = (report: SEOReport): number => {
   if (report.metaTags && report.metaTags.description) score += 10;
   if (report.headings && report.headings.h1 && report.headings.h1.length > 0) score += 10;
   if (report.images && report.images.withAlt / Math.max(1, report.images.total) > 0.8) score += 10;
-  if (report.performance && report.performance.loadTime < 3) score += 15;
-  if (report.performance && report.performance.mobileResponsive) score += 15;
-  if (report.links && report.links.internal > 0) score += 10;
-  if (report.links && report.links.external > 0) score += 10;
-  if (report.content && report.content.wordCount > 300) score += 10;
+  if (report.performance && report.performance.score > 80) score += 15;
+  if (report.technical && report.technical.score > 80) score += 15;
+  if (report.links && report.links.internalCount > 0) score += 10;
+  if (report.links && report.links.externalCount > 0) score += 10;
+  if (report.contentWordCount > 300) score += 10;
   
   // Ensure score is between 0 and 100
   return Math.min(maxScore, Math.max(0, score));
@@ -883,7 +924,7 @@ const calculateScoreFromAIReport = (report: any): number => {
 export const generateSEOAudit = async (url: string, clientId: string): Promise<SEOAudit> => {
   try {
     // Generate a UUID for the audit
-    const auditId = crypto.randomUUID();
+    const auditId = Math.random().toString(36).substr(2, 9);
     
     // Create initial audit record with all required fields
     const initialAudit: SEOAudit = {
@@ -917,7 +958,7 @@ export const generateSEOAudit = async (url: string, clientId: string): Promise<S
     
     // Create a failed audit record
     const failedAudit: SEOAudit = {
-      id: crypto.randomUUID(),
+      id: Math.random().toString(36).substr(2, 9),
       client_id: clientId,
       url,
       status: 'failed' as 'failed',
@@ -1105,6 +1146,27 @@ const parseGeminiResponse = (response: string, url: string): SEOReport => {
       backlinks: { ...emptyReport.backlinks, ...parsedReport.backlinks },
       keywords: { ...emptyReport.keywords, ...parsedReport.keywords },
       recommendations: parsedReport.recommendations || [],
+      url: url,
+      metaTags: {
+        title: parsedReport.metaTags?.title || '',
+        description: parsedReport.metaTags?.description || '',
+        keywords: parsedReport.metaTags?.keywords || ''
+      },
+      headings: {
+        h1: parsedReport.headings?.h1 || [],
+        h2: parsedReport.headings?.h2 || [],
+        h3: parsedReport.headings?.h3 || []
+      },
+      images: {
+        total: parsedReport.images?.total || 0,
+        withAlt: parsedReport.images?.withAlt || 0,
+        withoutAlt: parsedReport.images?.withoutAlt || 0
+      },
+      links: {
+        internalCount: parsedReport.links?.internalCount || 0,
+        externalCount: parsedReport.links?.externalCount || 0
+      },
+      contentWordCount: parsedReport.contentWordCount || 0
     };
   } catch (error) {
     console.error('Error parsing Gemini response:', error);
@@ -1117,7 +1179,28 @@ const parseGeminiResponse = (response: string, url: string): SEOReport => {
         score: 0,
         summary: `Failed to parse SEO audit for ${url}. Error: ${error instanceof Error ? error.message : 'Unknown error'}`,
         timestamp: new Date().toISOString()
-      }
+      },
+      url: url,
+      metaTags: {
+        title: '',
+        description: '',
+        keywords: ''
+      },
+      headings: {
+        h1: [],
+        h2: [],
+        h3: []
+      },
+      images: {
+        total: 0,
+        withAlt: 0,
+        withoutAlt: 0
+      },
+      links: {
+        internalCount: 0,
+        externalCount: 0
+      },
+      contentWordCount: 0
     };
   }
 };
@@ -1230,7 +1313,28 @@ I need a detailed analysis in JSON format with the following structure:
       "impact": "<expected impact>",
       "recommendation": "<how to fix>"
     }
-  ]
+  ],
+  "url": "<website URL>",
+  "metaTags": {
+    "title": "<meta title>",
+    "description": "<meta description>",
+    "keywords": "<meta keywords>"
+  },
+  "headings": {
+    "h1": ["<h1 heading>"],
+    "h2": ["<h2 heading>"],
+    "h3": ["<h3 heading>"]
+  },
+  "images": {
+    "total": <number>,
+    "withAlt": <number>,
+    "withoutAlt": <number>
+  },
+  "links": {
+    "internalCount": <number>,
+    "externalCount": <number>
+  },
+  "contentWordCount": <number>
 }
 
 Please analyze the website thoroughly, including:
