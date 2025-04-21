@@ -83,6 +83,53 @@ const SEOAuditPage: React.FC<SEOAuditPageProps> = ({ clientId }) => {
     loadAudits();
   }, [clientId]);
 
+  // Handle polling for audit updates
+  useEffect(() => {
+    // Only set up polling if we have a selected audit in progress
+    if (!selectedAudit || selectedAudit.status === 'completed' || selectedAudit.status === 'failed') {
+      return;
+    }
+    
+    console.log('Setting up polling for audit:', selectedAudit.id);
+    
+    // Start polling for updates
+    const pollInterval = setInterval(async () => {
+      try {
+        // Fetch the latest audits
+        const updatedAudits = await getSEOAuditsByClientId(clientId);
+        
+        if (!updatedAudits || !Array.isArray(updatedAudits)) {
+          console.error('Invalid audit data received:', updatedAudits);
+          return;
+        }
+        
+        setAudits(updatedAudits);
+        
+        // Find the current audit in the updated list
+        const updatedAudit = updatedAudits.find(audit => audit && audit.id === selectedAudit.id);
+        
+        // Update the selected audit if it exists
+        if (updatedAudit) {
+          setSelectedAudit(updatedAudit);
+          
+          // If the audit is completed or failed, stop polling
+          if (updatedAudit.status === 'completed' || updatedAudit.status === 'failed') {
+            clearInterval(pollInterval);
+          }
+        }
+      } catch (pollError) {
+        console.error('Error polling for audit updates:', pollError);
+        clearInterval(pollInterval);
+      }
+    }, 5000); // Poll every 5 seconds
+    
+    // Clean up the interval when the component unmounts or selectedAudit changes
+    return () => {
+      console.log('Cleaning up polling interval');
+      clearInterval(pollInterval);
+    };
+  }, [selectedAudit?.id, clientId]);
+
   // Handle creating a new SEO audit
   const handleCreateAudit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -96,8 +143,12 @@ const SEOAuditPage: React.FC<SEOAuditPageProps> = ({ clientId }) => {
     setError(null);
     
     try {
+      console.log('Creating new SEO audit for URL:', url);
+      
       // Create an initial audit with 'in-progress' status
       const newAudit = await generateSEOAudit(url, clientId);
+      
+      console.log('Received new audit:', newAudit);
       
       // Verify we have a valid audit object with an ID
       if (!newAudit || !newAudit.id) {
@@ -109,48 +160,6 @@ const SEOAuditPage: React.FC<SEOAuditPageProps> = ({ clientId }) => {
       setSelectedAudit(newAudit);
       setUrl('');
       setShowNewAuditForm(false);
-      
-      // Start polling for updates
-      const pollInterval = setInterval(async () => {
-        try {
-          // Fetch the latest audits
-          const updatedAudits = await getSEOAuditsByClientId(clientId);
-          
-          if (!updatedAudits || !Array.isArray(updatedAudits)) {
-            console.error('Invalid audit data received:', updatedAudits);
-            return;
-          }
-          
-          setAudits(updatedAudits);
-          
-          // Make sure we have a valid newAudit with an ID before trying to find it
-          if (!newAudit || !newAudit.id) {
-            console.error('Invalid newAudit object:', newAudit);
-            clearInterval(pollInterval);
-            return;
-          }
-          
-          // Find the current audit in the updated list
-          const updatedAudit = updatedAudits.find(audit => audit && audit.id === newAudit.id);
-          
-          // Update the selected audit if it exists
-          if (updatedAudit) {
-            setSelectedAudit(updatedAudit);
-            
-            // If the audit is completed or failed, stop polling
-            if (updatedAudit.status === 'completed' || updatedAudit.status === 'failed') {
-              clearInterval(pollInterval);
-            }
-          }
-        } catch (pollError) {
-          console.error('Error polling for audit updates:', pollError);
-          clearInterval(pollInterval);
-        }
-      }, 5000); // Poll every 5 seconds
-      
-      // Clean up the interval when the component unmounts
-      return () => clearInterval(pollInterval);
-      
     } catch (err) {
       console.error('Error creating SEO audit:', err);
       setError('Failed to create SEO audit. Please try again.');
