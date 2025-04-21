@@ -10,8 +10,7 @@ import {
   deleteEmailTemplate,
   EmailTemplate,
   EmailGenerationOptions,
-  LIBERTY_BEANS_COLORS,
-  getBrandColors
+  LIBERTY_BEANS_COLORS
 } from '../utils/emailService';
 
 interface EmailMarketingPageProps {
@@ -36,7 +35,7 @@ const EmailMarketingPage: React.FC<EmailMarketingPageProps> = ({
   const [scheduledDate, setScheduledDate] = useState('');
   const [showScrollIndicator, setShowScrollIndicator] = useState(true);
   const [imagePrompts, setImagePrompts] = useState<string[]>(['']);
-  const [brandColors, setBrandColors] = useState(getBrandColors(clientId));
+  const [brandColors, setBrandColors] = useState(LIBERTY_BEANS_COLORS);
   
   // Hide scroll indicator after 5 seconds
   useEffect(() => {
