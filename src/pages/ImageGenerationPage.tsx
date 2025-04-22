@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import styled from 'styled-components';
 import { motion } from 'framer-motion';
-import * as FaIcons from 'react-icons/fa';
+import { FaImage, FaSpinner, FaDownload, FaMagic } from 'react-icons/fa';
 import axios from 'axios';
 
 // Styled components
@@ -334,7 +334,7 @@ const ImageGenerationPage: React.FC = () => {
       <ContentContainer>
         <InputSection>
           <SectionTitle>
-            <FaIcons.FaMagic /> Image Prompt
+            {React.createElement(FaMagic)} Image Prompt
           </SectionTitle>
           <InputLabel>Describe the image you want to generate:</InputLabel>
           <TextArea 
@@ -403,18 +403,18 @@ const ImageGenerationPage: React.FC = () => {
           >
             {isGenerating ? (
               <>
-                <FaIcons.FaSpinner className="animate-spin" /> Generating...
+                {React.createElement(FaSpinner, { className: "animate-spin" })} Generating...
               </>
             ) : (
               <>
-                <FaIcons.FaImage /> Generate Images
+                {React.createElement(FaImage)} Generate Images
               </>
             )}
           </Button>
 
           {statusMessage && (
             <StatusMessage type={statusMessage.type}>
-              {statusMessage.type === 'info' && <FaIcons.FaSpinner className="animate-spin" />}
+              {statusMessage.type === 'info' && React.createElement(FaSpinner, { className: "animate-spin" })}
               {statusMessage.type === 'success' && <span>✓</span>}
               {statusMessage.type === 'error' && <span>⚠️</span>}
               {statusMessage.text}
@@ -424,7 +424,7 @@ const ImageGenerationPage: React.FC = () => {
 
         <OutputSection>
           <SectionTitle>
-            <FaIcons.FaImage /> Generated Images
+            {React.createElement(FaImage)} Generated Images
           </SectionTitle>
           
           {textResponse && (
@@ -440,7 +440,7 @@ const ImageGenerationPage: React.FC = () => {
                   <img src={image.path} alt={`Generated image ${index + 1}`} />
                   <div className="image-actions">
                     <button onClick={() => handleDownloadImage(image.path, image.filename)}>
-                      <FaIcons.FaDownload /> Download
+                      {React.createElement(FaDownload)} Download
                     </button>
                   </div>
                 </ImageCard>

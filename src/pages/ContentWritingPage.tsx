@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import styled from 'styled-components';
 import { motion } from 'framer-motion';
-import * as FaIcons from 'react-icons/fa';
+import { FaSearch, FaSpinner, FaPen, FaClipboard, FaCheck } from 'react-icons/fa';
 import axios from 'axios';
 
 // Styled components
@@ -428,7 +428,7 @@ const ContentWritingPage: React.FC = () => {
         <ContentContainer>
           <InputSection>
             <SectionTitle>
-              <FaIcons.FaSearch /> Research Topic
+              {React.createElement(FaSearch)} Research Topic
             </SectionTitle>
             <InputLabel>Enter a topic to research (powered by Gemini-2.5-Pro-Preview-03-25):</InputLabel>
             <TextInput 
@@ -444,11 +444,11 @@ const ContentWritingPage: React.FC = () => {
             >
               {isResearching ? (
                 <>
-                  <FaIcons.FaSpinner className="animate-spin" /> Researching...
+                  {React.createElement(FaSpinner, { className: "animate-spin" })} Researching...
                 </>
               ) : (
                 <>
-                  <FaIcons.FaSearch /> Start Research
+                  {React.createElement(FaSearch)} Start Research
                 </>
               )}
             </Button>
@@ -461,8 +461,8 @@ const ContentWritingPage: React.FC = () => {
 
             {statusMessage && (
               <StatusMessage type={statusMessage.type}>
-                {statusMessage.type === 'info' && <FaIcons.FaSpinner className="animate-spin" />}
-                {statusMessage.type === 'success' && <FaIcons.FaCheck />}
+                {statusMessage.type === 'info' && React.createElement(FaSpinner, { className: "animate-spin" })}
+                {statusMessage.type === 'success' && React.createElement(FaCheck)}
                 {statusMessage.type === 'error' && <span>⚠️</span>}
                 {statusMessage.text}
               </StatusMessage>
@@ -482,7 +482,7 @@ const ContentWritingPage: React.FC = () => {
         <ContentContainer>
           <InputSection>
             <SectionTitle>
-              <FaIcons.FaPen /> Content Prompt
+              {React.createElement(FaPen)} Content Prompt
             </SectionTitle>
             <InputLabel>What would you like to write about? (powered by Gemini-2.0-Flash)</InputLabel>
             <TextArea 
@@ -497,19 +497,19 @@ const ContentWritingPage: React.FC = () => {
             >
               {isGenerating ? (
                 <>
-                  <FaIcons.FaSpinner className="animate-spin" /> Generating...
+                  {React.createElement(FaSpinner, { className: "animate-spin" })} Generating...
                 </>
               ) : (
                 <>
-                  <FaIcons.FaPen /> Generate Content
+                  {React.createElement(FaPen)} Generate Content
                 </>
               )}
             </Button>
 
             {statusMessage && (
               <StatusMessage type={statusMessage.type}>
-                {statusMessage.type === 'info' && <FaIcons.FaSpinner className="animate-spin" />}
-                {statusMessage.type === 'success' && <FaIcons.FaCheck />}
+                {statusMessage.type === 'info' && React.createElement(FaSpinner, { className: "animate-spin" })}
+                {statusMessage.type === 'success' && React.createElement(FaCheck)}
                 {statusMessage.type === 'error' && <span>⚠️</span>}
                 {statusMessage.text}
               </StatusMessage>
@@ -525,11 +525,11 @@ const ContentWritingPage: React.FC = () => {
               <CopyButton onClick={copyToClipboard}>
                 {copied ? (
                   <>
-                    <FaIcons.FaCheck /> Copied!
+                    {React.createElement(FaCheck)} Copied!
                   </>
                 ) : (
                   <>
-                    <FaIcons.FaClipboard /> Copy to Clipboard
+                    {React.createElement(FaClipboard)} Copy to Clipboard
                   </>
                 )}
               </CopyButton>
