@@ -276,12 +276,14 @@ const ImageGenerationPage: React.FC = () => {
       setGeneratedImages([]);
       setTextResponse(null);
 
-      const response = await axios.post('/api/generate-image', {
+      const GEMINI_API_URL = process.env.REACT_APP_GEMINI_API_URL || 'https://api.gemini.ai';
+      const response = await axios.post(`${GEMINI_API_URL}/generate-image`, {
         prompt,
         aspectRatio,
         numberOfImages: parseInt(numberOfImages, 10),
         safetyFilterLevel,
-        enhancePrompt
+        enhancePrompt,
+        apiKey: process.env.REACT_APP_GEMINI_API_KEY
       });
 
       if (response.data.images && response.data.images.length > 0) {

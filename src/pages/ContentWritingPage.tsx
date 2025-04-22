@@ -284,7 +284,11 @@ const ContentWritingPage: React.FC = () => {
       setStatusMessage({ text: 'Starting web research...', type: 'info' });
       setResearchData('');
 
-      const response = await axios.post('/api/browser-use/research', { query: searchQuery });
+      const BROWSER_USE_API_URL = process.env.REACT_APP_BROWSER_USE_API_URL || 'https://api.browseruse.com';
+      const response = await axios.post(`${BROWSER_USE_API_URL}/research`, { 
+        query: searchQuery,
+        apiKey: process.env.REACT_APP_BROWSER_USE_API_KEY
+      });
       setTaskId(response.data.taskId);
       
       // Start polling for status
@@ -306,7 +310,12 @@ const ContentWritingPage: React.FC = () => {
     if (taskId && isResearching) {
       interval = setInterval(async () => {
         try {
-          const statusResponse = await axios.get(`/api/browser-use/research/${taskId}/status`);
+          const BROWSER_USE_API_URL = process.env.REACT_APP_BROWSER_USE_API_URL || 'https://api.browseruse.com';
+          const statusResponse = await axios.get(`${BROWSER_USE_API_URL}/research/${taskId}/status`, {
+            headers: {
+              'Authorization': `Bearer ${process.env.REACT_APP_BROWSER_USE_API_KEY}`
+            }
+          });
           const status = statusResponse.data;
           
           // Update progress based on status
@@ -319,7 +328,11 @@ const ContentWritingPage: React.FC = () => {
             clearInterval(interval);
             
             // Get results
-            const resultsResponse = await axios.get(`/api/browser-use/research/${taskId}/results`);
+            const resultsResponse = await axios.get(`${BROWSER_USE_API_URL}/research/${taskId}/results`, {
+              headers: {
+                'Authorization': `Bearer ${process.env.REACT_APP_BROWSER_USE_API_KEY}`
+              }
+            });
             const results = resultsResponse.data;
             
             // Format research data
