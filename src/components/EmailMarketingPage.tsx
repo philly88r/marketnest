@@ -280,7 +280,7 @@ const EmailMarketingPage: React.FC<EmailMarketingPageProps> = ({
     }));
   };
 
-  // Function to handle editing template
+  // Handle editing a template
   const handleEditTemplate = () => {
     if (!selectedTemplate) return;
     
@@ -291,8 +291,8 @@ const EmailMarketingPage: React.FC<EmailMarketingPageProps> = ({
     });
     setIsEditing(true);
   };
-  
-  // Function to save edited template
+
+  // Handle saving edited template
   const handleSaveEdit = async () => {
     if (!selectedTemplate || !editedTemplate) return;
     
@@ -300,56 +300,56 @@ const EmailMarketingPage: React.FC<EmailMarketingPageProps> = ({
     setError(null);
     
     try {
-      const updatedTemplate = await updateEmailTemplate(selectedTemplate.id, editedTemplate);
+      const updatedTemplate = await updateEmailTemplate(
+        selectedTemplate.id, 
+        editedTemplate
+      );
       
-      // Update the templates list
+      // Update the template in the list
       setTemplates(prevTemplates => 
         prevTemplates.map(template => 
           template.id === updatedTemplate.id ? updatedTemplate : template
         )
       );
       
-      // Update selected template
       setSelectedTemplate(updatedTemplate);
       setIsEditing(false);
     } catch (err) {
-      console.error('Error updating template:', err);
-      setError('Failed to update template. Please try again.');
+      console.error('Error updating email template:', err);
+      setError('Failed to update email template. Please try again.');
     } finally {
       setIsLoading(false);
     }
   };
-  
-  // Function to cancel editing
+
+  // Handle canceling edit
   const handleCancelEdit = () => {
     setIsEditing(false);
     setEditedTemplate({});
   };
-  
-  // Function to show AI edit form
-  const handleShowAIEditForm = () => {
-    if (!selectedTemplate) return;
-    setShowAIEditForm(true);
-  };
-  
-  // Function to update template with AI
-  const handleUpdateWithAI = async () => {
+
+  // Handle updating template with AI
+  const handleUpdateWithAI = async (e: React.FormEvent) => {
+    e.preventDefault();
+    
     if (!selectedTemplate || !aiEditPrompt) return;
     
     setIsUpdatingWithAI(true);
     setError(null);
     
     try {
-      const updatedTemplate = await updateTemplateWithAI(selectedTemplate.id, aiEditPrompt);
+      const updatedTemplate = await updateTemplateWithAI(
+        selectedTemplate.id,
+        aiEditPrompt
+      );
       
-      // Update the templates list
+      // Update the template in the list
       setTemplates(prevTemplates => 
         prevTemplates.map(template => 
           template.id === updatedTemplate.id ? updatedTemplate : template
         )
       );
       
-      // Update selected template
       setSelectedTemplate(updatedTemplate);
       setShowAIEditForm(false);
       setAIEditPrompt('');
@@ -360,7 +360,7 @@ const EmailMarketingPage: React.FC<EmailMarketingPageProps> = ({
       setIsUpdatingWithAI(false);
     }
   };
-  
+
   // Function to fix image URLs
   const fixImageUrl = (content: string): string => {
     // Replace relative image URLs with absolute URLs
@@ -487,7 +487,7 @@ const EmailMarketingPage: React.FC<EmailMarketingPageProps> = ({
                         <ActionButton onClick={handleEditTemplate}>
                           <FiEdit /> Edit
                         </ActionButton>
-                        <ActionButton onClick={handleShowAIEditForm}>
+                        <ActionButton onClick={() => setShowAIEditForm(true)}>
                           <FiRefreshCw /> Edit with AI
                         </ActionButton>
                         <ActionButton onClick={() => handleDeleteTemplate(selectedTemplate.id)}>
@@ -576,6 +576,277 @@ const EmailMarketingPage: React.FC<EmailMarketingPageProps> = ({
         )}
         {/* Add EmailDebugger for troubleshooting */}
         <EmailDebugger clientId={clientId} />
+        
+        {/* Edit template modal */}
+        {isEditing && selectedTemplate && (
+          <Modal>
+            <ModalContent>
+              <ModalHeader>
+                <h3>Edit Email Template</h3>
+                <CloseButton onClick={handleCancelEdit}>
+                  <FiX size={24} />
+                </CloseButton>
+              </ModalHeader>
+              
+              <FormGroup>
+                <FormLabel>Title</FormLabel>
+                <EditInput
+                  type="text"
+                  value={editedTemplate.title || ''}
+                  onChange={(e) => setEditedTemplate({...editedTemplate, title: e.target.value})}
+                />
+              </FormGroup>
+              
+              <FormGroup>
+                <FormLabel>Subject</FormLabel>
+                <EditInput
+                  type="text"
+                  value={editedTemplate.subject || ''}
+                  onChange={(e) => setEditedTemplate({...editedTemplate, subject: e.target.value})}
+                />
+              </FormGroup>
+              
+              <FormGroup>
+                <FormLabel>Content (HTML)</FormLabel>
+                <FormTextarea
+                  value={editedTemplate.content || ''}
+                  onChange={(e) => setEditedTemplate({...editedTemplate, content: e.target.value})}
+                />
+              </FormGroup>
+              
+              <ModalFooter>
+                <Button onClick={handleCancelEdit}>Cancel</Button>
+                <Button primary onClick={handleSaveEdit}>Save Changes</Button>
+              </ModalFooter>
+            </ModalContent>
+          </Modal>
+        )}
+        
+        {/* AI Edit modal */}
+        {showAIEditForm && selectedTemplate && (
+          <Modal>
+            <ModalContent>
+              <ModalHeader>
+                <h3>Edit with AI</h3>
+                <CloseButton onClick={() => setShowAIEditForm(false)}>
+                  <FiX size={24} />
+                </CloseButton>
+              </ModalHeader>
+              
+              <form onSubmit={handleUpdateWithAI}>
+                <FormGroup>
+                  <FormLabel>What changes would you like to make?</FormLabel>
+                  <FormTextarea
+                    value={aiEditPrompt}
+                    onChange={(e) => setAIEditPrompt(e.target.value)}
+                    placeholder="E.g., Make the tone more casual, add more information about the French Vanilla product, include a special discount code COFFEE20 for 20% off"
+                  />
+                </FormGroup>
+                
+                <ModalFooter>
+                  <Button type="button" onClick={() => setShowAIEditForm(false)}>Cancel</Button>
+                  <Button primary type="submit" disabled={isUpdatingWithAI}>
+                    {isUpdatingWithAI ? 'Updating...' : 'Update Template'}
+                  </Button>
+                </ModalFooter>
+              </form>
+            </ModalContent>
+          </Modal>
+        )}
+        
+        {/* Generate Templates Modal */}
+        {showGenerateForm && (
+          <Modal>
+            <ModalContent>
+              <ModalHeader>
+                <h3>Generate Email Templates</h3>
+                <CloseButton onClick={() => setShowGenerateForm(false)}>
+                  <FiX size={24} />
+                </CloseButton>
+              </ModalHeader>
+              
+              <form onSubmit={handleGenerateTemplates}>
+                <FormGroup>
+                  <FormLabel>Purpose</FormLabel>
+                  <select 
+                    value={generationOptions.purpose}
+                    onChange={(e) => setGenerationOptions({
+                      ...generationOptions, 
+                      purpose: e.target.value as 'promotional' | 'newsletter' | 'announcement' | 'seasonal'
+                    })}
+                  >
+                    <option value="promotional">Promotional</option>
+                    <option value="newsletter">Newsletter</option>
+                    <option value="announcement">Announcement</option>
+                    <option value="seasonal">Seasonal</option>
+                  </select>
+                </FormGroup>
+                
+                <FormGroup>
+                  <FormLabel>Tone</FormLabel>
+                  <select 
+                    value={generationOptions.tone}
+                    onChange={(e) => setGenerationOptions({
+                      ...generationOptions, 
+                      tone: e.target.value as 'casual' | 'professional' | 'enthusiastic' | 'informative'
+                    })}
+                  >
+                    <option value="casual">Casual</option>
+                    <option value="professional">Professional</option>
+                    <option value="enthusiastic">Enthusiastic</option>
+                    <option value="informative">Informative</option>
+                  </select>
+                </FormGroup>
+                
+                <FormGroup>
+                  <CheckboxLabel>
+                    <input 
+                      type="checkbox" 
+                      checked={generationOptions.includePromotion || false}
+                      onChange={(e) => setGenerationOptions({
+                        ...generationOptions, 
+                        includePromotion: e.target.checked
+                      })}
+                    />
+                    Include Promotion
+                  </CheckboxLabel>
+                  
+                  {generationOptions.includePromotion && (
+                    <FormTextarea
+                      value={generationOptions.promotionDetails || ''}
+                      onChange={(e) => setGenerationOptions({
+                        ...generationOptions, 
+                        promotionDetails: e.target.value
+                      })}
+                      placeholder="Describe the promotion (e.g., 20% off all coffee beans this weekend)"
+                    />
+                  )}
+                </FormGroup>
+                
+                <FormGroup>
+                  <CheckboxLabel>
+                    <input 
+                      type="checkbox" 
+                      checked={generationOptions.includeProductHighlight || false}
+                      onChange={(e) => setGenerationOptions({
+                        ...generationOptions, 
+                        includeProductHighlight: e.target.checked
+                      })}
+                    />
+                    Highlight Products
+                  </CheckboxLabel>
+                  
+                  {generationOptions.includeProductHighlight && (
+                    <FormTextarea
+                      value={generationOptions.productDetails || ''}
+                      onChange={(e) => setGenerationOptions({
+                        ...generationOptions, 
+                        productDetails: e.target.value
+                      })}
+                      placeholder="Describe the products to highlight (e.g., our new French Vanilla blend)"
+                    />
+                  )}
+                </FormGroup>
+                
+                <FormGroup>
+                  <FormLabel>Additional Instructions (Optional)</FormLabel>
+                  <FormTextarea
+                    value={generationOptions.additionalInstructions || ''}
+                    onChange={(e) => setGenerationOptions({
+                      ...generationOptions, 
+                      additionalInstructions: e.target.value
+                    })}
+                    placeholder="Any additional instructions for the AI (e.g., mention our upcoming event, focus on sustainability)"
+                  />
+                </FormGroup>
+                
+                <ModalFooter>
+                  <Button type="button" onClick={() => setShowGenerateForm(false)}>Cancel</Button>
+                  <Button primary type="submit" disabled={isLoading}>
+                    {isLoading ? 'Generating...' : 'Generate Templates'}
+                  </Button>
+                </ModalFooter>
+              </form>
+            </ModalContent>
+          </Modal>
+        )}
+        
+        {/* Custom Email Form */}
+        {showCustomForm && (
+          <Modal>
+            <ModalContent>
+              <ModalHeader>
+                <h3>Write Email with AI</h3>
+                <CloseButton onClick={() => setShowCustomForm(false)}>
+                  <FiX size={24} />
+                </CloseButton>
+              </ModalHeader>
+              
+              <form onSubmit={handleGenerateCustomTemplate}>
+                <FormGroup>
+                  <FormLabel>Purpose</FormLabel>
+                  <select 
+                    value={generationOptions.purpose}
+                    onChange={(e) => setGenerationOptions({
+                      ...generationOptions, 
+                      purpose: e.target.value as 'promotional' | 'newsletter' | 'announcement' | 'seasonal'
+                    })}
+                  >
+                    <option value="promotional">Promotional</option>
+                    <option value="newsletter">Newsletter</option>
+                    <option value="announcement">Announcement</option>
+                    <option value="seasonal">Seasonal</option>
+                  </select>
+                </FormGroup>
+                
+                <FormGroup>
+                  <FormLabel>Tone</FormLabel>
+                  <select 
+                    value={generationOptions.tone}
+                    onChange={(e) => setGenerationOptions({
+                      ...generationOptions, 
+                      tone: e.target.value as 'casual' | 'professional' | 'enthusiastic' | 'informative'
+                    })}
+                  >
+                    <option value="casual">Casual</option>
+                    <option value="professional">Professional</option>
+                    <option value="enthusiastic">Enthusiastic</option>
+                    <option value="informative">Informative</option>
+                  </select>
+                </FormGroup>
+                
+                <FormGroup>
+                  <FormLabel>Your Content</FormLabel>
+                  <FormTextarea
+                    value={customContent}
+                    onChange={(e) => setCustomContent(e.target.value)}
+                    placeholder="Write your content here, and the AI will enhance and format it into a professional email"
+                    rows={6}
+                  />
+                </FormGroup>
+                
+                <FormGroup>
+                  <FormLabel>Additional Instructions (Optional)</FormLabel>
+                  <FormTextarea
+                    value={generationOptions.additionalInstructions || ''}
+                    onChange={(e) => setGenerationOptions({
+                      ...generationOptions, 
+                      additionalInstructions: e.target.value
+                    })}
+                    placeholder="Any additional instructions for the AI (e.g., mention our upcoming event, focus on sustainability)"
+                  />
+                </FormGroup>
+                
+                <ModalFooter>
+                  <Button type="button" onClick={() => setShowCustomForm(false)}>Cancel</Button>
+                  <Button primary type="submit" disabled={isLoading}>
+                    {isLoading ? 'Generating...' : 'Generate Email'}
+                  </Button>
+                </ModalFooter>
+              </form>
+            </ModalContent>
+          </Modal>
+        )}
       </Container>
     </GlobalStyle>
   );
@@ -626,11 +897,8 @@ const ActionButtons = styled.div`
   z-index: 30; /* Higher z-index than PageTitle to ensure buttons are clickable */
 `;
 
-const Button = styled.button`
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  background-color: #333;
+const Button = styled.button<{ primary?: boolean }>`
+  background-color: ${props => props.primary ? LIBERTY_BEANS_COLORS.primary : '#333'};
   color: #ffffff;
   border: none;
   border-radius: 4px;
@@ -639,11 +907,16 @@ const Button = styled.button`
   font-weight: 600;
   cursor: pointer;
   transition: background-color 0.2s;
-
+  
   &:hover {
-    background-color: #444;
+    background-color: ${props => props.primary ? '#0a1b2f' : '#444'};
   }
-
+  
+  &:disabled {
+    opacity: 0.6;
+    cursor: not-allowed;
+  }
+  
   svg {
     margin-right: 8px;
   }
@@ -912,6 +1185,18 @@ const FormGroup = styled.div`
   margin-bottom: 16px;
 `;
 
+const CheckboxLabel = styled.label`
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  cursor: pointer;
+  
+  input[type="checkbox"] {
+    width: 16px;
+    height: 16px;
+  }
+`;
+
 const GlobalStyle = styled.div`
   @keyframes spin {
     from {
@@ -958,6 +1243,11 @@ const EditInput = styled.input`
   border-radius: 4px;
   color: white;
   font-size: 16px;
+  
+  &:focus {
+    outline: none;
+    border-color: ${LIBERTY_BEANS_COLORS.secondary};
+  }
 `;
 
 const Modal = styled.div`
@@ -996,7 +1286,7 @@ const CloseButton = styled.button`
   padding: 4px;
   cursor: pointer;
   transition: color 0.2s;
-
+  
   &:hover {
     color: #fff;
   }
@@ -1016,7 +1306,7 @@ const FormTextarea = styled.textarea`
   font-size: 14px;
   min-height: 100px;
   resize: vertical;
-
+  
   &:focus {
     outline: none;
     border-color: ${LIBERTY_BEANS_COLORS.secondary};

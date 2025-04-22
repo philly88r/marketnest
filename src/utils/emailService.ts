@@ -363,13 +363,7 @@ export const updateTemplateWithAI = async (
     }
     
     // Generate new content based on the prompt and current template
-    const response = await fetch('/api/generate-content', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({
-        prompt: `You are an expert email marketer. I have an existing email template with the following content:
+    const aiPrompt = `You are an expert email marketer. I have an existing email template with the following content:
         
 Title: ${currentTemplate.title}
 Subject: ${currentTemplate.subject}
@@ -377,21 +371,15 @@ Content: ${currentTemplate.content}
 
 Please update this email template based on the following instructions: ${prompt}
 
-Return the updated template with the same structure, keeping any HTML formatting.`,
-        maxTokens: 1000,
-      }),
-    });
-    
-    if (!response.ok) {
-      throw new Error('Failed to generate updated content');
-    }
-    
-    const generatedContent = await response.json();
+Return the updated template with the same structure, keeping any HTML formatting.`;
+
+    // Call the AI API directly using the same method as generateEmailTemplates
+    const aiResponse = await callGeminiAPI(aiPrompt);
     
     // Extract the updated parts from the AI response
-    const titleMatch = generatedContent.text.match(/Title:\s*(.*?)(?=\n|$)/);
-    const subjectMatch = generatedContent.text.match(/Subject:\s*(.*?)(?=\n|$)/);
-    const contentMatch = generatedContent.text.match(/Content:\s*([\s\S]*?)(?=\n\n|$)/);
+    const titleMatch = aiResponse.match(/Title:\s*(.*?)(?=\n|$)/);
+    const subjectMatch = aiResponse.match(/Subject:\s*(.*?)(?=\n|$)/);
+    const contentMatch = aiResponse.match(/Content:\s*([\s\S]*?)(?=\n\n|$)/);
     
     const updates: Partial<EmailTemplate> = {};
     if (titleMatch && titleMatch[1]) updates.title = titleMatch[1].trim();
@@ -444,12 +432,17 @@ IMPORTANT STYLING REQUIREMENTS:
 - This email is for Liberty Beans Coffee ONLY - do NOT use any MarketNest branding or colors
 - Use ONLY Liberty Beans colors: primary color #0d233f (dark navy blue) and secondary color #7f2628 (deep burgundy red)
 - ALL headers, titles, and text must use ONLY the Liberty Beans colors specified above
+- ALL headings must be solid color #0d233f (dark navy blue) or #7f2628 (deep burgundy red), NOT gradients
 - DO NOT use any gradient effects, gradient text, or gradient backgrounds anywhere in the email
 - DO NOT use any colors other than the Liberty Beans colors specified above for any text or headings
-- ALL headings must be solid color #0d233f (dark navy blue) or #7f2628 (deep burgundy red), NOT gradients
-
-Specific requirements for Liberty Beans Coffee:
-- Include their logo at the top of the email (logo path: /images/clients/liberty-beans-logo.png)
+- CRITICAL: Set the style for all h1, h2, h3, h4, h5, h6 elements to use color: #0d233f; or color: #7f2628;
+- CRITICAL: Include inline CSS styles for all header elements to ensure they use Liberty Beans colors
+- Include Liberty Beans logo at the top of the email with these specifications:
+  * Logo path: /images/clients/liberty-beans-logo.png
+  * Logo should be small (maximum width: 200px, height: auto)
+  * Logo should have a light background (#f8f8f8 or #ffffff)
+  * Add padding around the logo (10-15px)
+  * Center the logo in a header section
 - Highlight their premium, ethically sourced coffee beans
 - Mention their unique roasting process
 - Reference their community involvement and sustainability efforts
@@ -530,12 +523,17 @@ IMPORTANT STYLING REQUIREMENTS:
 - This email is for Liberty Beans Coffee ONLY - do NOT use any MarketNest branding or colors
 - Use ONLY Liberty Beans colors: primary color #0d233f (dark navy blue) and secondary color #7f2628 (deep burgundy red)
 - ALL headers, titles, and text must use ONLY the Liberty Beans colors specified above
+- ALL headings must be solid color #0d233f (dark navy blue) or #7f2628 (deep burgundy red), NOT gradients
 - DO NOT use any gradient effects, gradient text, or gradient backgrounds anywhere in the email
 - DO NOT use any colors other than the Liberty Beans colors specified above for any text or headings
-- ALL headings must be solid color #0d233f (dark navy blue) or #7f2628 (deep burgundy red), NOT gradients
-
-Specific requirements for Liberty Beans Coffee:
-- Include their logo at the top of the email (logo path: /images/clients/liberty-beans-logo.png)
+- CRITICAL: Set the style for all h1, h2, h3, h4, h5, h6 elements to use color: #0d233f; or color: #7f2628;
+- CRITICAL: Include inline CSS styles for all header elements to ensure they use Liberty Beans colors
+- Include Liberty Beans logo at the top of the email with these specifications:
+  * Logo path: /images/clients/liberty-beans-logo.png
+  * Logo should be small (maximum width: 200px, height: auto)
+  * Logo should have a light background (#f8f8f8 or #ffffff)
+  * Add padding around the logo (10-15px)
+  * Center the logo in a header section
 - Highlight their premium, ethically sourced coffee beans
 - Mention their unique roasting process
 - Reference their community involvement and sustainability efforts
@@ -810,8 +808,11 @@ const parseAIEmailResponse = (
     const responseText = typeof response === 'string' ? response : response.text;
     
     if (!responseText) {
+      console.error('Empty response from AI:', response);
       throw new Error('Empty response from AI');
     }
+    
+    console.log('Parsing AI response:', responseText.substring(0, 200) + '...');
     
     // Extract JSON from the response
     const jsonMatch = responseText.match(/\[\s*\{[\s\S]*\}\s*\]/);
@@ -838,6 +839,60 @@ const parseAIEmailResponse = (
         }];
       }
       
+      // If we can't find JSON, try to parse the response as markdown with sections
+      if (responseText.includes('title:') || responseText.includes('Title:')) {
+        const templates = [];
+        
+        // Split the response by markdown code blocks or clear separators
+        const templateBlocks = responseText.split(/```json|```|\n---\n|\n\*\*\*\n/).filter(block => 
+          block.trim() && (block.includes('title:') || block.includes('Title:'))
+        );
+        
+        for (let i = 0; i < Math.min(templateBlocks.length, templateIds.length); i++) {
+          const block = templateBlocks[i];
+          
+          // Extract title, subject, and content using regex
+          const titleMatch = block.match(/(?:title|Title):\s*"?([^"\n]+)"?/i);
+          const subjectMatch = block.match(/(?:subject|Subject):\s*"?([^"\n]+)"?/i);
+          const contentMatch = block.match(/(?:content|Content):\s*"?([\s\S]+?)(?="?\s*(?:tags|\}|$))/i);
+          const tagsMatch = block.match(/(?:tags|Tags):\s*(\[[^\]]+\])/i);
+          
+          const title = titleMatch ? titleMatch[1].trim() : `Email Template ${i + 1}`;
+          const subject = subjectMatch ? subjectMatch[1].trim() : 'Weekly Coffee Update';
+          const content = contentMatch ? contentMatch[1].trim() : '<p>Liberty Beans Coffee Newsletter</p>';
+          
+          let tags = ['email'];
+          if (tagsMatch) {
+            try {
+              tags = JSON.parse(tagsMatch[1]);
+            } catch (e) {
+              console.error('Error parsing tags:', e);
+            }
+          }
+          
+          templates.push({
+            id: templateIds[i],
+            client_id: clientId,
+            title,
+            subject,
+            content,
+            created_at: new Date().toISOString(),
+            status: 'draft',
+            tags,
+            metrics: {
+              opens: 0,
+              clicks: 0,
+              conversions: 0
+            }
+          });
+        }
+        
+        if (templates.length > 0) {
+          return templates;
+        }
+      }
+      
+      console.error('Could not extract JSON from AI response:', responseText);
       throw new Error('Could not extract JSON from AI response');
     }
     

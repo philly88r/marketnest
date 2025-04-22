@@ -5,12 +5,17 @@ const path = require('path');
 const googleAuthHandler = require('./src/api/googleAuthHandler');
 const seoProxy = require('./server/seoProxy');
 const searchConsoleApi = require('./server/searchConsoleApi');
+const aiContentGenerator = require('./server/aiContentGenerator');
 
 const app = express();
 const PORT = process.env.PORT || 3001;
 
 // Middleware
-app.use(cors());
+app.use(cors({
+  origin: ['http://localhost:3000', 'http://localhost:3001', 'http://localhost:3002'],
+  methods: ['GET', 'POST', 'PUT', 'DELETE'],
+  credentials: true
+}));
 app.use(express.json());
 
 // API routes
@@ -21,6 +26,9 @@ app.use('/api/seo', seoProxy);
 app.post('/api/search-console', searchConsoleApi.getSearchConsoleData);
 app.post('/api/search-console/pages', searchConsoleApi.getTopPages);
 app.post('/api/search-console/queries', searchConsoleApi.getTopQueries);
+
+// AI Content Generation route
+app.post('/api/generate-content', aiContentGenerator.generateContent);
 
 // Serve static files in production
 if (process.env.NODE_ENV === 'production') {
