@@ -334,7 +334,7 @@ const ImageGenerationPage: React.FC = () => {
       <ContentContainer>
         <InputSection>
           <SectionTitle>
-            <FaMagic /> Image Prompt
+            {FaMagic({})} Image Prompt
           </SectionTitle>
           <InputLabel>Describe the image you want to generate:</InputLabel>
           <TextArea 
@@ -403,18 +403,18 @@ const ImageGenerationPage: React.FC = () => {
           >
             {isGenerating ? (
               <>
-                <FaSpinner className="animate-spin" /> Generating...
+                {FaSpinner({ className: "animate-spin" })} Generating...
               </>
             ) : (
               <>
-                <FaImage /> Generate Images
+                {FaImage({})} Generate Images
               </>
             )}
           </Button>
 
           {statusMessage && (
             <StatusMessage type={statusMessage.type}>
-              {statusMessage.type === 'info' && <FaSpinner className="animate-spin" />}
+              {statusMessage.type === 'info' && FaSpinner({ className: "animate-spin" })}
               {statusMessage.type === 'success' && <span>✓</span>}
               {statusMessage.type === 'error' && <span>⚠️</span>}
               {statusMessage.text}
@@ -424,7 +424,7 @@ const ImageGenerationPage: React.FC = () => {
 
         <OutputSection>
           <SectionTitle>
-            <FaImage /> Generated Images
+            {FaImage({})} Generated Images
           </SectionTitle>
           
           {textResponse && (
@@ -440,7 +440,7 @@ const ImageGenerationPage: React.FC = () => {
                   <img src={image.path} alt={`Generated image ${index + 1}`} />
                   <div className="image-actions">
                     <button onClick={() => handleDownloadImage(image.path, image.filename)}>
-                      <FaDownload /> Download
+                      {FaDownload({})} Download
                     </button>
                   </div>
                 </ImageCard>

@@ -428,7 +428,7 @@ const ContentWritingPage: React.FC = () => {
         <ContentContainer>
           <InputSection>
             <SectionTitle>
-              <FaSearch /> Research Topic
+              {FaSearch({})} Research Topic
             </SectionTitle>
             <InputLabel>Enter a topic to research (powered by Gemini-2.5-Pro-Preview-03-25):</InputLabel>
             <TextInput 
@@ -444,11 +444,11 @@ const ContentWritingPage: React.FC = () => {
             >
               {isResearching ? (
                 <>
-                  <FaSpinner className="animate-spin" /> Researching...
+                  {FaSpinner({ className: "animate-spin" })} Researching...
                 </>
               ) : (
                 <>
-                  <FaSearch /> Start Research
+                  {FaSearch({})} Start Research
                 </>
               )}
             </Button>
@@ -461,8 +461,8 @@ const ContentWritingPage: React.FC = () => {
 
             {statusMessage && (
               <StatusMessage type={statusMessage.type}>
-                {statusMessage.type === 'info' && <FaSpinner className="animate-spin" />}
-                {statusMessage.type === 'success' && <FaCheck />}
+                {statusMessage.type === 'info' && FaSpinner({ className: "animate-spin" })}
+                {statusMessage.type === 'success' && FaCheck({})}
                 {statusMessage.type === 'error' && <span>⚠️</span>}
                 {statusMessage.text}
               </StatusMessage>
@@ -482,7 +482,7 @@ const ContentWritingPage: React.FC = () => {
         <ContentContainer>
           <InputSection>
             <SectionTitle>
-              <FaPen /> Content Prompt
+              {FaPen({})} Content Prompt
             </SectionTitle>
             <InputLabel>What would you like to write about? (powered by Gemini-2.0-Flash)</InputLabel>
             <TextArea 
@@ -497,19 +497,19 @@ const ContentWritingPage: React.FC = () => {
             >
               {isGenerating ? (
                 <>
-                  <FaSpinner className="animate-spin" /> Generating...
+                  {FaSpinner({ className: "animate-spin" })} Generating...
                 </>
               ) : (
                 <>
-                  <FaPen /> Generate Content
+                  {FaPen({})} Generate Content
                 </>
               )}
             </Button>
 
             {statusMessage && (
               <StatusMessage type={statusMessage.type}>
-                {statusMessage.type === 'info' && <FaSpinner className="animate-spin" />}
-                {statusMessage.type === 'success' && <FaCheck />}
+                {statusMessage.type === 'info' && FaSpinner({ className: "animate-spin" })}
+                {statusMessage.type === 'success' && FaCheck({})}
                 {statusMessage.type === 'error' && <span>⚠️</span>}
                 {statusMessage.text}
               </StatusMessage>
@@ -525,11 +525,11 @@ const ContentWritingPage: React.FC = () => {
               <CopyButton onClick={copyToClipboard}>
                 {copied ? (
                   <>
-                    <FaCheck /> Copied!
+                    {FaCheck({})} Copied!
                   </>
                 ) : (
                   <>
-                    <FaClipboard /> Copy to Clipboard
+                    {FaClipboard({})} Copy to Clipboard
                   </>
                 )}
               </CopyButton>
