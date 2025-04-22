@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import styled from 'styled-components';
 import { motion } from 'framer-motion';
-import { FaImage, FaSpinner, FaDownload, FaMagic } from 'react-icons/fa';
+import * as FaIcons from 'react-icons/fa';
 import axios from 'axios';
 
 // Styled components
@@ -334,7 +334,7 @@ const ImageGenerationPage: React.FC = () => {
       <ContentContainer>
         <InputSection>
           <SectionTitle>
-            <FaMagic /> Image Prompt
+            <FaIcons.FaMagic /> Image Prompt
           </SectionTitle>
           <InputLabel>Describe the image you want to generate:</InputLabel>
           <TextArea 
@@ -403,18 +403,18 @@ const ImageGenerationPage: React.FC = () => {
           >
             {isGenerating ? (
               <>
-                <FaSpinner className="animate-spin" /> Generating...
+                <FaIcons.FaSpinner className="animate-spin" /> Generating...
               </>
             ) : (
               <>
-                <FaImage /> Generate Images
+                <FaIcons.FaImage /> Generate Images
               </>
             )}
           </Button>
 
           {statusMessage && (
             <StatusMessage type={statusMessage.type}>
-              {statusMessage.type === 'info' && <FaSpinner className="animate-spin" />}
+              {statusMessage.type === 'info' && <FaIcons.FaSpinner className="animate-spin" />}
               {statusMessage.type === 'success' && <span>✓</span>}
               {statusMessage.type === 'error' && <span>⚠️</span>}
               {statusMessage.text}
@@ -424,7 +424,7 @@ const ImageGenerationPage: React.FC = () => {
 
         <OutputSection>
           <SectionTitle>
-            <FaImage /> Generated Images
+            <FaIcons.FaImage /> Generated Images
           </SectionTitle>
           
           {textResponse && (
@@ -440,7 +440,7 @@ const ImageGenerationPage: React.FC = () => {
                   <img src={image.path} alt={`Generated image ${index + 1}`} />
                   <div className="image-actions">
                     <button onClick={() => handleDownloadImage(image.path, image.filename)}>
-                      <FaDownload /> Download
+                      <FaIcons.FaDownload /> Download
                     </button>
                   </div>
                 </ImageCard>
