@@ -12,6 +12,7 @@ import ClientChecklist from './ClientChecklist';
 import Client004Checklist from './Client004Checklist';
 import SEOAuditPage from './SEOAuditPage';
 import FundraiserPage from './FundraiserPage';
+import ClientDashboardAI from './ClientDashboardAI';
 import { renderIcon } from '../utils/iconUtils';
 import { getClientById, updateClient, Client } from '../utils/clientService';
 import { supabase } from '../utils/supabaseClient';
@@ -549,7 +550,7 @@ interface ClientDashboardProps {
 // Using Project and Task interfaces from projectService
 
 const ClientDashboard: React.FC<ClientDashboardProps> = ({ clientId, onBack }) => {
-  const [activeTab, setActiveTab] = useState<'overview' | 'projects' | 'files' | 'tasks' | 'checklist' | 'analytics' | 'fundraiser' | 'email' | 'seo' | 'landing-pages'>('overview');
+  const [activeTab, setActiveTab] = useState<'overview' | 'projects' | 'files' | 'tasks' | 'checklist' | 'analytics' | 'fundraiser' | 'email' | 'seo' | 'landing-pages' | 'ai-tools'>('overview');
   const [client, setClient] = useState<Client | null>(null);
   const [projects, setProjects] = useState<Project[]>([]);
   const [loading, setLoading] = useState<boolean>(true);
@@ -1276,6 +1277,9 @@ const ClientDashboard: React.FC<ClientDashboardProps> = ({ clientId, onBack }) =
           </div>
         );
         
+      case 'ai-tools':
+        return <ClientDashboardAI />;
+        
       default:
         return null;
     }
@@ -1312,6 +1316,9 @@ const ClientDashboard: React.FC<ClientDashboardProps> = ({ clientId, onBack }) =
         <TabButton $active={activeTab === 'seo'} onClick={() => setActiveTab('seo')}>SEO Audit</TabButton>
         <TabButton $active={activeTab === 'landing-pages'} onClick={() => setActiveTab('landing-pages')}>
           Landing Pages
+        </TabButton>
+        <TabButton $active={activeTab === 'ai-tools'} onClick={() => setActiveTab('ai-tools')}>
+          AI Tools
         </TabButton>
         {/* Only show Liberty Beans specific tabs */}
         {client?.id === LIBERTY_BEANS_CLIENT_ID && (
