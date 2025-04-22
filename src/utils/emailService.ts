@@ -371,23 +371,51 @@ Content: ${currentTemplate.content}
 
 Please update this email template based on the following instructions: ${prompt}
 
-Return the updated template with the same structure, keeping any HTML formatting.`;
+IMPORTANT STYLING REQUIREMENTS:
+- This email is for Liberty Beans Coffee ONLY - do NOT use any MarketNest branding or colors
+- Use ONLY Liberty Beans colors: primary color #0d233f (dark navy blue) and secondary color #7f2628 (deep burgundy red)
+- ALL headers, titles, and text must use ONLY the Liberty Beans colors specified above
+- ALL headings must be solid color #0d233f (dark navy blue) or #7f2628 (deep burgundy red), NOT gradients
+- DO NOT use any gradient effects, gradient text, or gradient backgrounds anywhere in the email
+- DO NOT use any colors other than the Liberty Beans colors specified above for any text or headings
+- CRITICAL: Set the style for all h1, h2, h3, h4, h5, h6 elements to use color: #0d233f; or color: #7f2628;
+- CRITICAL: Include inline CSS styles for all header elements to ensure they use Liberty Beans colors
+- Include Liberty Beans logo at the top of the email with these specifications:
+  * Logo path: /images/clients/liberty-beans-logo.png
+  * Logo should be small (maximum width: 200px, height: auto)
+  * Logo should have a light background (#f8f8f8 or #ffffff)
+  * Add padding around the logo (10-15px)
+  * Center the logo in a header section
+
+Return the updated template with the same structure as a JSON object:
+{
+  "title": "Updated title",
+  "subject": "Updated subject line",
+  "content": "Updated HTML content"
+}`;
 
     // Call the AI API directly using the same method as generateEmailTemplates
+    console.log('Calling AI to update template...');
     const aiResponse = await callGeminiAPI(aiPrompt);
+    console.log('AI response received for template update');
     
-    // Extract the updated parts from the AI response
-    const titleMatch = aiResponse.match(/Title:\s*(.*?)(?=\n|$)/);
-    const subjectMatch = aiResponse.match(/Subject:\s*(.*?)(?=\n|$)/);
-    const contentMatch = aiResponse.match(/Content:\s*([\s\S]*?)(?=\n\n|$)/);
+    // Parse the AI response into email templates
+    const templateIds = [templateId];
+    const templates = parseAIEmailResponse(aiResponse, currentTemplate.client_id, templateIds);
     
-    const updates: Partial<EmailTemplate> = {};
-    if (titleMatch && titleMatch[1]) updates.title = titleMatch[1].trim();
-    if (subjectMatch && subjectMatch[1]) updates.subject = subjectMatch[1].trim();
-    if (contentMatch && contentMatch[1]) updates.content = contentMatch[1].trim();
+    // Save the templates to the database
+    for (const template of templates) {
+      const { error } = await supabase
+        .from('email_templates')
+        .update(template)
+        .eq('id', templateId);
+      
+      if (error) {
+        console.error('Error saving email template:', error);
+      }
+    }
     
-    // Update the template in the database
-    return await updateEmailTemplate(templateId, updates);
+    return templates[0];
   } catch (error) {
     console.error('Error updating template with AI:', error);
     throw error;
