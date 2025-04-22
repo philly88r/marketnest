@@ -123,8 +123,14 @@ export const generateEmailTemplates = async (
     // Parse the AI response into email templates
     const templates = parseAIEmailResponse(aiResponse, options.clientId, templateIds);
     
+    // Apply Liberty Beans styling to all templates
+    const processedTemplates = templates.map(template => ({
+      ...template,
+      content: enforceLibertyBeansStyles(template.content)
+    }));
+    
     // Save the templates to the database
-    for (const template of templates) {
+    for (const template of processedTemplates) {
       const { error } = await supabase
         .from('email_templates')
         .insert(template);
@@ -134,7 +140,7 @@ export const generateEmailTemplates = async (
       }
     }
     
-    return templates;
+    return processedTemplates;
   } catch (error) {
     console.error('Error generating email templates:', error);
     throw error;
@@ -159,6 +165,9 @@ export const generateCustomEmailTemplate = async (
     
     // Parse the AI response
     const template = parseAICustomEmailResponse(aiResponse, options.clientId, templateId);
+    
+    // Apply Liberty Beans styling to the template
+    template.content = enforceLibertyBeansStyles(template.content);
     
     // Save the template to the database
     const { error } = await supabase
@@ -403,8 +412,14 @@ Return the updated template with the same structure as a JSON object:
     const templateIds = [templateId];
     const templates = parseAIEmailResponse(aiResponse, currentTemplate.client_id, templateIds);
     
+    // Apply Liberty Beans styling to the template
+    const processedTemplates = templates.map(template => ({
+      ...template,
+      content: enforceLibertyBeansStyles(template.content)
+    }));
+    
     // Save the templates to the database
-    for (const template of templates) {
+    for (const template of processedTemplates) {
       const { error } = await supabase
         .from('email_templates')
         .update(template)
@@ -415,7 +430,7 @@ Return the updated template with the same structure as a JSON object:
       }
     }
     
-    return templates[0];
+    return processedTemplates[0];
   } catch (error) {
     console.error('Error updating template with AI:', error);
     throw error;
@@ -665,6 +680,9 @@ export const generateLandingPage = async (
         }
       }
     }
+    
+    // Apply Liberty Beans styling to the template
+    template.content = enforceLibertyBeansStyles(template.content);
     
     // Save the template to the database
     const { error } = await supabase
@@ -1026,4 +1044,71 @@ const parseAICustomEmailResponse = (
       }
     };
   }
+};
+
+/**
+ * Enforce Liberty Beans styling on email content
+ * This ensures all headers use the correct colors and removes any gradient styling
+ */
+const enforceLibertyBeansStyles = (content: string): string => {
+  if (!content) return content;
+  
+  console.log('Enforcing Liberty Beans styles on email content');
+  
+  // Replace any gradient styling with solid Liberty Beans colors
+  let processedContent = content;
+  
+  // Remove any background-image or gradient properties
+  processedContent = processedContent.replace(/background-image\s*:\s*[^;]*gradient[^;]*;/gi, '');
+  processedContent = processedContent.replace(/background\s*:\s*[^;]*gradient[^;]*;/gi, '');
+  
+  // Replace any -webkit-background-clip: text and other gradient text effects
+  processedContent = processedContent.replace(/-webkit-background-clip\s*:\s*text\s*;/gi, '');
+  processedContent = processedContent.replace(/-webkit-text-fill-color\s*:\s*transparent\s*;/gi, '');
+  
+  // Add Liberty Beans colors to all heading elements
+  const headingTags = ['h1', 'h2', 'h3', 'h4', 'h5', 'h6'];
+  
+  headingTags.forEach(tag => {
+    // Find all instances of the tag
+    const tagRegex = new RegExp(`<${tag}([^>]*)>`, 'gi');
+    
+    // Replace with tag that has Liberty Beans styling
+    processedContent = processedContent.replace(tagRegex, (match, attributes) => {
+      // Check if style attribute exists
+      if (attributes.includes('style="')) {
+        // Add color property to existing style attribute
+        return match.replace(/style="([^"]*)"/i, (styleMatch, styleContent) => {
+          // Remove any existing color property
+          const cleanedStyle = styleContent.replace(/color\s*:[^;]*;?/gi, '');
+          // Add Liberty Beans color
+          return `style="${cleanedStyle}; color: #0d233f;"`;
+        });
+      } else {
+        // Add style attribute with color property
+        return `<${tag}${attributes} style="color: #0d233f;">`;
+      }
+    });
+  });
+  
+  // Also process span elements that might contain heading text
+  processedContent = processedContent.replace(/<span([^>]*)>([^<]*)<\/span>/gi, (match, attributes, content) => {
+    // If the span has font-weight: bold or similar properties, apply Liberty Beans styling
+    if (attributes.includes('font-weight') || attributes.includes('strong') || attributes.includes('bold')) {
+      if (attributes.includes('style="')) {
+        return match.replace(/style="([^"]*)"/i, (styleMatch, styleContent) => {
+          // Remove any existing color property
+          const cleanedStyle = styleContent.replace(/color\s*:[^;]*;?/gi, '');
+          // Add Liberty Beans color
+          return `style="${cleanedStyle}; color: #0d233f;"`;
+        });
+      } else {
+        return `<span${attributes} style="color: #0d233f;">${content}</span>`;
+      }
+    }
+    return match;
+  });
+  
+  console.log('Liberty Beans styles enforced');
+  return processedContent;
 };
