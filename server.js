@@ -6,6 +6,8 @@ const googleAuthHandler = require('./src/api/googleAuthHandler');
 const seoProxy = require('./server/seoProxy');
 const searchConsoleApi = require('./server/searchConsoleApi');
 const aiContentGenerator = require('./server/aiContentGenerator');
+const context7Integration = require('./server/context7Integration');
+const browserUseIntegration = require('./server/browserUseIntegration');
 
 const app = express();
 const PORT = process.env.PORT || 3001;
@@ -29,6 +31,16 @@ app.post('/api/search-console/queries', searchConsoleApi.getTopQueries);
 
 // AI Content Generation route
 app.post('/api/generate-content', aiContentGenerator.generateContent);
+
+// Context7 MCP Integration routes
+app.post('/api/context7/documentation', context7Integration.getContext7Documentation);
+app.post('/api/context7/code-examples', context7Integration.getContext7CodeExamples);
+
+// Browser Use Integration routes
+app.post('/api/browser-use/research', browserUseIntegration.startWebResearch);
+app.get('/api/browser-use/research/:taskId/status', browserUseIntegration.checkWebResearchStatus);
+app.get('/api/browser-use/research/:taskId/results', browserUseIntegration.getWebResearchResults);
+app.post('/api/browser-use/generate-content', browserUseIntegration.generateContentWithWebResearch);
 
 // Serve static files in production
 if (process.env.NODE_ENV === 'production') {

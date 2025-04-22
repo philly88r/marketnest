@@ -332,6 +332,9 @@ const Header: React.FC = () => {
                   <RouterLink to="/services/content-marketing" style={{ textDecoration: 'none' }}>
                     <DropdownItem>Content Marketing</DropdownItem>
                   </RouterLink>
+                  <RouterLink to="/services/content-writing" style={{ textDecoration: 'none' }}>
+                    <DropdownItem>AI Content Writing</DropdownItem>
+                  </RouterLink>
                   <RouterLink to="/services/email-marketing" style={{ textDecoration: 'none' }}>
                     <DropdownItem>Email Marketing</DropdownItem>
                   </RouterLink>
@@ -431,6 +434,9 @@ const Header: React.FC = () => {
                 </RouterLink>
                 <RouterLink to="/services/content-marketing" style={{ textDecoration: 'none' }} onClick={toggleMobileMenu}>
                   <MobileSubmenuItem>Content Marketing</MobileSubmenuItem>
+                </RouterLink>
+                <RouterLink to="/services/content-writing" style={{ textDecoration: 'none' }} onClick={toggleMobileMenu}>
+                  <MobileSubmenuItem>AI Content Writing</MobileSubmenuItem>
                 </RouterLink>
                 <RouterLink to="/services/email-marketing" style={{ textDecoration: 'none' }} onClick={toggleMobileMenu}>
                   <MobileSubmenuItem>Email Marketing</MobileSubmenuItem>
