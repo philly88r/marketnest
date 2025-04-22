@@ -404,8 +404,9 @@ const ContentWritingPage: React.FC = () => {
       </PageTitle>
       <PageDescription>
         Create high-quality, well-researched content with our AI-powered content writing tool.
-        Our system uses advanced web browsing capabilities to research your topic and generate
-        content that's accurate, informative, and engaging.
+        Our system uses Gemini-2.5-Pro-Preview-03-25 with Browser Use for advanced web research, 
+        and Gemini-2.0-Flash for fast, high-quality content generation. Get accurate, informative, 
+        and engaging content in minutes.
       </PageDescription>
 
       <TabContainer>
@@ -429,7 +430,7 @@ const ContentWritingPage: React.FC = () => {
             <SectionTitle>
               <FaSearch /> Research Topic
             </SectionTitle>
-            <InputLabel>Enter a topic to research:</InputLabel>
+            <InputLabel>Enter a topic to research (powered by Gemini-2.5-Pro-Preview-03-25):</InputLabel>
             <TextInput 
               type="text" 
               value={searchQuery}
@@ -483,7 +484,7 @@ const ContentWritingPage: React.FC = () => {
             <SectionTitle>
               <FaPen /> Content Prompt
             </SectionTitle>
-            <InputLabel>What would you like to write about?</InputLabel>
+            <InputLabel>What would you like to write about? (powered by Gemini-2.0-Flash)</InputLabel>
             <TextArea 
               value={contentPrompt}
               onChange={(e) => setContentPrompt(e.target.value)}

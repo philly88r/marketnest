@@ -8,6 +8,7 @@ const searchConsoleApi = require('./server/searchConsoleApi');
 const aiContentGenerator = require('./server/aiContentGenerator');
 const context7Integration = require('./server/context7Integration');
 const browserUseIntegration = require('./server/browserUseIntegration');
+const geminiImageGenerator = require('./server/geminiImageGenerator');
 
 const app = express();
 const PORT = process.env.PORT || 3001;
@@ -42,6 +43,9 @@ app.get('/api/browser-use/research/:taskId/status', browserUseIntegration.checkW
 app.get('/api/browser-use/research/:taskId/results', browserUseIntegration.getWebResearchResults);
 app.post('/api/browser-use/generate-content', browserUseIntegration.generateContentWithWebResearch);
 
+// Gemini Image Generation route
+app.post('/api/generate-image', geminiImageGenerator.handleImageGeneration);
+
 // Serve static files in production
 if (process.env.NODE_ENV === 'production') {
   app.use(express.static(path.join(__dirname, 'build')));
@@ -50,6 +54,9 @@ if (process.env.NODE_ENV === 'production') {
     res.sendFile(path.join(__dirname, 'build', 'index.html'));
   });
 }
+
+// Serve uploaded files
+app.use('/uploads', express.static(path.join(__dirname, 'public', 'uploads')));
 
 // Start server
 app.listen(PORT, () => {

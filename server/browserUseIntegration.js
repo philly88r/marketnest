@@ -2,7 +2,7 @@
  * Browser Use Integration for MarketNest Agency Website
  * 
  * This module provides integration with Browser Use API to enable AI-powered web browsing
- * for content research and generation using Gemini 2.5 Pro.
+ * for content research and generation using Gemini models.
  */
 
 require('dotenv').config();
@@ -12,9 +12,10 @@ const fetch = require('node-fetch');
 const BROWSER_USE_API_URL = 'https://api.browser-use.com/api/v1';
 const BROWSER_USE_API_KEY = process.env.BROWSER_USE_API_KEY; // Add this to your .env file
 
-// Gemini API configuration (reusing from aiContentGenerator)
-const GEMINI_API_URL = 'https://generativelanguage.googleapis.com/v1/models/gemini-2.5-pro:generateContent';
+// Gemini API configuration
 const GEMINI_API_KEY = process.env.REACT_APP_GEMINI_API_KEY;
+const GEMINI_RESEARCH_MODEL = 'gemini-2.5-pro-preview-03-25'; // For research with Browser Use
+const GEMINI_WRITING_MODEL = 'gemini-2.0-flash-001'; // Correct model name for Gemini 2.0 Flash
 
 /**
  * Create a new browser automation task
@@ -34,7 +35,8 @@ async function createBrowserTask(instructions) {
         'Authorization': `Bearer ${BROWSER_USE_API_KEY}`
       },
       body: JSON.stringify({
-        task: instructions
+        task: instructions,
+        model: GEMINI_RESEARCH_MODEL // Use Gemini-2.5-Pro-Preview-03-25 for research
       })
     });
 
@@ -115,7 +117,7 @@ async function getBrowserTaskDetails(taskId) {
 }
 
 /**
- * Generate content using Gemini 2.5 Pro with research data
+ * Generate content using Gemini-2.0-Flash with research data
  * @param {string} prompt - The content generation prompt
  * @param {string} researchData - The research data from Browser Use
  * @returns {Promise<string>} - Generated content
@@ -135,7 +137,8 @@ Based on the above research, ${prompt}
 Please format the content professionally with proper headings, paragraphs, and formatting.
 `;
 
-    const response = await fetch(`${GEMINI_API_URL}?key=${GEMINI_API_KEY}`, {
+    // Using the correct endpoint format for Gemini-2.0-Flash-001
+    const response = await fetch(`https://generativelanguage.googleapis.com/v1/models/${GEMINI_WRITING_MODEL}:generateContent?key=${GEMINI_API_KEY}`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',

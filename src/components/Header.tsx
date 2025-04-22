@@ -365,6 +365,9 @@ const Header: React.FC = () => {
                   <RouterLink to="/business-software/ai-agents" style={{ textDecoration: 'none' }}>
                     <DropdownItem>AI Agents</DropdownItem>
                   </RouterLink>
+                  <RouterLink to="/image-generation" style={{ textDecoration: 'none' }}>
+                    <DropdownItem>AI Image Generation</DropdownItem>
+                  </RouterLink>
                   <RouterLink to="/business-software/automation" style={{ textDecoration: 'none' }}>
                     <DropdownItem>Business Automation</DropdownItem>
                   </RouterLink>
@@ -464,6 +467,9 @@ const Header: React.FC = () => {
                 </RouterLink>
                 <RouterLink to="/business-software/ai-agents" style={{ textDecoration: 'none' }} onClick={toggleMobileMenu}>
                   <MobileSubmenuItem>AI Agents</MobileSubmenuItem>
+                </RouterLink>
+                <RouterLink to="/image-generation" style={{ textDecoration: 'none' }} onClick={toggleMobileMenu}>
+                  <MobileSubmenuItem>AI Image Generation</MobileSubmenuItem>
                 </RouterLink>
                 <RouterLink to="/business-software/automation" style={{ textDecoration: 'none' }} onClick={toggleMobileMenu}>
                   <MobileSubmenuItem>Business Automation</MobileSubmenuItem>

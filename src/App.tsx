@@ -36,6 +36,7 @@ import DirectAdminPage from './pages/DirectAdminPage';
 import LibertyBeansEmailPage from './pages/LibertyBeansEmailPage';
 import LandingPageGeneratorPage from './pages/LandingPageGeneratorPage';
 import ContentWritingPage from './pages/ContentWritingPage';
+import ImageGenerationPage from './pages/ImageGenerationPage';
 
 const GlobalStyle = createGlobalStyle`
   @import url('https://fonts.googleapis.com/css2?family=DM+Sans:wght@300;400;500;600;700;900&family=Plus+Jakarta+Sans:wght@400;500&display=swap');
@@ -151,6 +152,7 @@ function App() {
           <Route path="/clients/liberty-beans/email" element={<LibertyBeansEmailPage />} />
           <Route path="/email-marketing" element={<EmailMarketingHub />} />
           <Route path="/services/content-writing" element={<ContentWritingPage />} />
+          <Route path="/image-generation" element={<ImageGenerationPage />} />
           {/* Restrict landing page generator to admin access only */}
           <Route path="/landing-page-generator" element={<Navigate to="/admin-portal" replace />} />
           <Route path="/admin/landing-page-generator" element={<LandingPageGeneratorPage />} />
