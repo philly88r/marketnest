@@ -1142,6 +1142,76 @@ const createFailedAuditReport = (url: string, error: any): SEOReport => {
 };
 
 /**
+ * Helper function to fix common JSON issues
+ */
+const fixCommonJsonIssues = (jsonStr: string): string => {
+  // Replace single quotes with double quotes (except within strings)
+  let fixed = jsonStr.replace(/(?<!"[^"]*)'([^']*)'/g, '"$1"');
+  
+  // Fix trailing commas in arrays and objects
+  fixed = fixed.replace(/,\s*([\]\}])/g, '$1');
+  
+  // Fix missing quotes around property names
+  fixed = fixed.replace(/(\{|,)\s*([a-zA-Z0-9_]+)\s*:/g, '$1"$2":');
+  
+  // Remove any control characters
+  fixed = fixed.replace(/[\x00-\x1F\x7F-\x9F]/g, '');
+  
+  return fixed;
+};
+
+/**
+ * Helper function to attempt to fix malformed JSON
+ */
+const fixMalformedJson = (jsonStr: string): string => {
+  // Try to balance brackets and braces
+  let openBraces = 0;
+  let openBrackets = 0;
+  let inString = false;
+  let escaped = false;
+  let result = '';
+  
+  for (let i = 0; i < jsonStr.length; i++) {
+    const char = jsonStr[i];
+    
+    if (inString) {
+      if (char === '\\' && !escaped) {
+        escaped = true;
+      } else if (char === '"' && !escaped) {
+        inString = false;
+      } else {
+        escaped = false;
+      }
+      result += char;
+    } else {
+      if (char === '{') openBraces++;
+      else if (char === '}') openBraces--;
+      else if (char === '[') openBrackets++;
+      else if (char === ']') openBrackets--;
+      else if (char === '"') inString = true;
+      
+      // Skip characters that would make the JSON invalid
+      if (!/[\x00-\x1F\x7F-\x9F]/.test(char)) {
+        result += char;
+      }
+    }
+  }
+  
+  // Add missing closing braces/brackets
+  while (openBraces > 0) {
+    result += '}';
+    openBraces--;
+  }
+  
+  while (openBrackets > 0) {
+    result += ']';
+    openBrackets--;
+  }
+  
+  return result;
+};
+
+/**
  * Parses the Gemini API response into a structured SEO report
  */
 const parseGeminiResponse = (response: any, url: string): SEOReport => {
@@ -1154,32 +1224,71 @@ const parseGeminiResponse = (response: any, url: string): SEOReport => {
     if (typeof response === 'string') {
       console.log('Response is a string, looking for JSON...');
       
+      // First, try to clean up the response to make it valid JSON
+      let cleanedResponse = response;
+      
+      // Remove any markdown formatting or explanatory text before or after JSON
+      cleanedResponse = cleanedResponse.replace(/^[\s\S]*?(?=\{)/g, ''); // Remove everything before the first {
+      cleanedResponse = cleanedResponse.replace(/\}[\s\S]*$/g, '}'); // Remove everything after the last }
+      
       // Check for code blocks with JSON first
-      const codeBlockMatch = response.match(/```json\s*([\s\S]*?)\s*```/);
+      const codeBlockMatch = response.match(/```(?:json)?\s*([\s\S]*?)\s*```/);
       if (codeBlockMatch && codeBlockMatch[1]) {
         console.log('Found JSON in code block, extracting...');
-        const jsonStr = codeBlockMatch[1].trim();
+        let jsonStr = codeBlockMatch[1].trim();
+        
+        // Additional cleaning for common JSON formatting issues
+        jsonStr = fixCommonJsonIssues(jsonStr);
+        
         try {
           parsedReport = JSON.parse(jsonStr);
           console.log('Successfully parsed JSON from code block');
         } catch (codeBlockError) {
           console.error('Error parsing JSON from code block:', codeBlockError);
-          // Fall back to regular JSON extraction
-          const jsonMatch = response.match(/\{[\s\S]*\}/);
-          if (!jsonMatch) {
-            throw new Error('No JSON found in response string');
+          console.log('Attempting to fix malformed JSON...');
+          
+          // Try to fix common JSON issues and parse again
+          try {
+            const fixedJson = fixMalformedJson(jsonStr);
+            parsedReport = JSON.parse(fixedJson);
+            console.log('Successfully parsed fixed JSON from code block');
+          } catch (fixError) {
+            console.error('Failed to fix JSON from code block:', fixError);
+            // Fall back to regular JSON extraction
+            const jsonMatch = cleanedResponse.match(/\{[\s\S]*\}/);
+            if (!jsonMatch) {
+              throw new Error('No valid JSON found in response string');
+            }
+            const extractedJsonStr = fixCommonJsonIssues(jsonMatch[0]);
+            try {
+              parsedReport = JSON.parse(extractedJsonStr);
+            } catch (extractError) {
+              const fixedExtractedJson = fixMalformedJson(extractedJsonStr);
+              parsedReport = JSON.parse(fixedExtractedJson);
+            }
           }
-          const jsonStr = jsonMatch[0];
-          parsedReport = JSON.parse(jsonStr);
         }
       } else {
         // Try to extract JSON from the string response
-        const jsonMatch = response.match(/\{[\s\S]*\}/);
+        const jsonMatch = cleanedResponse.match(/\{[\s\S]*\}/);
         if (!jsonMatch) {
           throw new Error('No JSON found in response string');
         }
-        const jsonStr = jsonMatch[0];
-        parsedReport = JSON.parse(jsonStr);
+        let jsonStr = jsonMatch[0];
+        
+        // Clean up the JSON string
+        jsonStr = fixCommonJsonIssues(jsonStr);
+        
+        try {
+          parsedReport = JSON.parse(jsonStr);
+        } catch (jsonError) {
+          console.error('Error parsing extracted JSON:', jsonError);
+          console.log('Attempting to fix malformed JSON...');
+          
+          // Try to fix common JSON issues and parse again
+          const fixedJson = fixMalformedJson(jsonStr);
+          parsedReport = JSON.parse(fixedJson);
+        }
       }
     } else if (typeof response === 'object') {
       // Response is already an object (from the updated callGeminiAPI function)
@@ -1188,11 +1297,13 @@ const parseGeminiResponse = (response: any, url: string): SEOReport => {
       throw new Error(`Unexpected response type: ${typeof response}`);
     }
     
+    // Use the helper functions defined outside this function
+    
     console.log('Parsed report structure:', Object.keys(parsedReport));
     
     // Ensure the report has all required sections
     const emptyReport = createEmptyReport();
-    return {
+    const result = {
       overall: { ...emptyReport.overall, ...parsedReport.overall },
       technical: { ...emptyReport.technical, ...parsedReport.technical },
       content: { ...emptyReport.content, ...parsedReport.content },
@@ -1222,8 +1333,14 @@ const parseGeminiResponse = (response: any, url: string): SEOReport => {
         internalCount: parsedReport.links?.internalCount || 0,
         externalCount: parsedReport.links?.externalCount || 0
       },
-      contentWordCount: parsedReport.contentWordCount || 0
+      contentWordCount: parsedReport.contentWordCount || 0,
+      pages: parsedReport.pages || []
     };
+    
+    // Log the successful parsing
+    console.log('Successfully created SEO report with structure:', Object.keys(result));
+    
+    return result;
   } catch (error) {
     console.error('Error parsing Gemini response:', error);
     
@@ -1268,7 +1385,9 @@ const parseGeminiResponse = (response: any, url: string): SEOReport => {
 const generateSEOAuditPrompt = (url: string): string => {
   return `You are an ELITE SEO EXPERT performing the MOST COMPREHENSIVE and DETAILED SEO audit possible for the website: ${url}
 
-Your task is to generate an EXTREMELY DETAILED and THOROUGH SEO analysis in valid JSON format. The response MUST be valid, parseable JSON with no markdown formatting, no code blocks, and no explanatory text. PROVIDE AS MUCH DETAIL AS POSSIBLE IN EVERY SECTION.
+Your task is to generate an EXTREMELY DETAILED and THOROUGH SEO analysis in VALID JSON FORMAT ONLY. 
+
+CRITICALLY IMPORTANT: Your response MUST be valid, parseable JSON with NO markdown formatting, NO code blocks, and NO explanatory text. DO NOT include any text before or after the JSON. Start your response with '{' and end with '}'. PROVIDE AS MUCH DETAIL AS POSSIBLE IN EVERY SECTION.
 
 Follow this exact structure:
 
@@ -1588,10 +1707,11 @@ const callGeminiAPI = async (prompt: string): Promise<string> => {
         }]
       }],
       generationConfig: {
-        temperature: 0.05, // Very low temperature for maximum factual accuracy
-        topP: 0.98,       // Very high topP for extremely comprehensive coverage
-        topK: 50,         // Increased topK for more diverse considerations
-        maxOutputTokens: 32768 // Maximum token limit for the most detailed analysis possible
+        temperature: 0.01, // Extremely low temperature for maximum factual accuracy and consistency
+        topP: 0.99,       // Very high topP for extremely comprehensive coverage
+        topK: 40,         // Balanced topK for focused yet diverse considerations
+        maxOutputTokens: 32768, // Maximum token limit for the most detailed analysis possible
+        responseFormat: { type: "json" } // Explicitly request JSON format from the API
       }
     };
 
