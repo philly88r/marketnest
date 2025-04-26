@@ -21,6 +21,9 @@ export interface SEOIssue {
   severity: 'high' | 'medium' | 'low';
   impact: string;
   recommendation: string;
+  priority?: number;
+  estimatedEffort?: string;
+  estimatedImpact?: string;
 }
 
 export type SEORecommendation = SEOIssue;
@@ -31,19 +34,198 @@ export interface SEOScoreSection {
   summary?: string;
 }
 
+export interface PageMetaTags {
+  title: string;
+  description: string;
+  keywords: string;
+  analysis?: {
+    titleLength?: number;
+    titleQuality?: string;
+    descriptionLength?: number;
+    descriptionQuality?: string;
+  };
+}
+
+export interface PageContent {
+  wordCount: number;
+  readabilityScore?: number;
+  keywordDensity?: {
+    primary?: number;
+    secondary?: Array<{ keyword: string; density: number }>;
+  };
+  quality?: string;
+}
+
+export interface PagePerformance {
+  estimatedLoadTime?: string;
+  mobileCompatibility?: number;
+  coreWebVitals?: {
+    LCP?: string;
+    FID?: string;
+    CLS?: string;
+  };
+}
+
+export interface PageSchema {
+  detected?: string[];
+  missing?: string[];
+  issues?: string[];
+}
+
+export interface PageLinks {
+  internal?: {
+    count: number;
+    quality?: string;
+    anchors?: string[];
+  };
+  external?: {
+    count: number;
+    quality?: string;
+    domains?: string[];
+  };
+  broken?: string[];
+}
+
+export interface PageImages {
+  total: number;
+  withAlt: number;
+  withoutAlt: number;
+  compressed?: number;
+  uncompressed?: number;
+  issues?: string[];
+}
+
+export interface PageAnalysis {
+  url: string;
+  title: string;
+  score: number;
+  issues: SEOIssue[];
+  metaTags: PageMetaTags;
+  headings: {
+    h1: string[];
+    h2: string[];
+    h3: string[];
+    analysis?: string;
+  };
+  content?: PageContent;
+  images?: PageImages;
+  links?: PageLinks;
+  performance?: PagePerformance;
+  schemaMarkup?: PageSchema;
+}
+
 export interface SEOReport {
   overall: {
     score: number;
     summary: string;
     timestamp: string;
   };
-  technical: SEOScoreSection;
-  content: SEOScoreSection;
-  onPage: SEOScoreSection;
-  performance: SEOScoreSection;
-  mobile: SEOScoreSection;
-  backlinks: SEOScoreSection;
-  keywords: SEOScoreSection;
+  pages?: PageAnalysis[];
+  technical: SEOScoreSection & {
+    crawlability?: {
+      robotsTxt?: string;
+      sitemapXml?: string;
+      crawlErrors?: string[];
+      indexationStatus?: string;
+    };
+    security?: {
+      https?: boolean;
+      sslCertificate?: string;
+      securityIssues?: string[];
+    };
+    serverConfiguration?: {
+      hosting?: string;
+      responseTime?: string;
+      compression?: string;
+      caching?: string;
+    };
+  };
+  content: SEOScoreSection & {
+    contentAudit?: {
+      qualityAssessment?: string;
+      topPerformingContent?: string[];
+      contentGaps?: string[];
+      recommendations?: string[];
+    };
+    readability?: {
+      averageScore?: number;
+      assessment?: string;
+      improvements?: string[];
+    };
+  };
+  onPage: SEOScoreSection & {
+    metaTagsAudit?: {
+      titleTags?: string;
+      metaDescriptions?: string;
+      canonicalTags?: string;
+      hreflangTags?: string;
+      otherMetaTags?: string;
+    };
+    urlStructure?: {
+      assessment?: string;
+      issues?: string[];
+    };
+    internalLinking?: {
+      assessment?: string;
+      opportunities?: string[];
+    };
+  };
+  performance: SEOScoreSection & {
+    coreWebVitals?: {
+      LCP?: string;
+      FID?: string;
+      CLS?: string;
+      improvements?: string[];
+    };
+    pageSpeed?: {
+      desktop?: string;
+      mobile?: string;
+      improvements?: string[];
+    };
+    resourceOptimization?: {
+      images?: string;
+      javascript?: string;
+      css?: string;
+      html?: string;
+    };
+  };
+  mobile: SEOScoreSection & {
+    responsiveness?: string;
+    mobileUsability?: string;
+    acceleratedMobilePages?: string;
+    touchFriendliness?: string;
+    viewportConfiguration?: string;
+  };
+  backlinks: SEOScoreSection & {
+    backlinkProfile?: {
+      totalBacklinks?: string | number;
+      uniqueDomains?: string | number;
+      qualityAssessment?: string;
+      topBacklinks?: string[];
+      competitorComparison?: string;
+    };
+    anchorTextAnalysis?: {
+      assessment?: string;
+      topAnchorTexts?: string[];
+    };
+    opportunities?: string[];
+  };
+  keywords: SEOScoreSection & {
+    currentTargeting?: {
+      primaryKeywords?: string[];
+      secondaryKeywords?: string[];
+      assessment?: string;
+    };
+    rankings?: {
+      topRankingKeywords?: string[];
+      rankingOpportunities?: string[];
+    };
+    competitorAnalysis?: {
+      competitorKeywords?: string[];
+      keywordGaps?: string[];
+    };
+    recommendations?: string[];
+  };
   recommendations: SEORecommendation[];
   url: string;
   metaTags: {
@@ -72,11 +254,31 @@ export interface SEOReport {
     score: number;
     issueCount: number;
   }[];
+  competitiveAnalysis?: {
+    topCompetitors?: string[];
+    competitiveGaps?: string[];
+    competitiveAdvantages?: string[];
+    marketOpportunities?: string[];
+  };
+  localSEO?: {
+    googleBusinessProfile?: string;
+    localCitations?: string;
+    localKeywords?: string;
+    recommendations?: string[];
+  };
 }
 
 // Gemini API integration
 const GEMINI_API_KEY = process.env.REACT_APP_GEMINI_API_KEY || '';
-const GEMINI_API_URL = 'https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent';
+const GEMINI_API_URL = 'https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-pro-preview-03-25:generateContent';
+
+// Verify Gemini API key is set
+if (!GEMINI_API_KEY) {
+  console.error('WARNING: REACT_APP_GEMINI_API_KEY is not set in environment variables!');
+  console.error('SEO audit feature will not work properly without a valid API key.');
+} else {
+  console.log('Gemini API key is configured. Length:', GEMINI_API_KEY.length);
+}
 
 /**
  * Creates an empty SEO report structure
@@ -942,16 +1144,51 @@ const createFailedAuditReport = (url: string, error: any): SEOReport => {
 /**
  * Parses the Gemini API response into a structured SEO report
  */
-const parseGeminiResponse = (response: string, url: string): SEOReport => {
+const parseGeminiResponse = (response: any, url: string): SEOReport => {
   try {
-    // Extract the JSON part from the response
-    const jsonMatch = response.match(/\{[\s\S]*\}/);
-    if (!jsonMatch) {
-      throw new Error('No JSON found in response');
+    console.log('Parsing Gemini response:', typeof response);
+    
+    // Handle different response formats
+    let parsedReport: Partial<SEOReport>;
+    
+    if (typeof response === 'string') {
+      console.log('Response is a string, looking for JSON...');
+      
+      // Check for code blocks with JSON first
+      const codeBlockMatch = response.match(/```json\s*([\s\S]*?)\s*```/);
+      if (codeBlockMatch && codeBlockMatch[1]) {
+        console.log('Found JSON in code block, extracting...');
+        const jsonStr = codeBlockMatch[1].trim();
+        try {
+          parsedReport = JSON.parse(jsonStr);
+          console.log('Successfully parsed JSON from code block');
+        } catch (codeBlockError) {
+          console.error('Error parsing JSON from code block:', codeBlockError);
+          // Fall back to regular JSON extraction
+          const jsonMatch = response.match(/\{[\s\S]*\}/);
+          if (!jsonMatch) {
+            throw new Error('No JSON found in response string');
+          }
+          const jsonStr = jsonMatch[0];
+          parsedReport = JSON.parse(jsonStr);
+        }
+      } else {
+        // Try to extract JSON from the string response
+        const jsonMatch = response.match(/\{[\s\S]*\}/);
+        if (!jsonMatch) {
+          throw new Error('No JSON found in response string');
+        }
+        const jsonStr = jsonMatch[0];
+        parsedReport = JSON.parse(jsonStr);
+      }
+    } else if (typeof response === 'object') {
+      // Response is already an object (from the updated callGeminiAPI function)
+      parsedReport = response;
+    } else {
+      throw new Error(`Unexpected response type: ${typeof response}`);
     }
     
-    const jsonStr = jsonMatch[0];
-    const parsedReport = JSON.parse(jsonStr) as SEOReport;
+    console.log('Parsed report structure:', Object.keys(parsedReport));
     
     // Ensure the report has all required sections
     const emptyReport = createEmptyReport();
@@ -1025,176 +1262,398 @@ const parseGeminiResponse = (response: string, url: string): SEOReport => {
 };
 
 /**
- * Generates the prompt for the Gemini API to create an SEO audit
+ * Generates the prompt for the Gemini API to create a comprehensive SEO audit
+ * Using Gemini 2.5 Pro model for enhanced analysis capabilities
  */
 const generateSEOAuditPrompt = (url: string): string => {
-  return `
-Please perform a comprehensive SEO audit for the website: ${url}
+  return `You are an ELITE SEO EXPERT performing the MOST COMPREHENSIVE and DETAILED SEO audit possible for the website: ${url}
 
-I need a detailed analysis in JSON format with the following structure:
+Your task is to generate an EXTREMELY DETAILED and THOROUGH SEO analysis in valid JSON format. The response MUST be valid, parseable JSON with no markdown formatting, no code blocks, and no explanatory text. PROVIDE AS MUCH DETAIL AS POSSIBLE IN EVERY SECTION.
+
+Follow this exact structure:
 
 {
   "overall": {
-    "score": <number between 0-100>,
-    "summary": "<brief summary of overall SEO health>",
-    "timestamp": "<current date and time>"
+    "score": 75,
+    "summary": "Detailed assessment of the website's SEO health with key findings and priorities",
+    "timestamp": "${new Date().toISOString()}"
   },
+  "pages": [
+    {
+      "url": "https://example.com/page1",
+      "title": "Page title",
+      "score": 82,
+      "issues": [
+        {
+          "title": "Issue title",
+          "description": "Detailed explanation of the issue",
+          "severity": "high",
+          "impact": "Specific impact on SEO performance",
+          "recommendation": "Detailed steps to fix this issue",
+          "priority": 1
+        }
+      ],
+      "metaTags": {
+        "title": "Actual page title",
+        "description": "Actual meta description",
+        "keywords": "actual, keywords",
+        "analysis": {
+          "titleLength": 65,
+          "titleQuality": "Good title with primary keyword",
+          "descriptionLength": 155,
+          "descriptionQuality": "Compelling with call to action"
+        }
+      },
+      "headings": {
+        "h1": ["Main heading"],
+        "h2": ["Subheading 1", "Subheading 2"],
+        "h3": ["Section 1", "Section 2"],
+        "analysis": "Heading structure assessment"
+      },
+      "content": {
+        "wordCount": 1250,
+        "readabilityScore": 68,
+        "keywordDensity": {
+          "primary": 2.4,
+          "secondary": [
+            {"keyword": "example term", "density": 1.2}
+          ]
+        },
+        "quality": "Assessment of content quality"
+      },
+      "images": {
+        "total": 12,
+        "withAlt": 10,
+        "withoutAlt": 2,
+        "compressed": 8,
+        "uncompressed": 4,
+        "issues": ["List of specific image issues"]
+      },
+      "links": {
+        "internal": {
+          "count": 15,
+          "quality": "Assessment of internal linking",
+          "anchors": ["Example anchor text"]
+        },
+        "external": {
+          "count": 8,
+          "quality": "Assessment of external linking",
+          "domains": ["example.com"]
+        },
+        "broken": ["Any broken links detected"]
+      },
+      "performance": {
+        "estimatedLoadTime": "2.4s",
+        "mobileCompatibility": 85,
+        "coreWebVitals": {
+          "LCP": "Estimated Largest Contentful Paint",
+          "FID": "Estimated First Input Delay",
+          "CLS": "Estimated Cumulative Layout Shift"
+        }
+      },
+      "schemaMarkup": {
+        "detected": ["Types of schema detected"],
+        "missing": ["Recommended schema types to add"],
+        "issues": ["Any issues with existing schema"]
+      }
+    }
+  ],
   "technical": {
-    "score": <number between 0-100>,
+    "score": 80,
     "issues": [
       {
-        "title": "<issue title>",
-        "description": "<detailed description>",
-        "severity": "<high|medium|low>",
-        "impact": "<impact on SEO>",
-        "recommendation": "<how to fix>"
+        "title": "Technical issue title",
+        "description": "Detailed explanation of the issue",
+        "severity": "medium",
+        "impact": "How this affects SEO performance",
+        "recommendation": "How to fix this issue",
+        "priority": 2
       }
-    ]
+    ],
+    "crawlability": {
+      "robotsTxt": "Assessment of robots.txt",
+      "sitemapXml": "Assessment of sitemap.xml",
+      "crawlErrors": ["List of crawl errors"],
+      "indexationStatus": "Analysis of indexation"
+    },
+    "security": {
+      "https": true,
+      "sslCertificate": "Assessment of SSL certificate",
+      "securityIssues": ["Any security issues detected"]
+    },
+    "serverConfiguration": {
+      "hosting": "Assessment of hosting",
+      "responseTime": "Server response time",
+      "compression": "Assessment of compression",
+      "caching": "Assessment of caching"
+    }
   },
   "content": {
-    "score": <number between 0-100>,
-    "issues": [<same structure as technical issues>]
+    "score": 70,
+    "issues": [],
+    "contentAudit": {
+      "qualityAssessment": "Overall content quality assessment",
+      "topPerformingContent": ["List of top content"],
+      "contentGaps": ["Identified content gaps"],
+      "recommendations": ["Content improvement recommendations"]
+    },
+    "readability": {
+      "averageScore": 65,
+      "assessment": "Readability assessment",
+      "improvements": ["Readability improvement suggestions"]
+    }
   },
   "onPage": {
-    "score": <number between 0-100>,
-    "issues": [<same structure as technical issues>]
+    "score": 65,
+    "issues": [],
+    "metaTagsAudit": {
+      "titleTags": "Assessment of title tags",
+      "metaDescriptions": "Assessment of meta descriptions",
+      "canonicalTags": "Assessment of canonical tags",
+      "hreflangTags": "Assessment of hreflang tags",
+      "otherMetaTags": "Assessment of other meta tags"
+    },
+    "urlStructure": {
+      "assessment": "Assessment of URL structure",
+      "issues": ["URL structure issues"]
+    },
+    "internalLinking": {
+      "assessment": "Assessment of internal linking",
+      "opportunities": ["Internal linking opportunities"]
+    }
   },
   "performance": {
-    "score": <number between 0-100>,
-    "issues": [<same structure as technical issues>]
+    "score": 60,
+    "issues": [],
+    "coreWebVitals": {
+      "LCP": "Largest Contentful Paint assessment",
+      "FID": "First Input Delay assessment",
+      "CLS": "Cumulative Layout Shift assessment",
+      "improvements": ["Core Web Vitals improvement suggestions"]
+    },
+    "pageSpeed": {
+      "desktop": "Desktop page speed assessment",
+      "mobile": "Mobile page speed assessment",
+      "improvements": ["Page speed improvement suggestions"]
+    },
+    "resourceOptimization": {
+      "images": "Image optimization assessment",
+      "javascript": "JavaScript optimization assessment",
+      "css": "CSS optimization assessment",
+      "html": "HTML optimization assessment"
+    }
   },
   "mobile": {
-    "score": <number between 0-100>,
-    "issues": [<same structure as technical issues>]
+    "score": 85,
+    "issues": [],
+    "responsiveness": "Assessment of responsive design",
+    "mobileUsability": "Assessment of mobile usability",
+    "acceleratedMobilePages": "Assessment of AMP implementation",
+    "touchFriendliness": "Assessment of touch-friendly elements",
+    "viewportConfiguration": "Assessment of viewport configuration"
   },
   "backlinks": {
-    "score": <number between 0-100>,
-    "issues": [<same structure as technical issues>]
+    "score": 50,
+    "issues": [],
+    "backlinkProfile": {
+      "totalBacklinks": "Estimated number of backlinks",
+      "uniqueDomains": "Estimated number of unique domains",
+      "qualityAssessment": "Assessment of backlink quality",
+      "topBacklinks": ["List of top backlinks"],
+      "competitorComparison": "Comparison with competitors"
+    },
+    "anchorTextAnalysis": {
+      "assessment": "Assessment of anchor text distribution",
+      "topAnchorTexts": ["List of top anchor texts"]
+    },
+    "opportunities": ["Backlink building opportunities"]
   },
   "keywords": {
-    "score": <number between 0-100>,
-    "issues": [<same structure as technical issues>]
+    "score": 60,
+    "issues": [],
+    "currentTargeting": {
+      "primaryKeywords": ["List of primary keywords"],
+      "secondaryKeywords": ["List of secondary keywords"],
+      "assessment": "Assessment of current keyword targeting"
+    },
+    "rankings": {
+      "topRankingKeywords": ["List of top ranking keywords"],
+      "rankingOpportunities": ["Ranking improvement opportunities"]
+    },
+    "competitorAnalysis": {
+      "competitorKeywords": ["Keywords competitors rank for"],
+      "keywordGaps": ["Keyword gaps compared to competitors"]
+    },
+    "recommendations": ["Keyword targeting recommendations"]
   },
   "recommendations": [
     {
-      "title": "<recommendation title>",
-      "description": "<detailed description>",
-      "severity": "<high|medium|low>",
-      "impact": "<expected impact>",
-      "recommendation": "<how to fix>"
+      "title": "Recommendation title",
+      "description": "Detailed explanation",
+      "severity": "high",
+      "impact": "Expected impact on SEO",
+      "recommendation": "Specific action steps",
+      "priority": 1,
+      "estimatedEffort": "Estimated implementation effort",
+      "estimatedImpact": "Estimated impact on rankings"
     }
   ],
   "url": "${url}",
   "metaTags": {
-    "title": "<meta title>",
-    "description": "<meta description>",
-    "keywords": "<meta keywords>"
+    "title": "Site title",
+    "description": "Site description",
+    "keywords": "site, keywords"
   },
   "headings": {
-    "h1": ["<h1 heading>"],
-    "h2": ["<h2 heading>"],
-    "h3": ["<h3 heading>"]
+    "h1": ["Main H1"],
+    "h2": ["Main H2"],
+    "h3": ["Main H3"]
   },
   "images": {
-    "total": <number>,
-    "withAlt": <number>,
-    "withoutAlt": <number>
+    "total": 25,
+    "withAlt": 20,
+    "withoutAlt": 5
   },
   "links": {
-    "internalCount": <number>,
-    "externalCount": <number>
+    "internalCount": 30,
+    "externalCount": 15
   },
-  "contentWordCount": <number>
+  "contentWordCount": 2500,
+  "competitiveAnalysis": {
+    "topCompetitors": ["List of top competitors"],
+    "competitiveGaps": ["Competitive gaps"],
+    "competitiveAdvantages": ["Competitive advantages"],
+    "marketOpportunities": ["Market opportunities"]
+  },
+  "localSEO": {
+    "googleBusinessProfile": "Assessment of Google Business Profile",
+    "localCitations": "Assessment of local citations",
+    "localKeywords": "Assessment of local keyword targeting",
+    "recommendations": ["Local SEO recommendations"]
+  }
 }
 
-Please analyze the website thoroughly, including:
-1. Technical SEO (crawlability, indexability, site structure, SSL, mobile-friendliness, etc.)
-2. On-page SEO (meta tags, headings, content quality, internal linking, etc.)
-3. Performance (page speed, Core Web Vitals, etc.)
-4. Content quality and optimization
-5. Backlink profile
-6. Keyword targeting and opportunities
+Analyze the website thoroughly, crawling multiple pages to provide a comprehensive audit. Include:
 
-For each issue, provide specific details and actionable recommendations. Assign appropriate severity levels and prioritize recommendations based on potential impact and implementation effort.
+1. Page-by-page analysis: Examine individual pages and provide specific issues and recommendations for each.
 
-Return ONLY the JSON object with no additional text or explanation.
-`;
+2. Technical SEO: Evaluate crawlability, indexability, site structure, SSL, robots.txt, sitemap.xml, server configuration, and mobile-friendliness.
+
+3. On-page SEO: Analyze meta tags, headings, URL structure, internal linking, and content quality for each page.
+
+4. Performance: Assess page speed, Core Web Vitals (LCP, FID, CLS), resource optimization, and mobile performance.
+
+5. Content quality: Evaluate content depth, relevance, readability, keyword usage, and identify content gaps.
+
+6. Backlink profile: Analyze backlink quality, anchor text distribution, and identify link building opportunities.
+
+7. Keyword targeting: Identify current keyword rankings, opportunities for improvement, and competitor keyword analysis.
+
+8. Competitive analysis: Compare with competitors to identify advantages, gaps, and market opportunities.
+
+9. Local SEO: If applicable, assess local SEO factors including Google Business Profile, citations, and local keyword targeting.
+
+For each issue, provide EXTREMELY SPECIFIC details, HIGHLY ACTIONABLE recommendations, severity levels (high/medium/low), priority ranking (1-5), and detailed estimated impact. Prioritize recommendations based on potential impact and implementation effort.
+
+YOUR ANALYSIS SHOULD BE EXTRAORDINARILY COMPREHENSIVE - far more detailed than a typical SEO audit. Include extensive technical analysis, content evaluation, competitive insights, and page-by-page breakdown with specific issues and fixes.
+
+Each section should contain MAXIMUM DETAIL - do not summarize or abbreviate your findings. For every issue found, provide extensive context, impact assessment, and step-by-step remediation instructions.
+
+IMPORTANT: Your response must be VALID JSON only. Do not include any explanatory text, markdown formatting, or code blocks. The response should parse correctly with JSON.parse().
+
+MAKE THIS THE MOST DETAILED AND VALUABLE SEO AUDIT POSSIBLE - INCLUDE EVERYTHING AN SEO EXPERT WOULD WANT TO KNOW.`;
 };
 
 /**
  * Call the Gemini API to generate an SEO audit
- * This is a local implementation to avoid import conflicts
+ * Makes a real API call to the Gemini API using the Gemini 2.5 Pro model
  */
 const callGeminiAPI = async (prompt: string): Promise<string> => {
   try {
-    // In a real implementation, this would call the Gemini API
-    // For now, we'll simulate a response
-    console.log('Calling Gemini API with prompt:', prompt.substring(0, 100) + '...');
+    if (!GEMINI_API_KEY) {
+      console.error('GEMINI_API_KEY is not defined in environment variables');
+      throw new Error('GEMINI_API_KEY is not defined in environment variables');
+    }
+
+    console.log('MAKING REAL API CALL TO GEMINI 2.5 PRO - NOT SIMULATED');
+    console.log('API URL:', GEMINI_API_URL);
+    console.log('API Key available:', GEMINI_API_KEY ? 'Yes (key hidden for security)' : 'No');
+    console.log('Prompt preview:', prompt.substring(0, 100) + '...');
     
-    // Simulate API call delay
-    await new Promise(resolve => setTimeout(resolve, 2000));
-    
-    // Return a simulated response
-    return JSON.stringify({
-      overall: {
-        score: 65,
-        summary: "The website has several SEO issues that need to be addressed to improve search engine visibility.",
-        timestamp: new Date().toISOString()
+    // Prepare the request payload with enhanced configuration for maximum detail and analysis
+    const payload = {
+      contents: [{
+        parts: [{
+          text: prompt
+        }]
+      }],
+      generationConfig: {
+        temperature: 0.05, // Very low temperature for maximum factual accuracy
+        topP: 0.98,       // Very high topP for extremely comprehensive coverage
+        topK: 50,         // Increased topK for more diverse considerations
+        maxOutputTokens: 32768 // Maximum token limit for the most detailed analysis possible
+      }
+    };
+
+    console.log('Request payload:', JSON.stringify(payload, null, 2));
+
+    // Make the actual API call
+    console.log(`Sending request to: ${GEMINI_API_URL}?key=XXXX (key hidden)`);
+    const response = await fetch(`${GEMINI_API_URL}?key=${GEMINI_API_KEY}`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json'
       },
-      technical: {
-        score: 70,
-        issues: [
-          {
-            title: "Missing robots.txt",
-            description: "The website does not have a robots.txt file to guide search engine crawlers.",
-            severity: "medium",
-            impact: "May lead to inefficient crawling and indexing of pages.",
-            recommendation: "Create a robots.txt file in the root directory."
-          }
-        ]
-      },
-      content: {
-        score: 60,
-        issues: [
-          {
-            title: "Thin content",
-            description: "Some pages have less than 300 words of content.",
-            severity: "high",
-            impact: "Pages with thin content typically don't rank well in search results.",
-            recommendation: "Expand content to at least 500-800 words with valuable information."
-          }
-        ]
-      },
-      onPage: {
-        score: 75,
-        issues: []
-      },
-      performance: {
-        score: 65,
-        issues: []
-      },
-      mobile: {
-        score: 80,
-        issues: []
-      },
-      backlinks: {
-        score: 50,
-        issues: []
-      },
-      keywords: {
-        score: 60,
-        issues: []
-      },
-      recommendations: [
-        {
-          title: "Improve meta descriptions",
-          description: "Many pages have generic or missing meta descriptions.",
-          severity: "medium",
-          impact: "Better meta descriptions can improve click-through rates from search results.",
-          recommendation: "Write unique, compelling meta descriptions for each page."
-        }
-      ]
+      body: JSON.stringify(payload)
     });
+
+    console.log('Response status:', response.status, response.statusText);
+    
+    if (!response.ok) {
+      const errorData = await response.json();
+      console.error('Gemini API error:', errorData);
+      throw new Error(`Gemini API error: ${response.status} ${response.statusText}`);
+    }
+
+    const data = await response.json();
+    console.log('Received response from Gemini API');
+    console.log('Response structure:', Object.keys(data));
+    console.log('Has candidates:', !!data.candidates);
+    
+    if (data.candidates && data.candidates.length > 0) {
+      console.log('First candidate:', Object.keys(data.candidates[0]));
+    }
+    
+    // Extract the text from the response
+    if (data.candidates && data.candidates[0] && data.candidates[0].content && 
+        data.candidates[0].content.parts && data.candidates[0].content.parts[0]) {
+      const text = data.candidates[0].content.parts[0].text;
+      console.log('Response text preview:', text.substring(0, 200) + '...');
+      
+      try {
+        // Check if the response contains a code block with JSON
+        const jsonMatch = text.match(/```json\s*([\s\S]*?)\s*```/);
+        if (jsonMatch && jsonMatch[1]) {
+          console.log('Found JSON in code block, extracting...');
+          const jsonString = jsonMatch[1].trim();
+          const jsonResult = JSON.parse(jsonString);
+          console.log('Successfully parsed JSON from code block');
+          return jsonResult;
+        }
+        
+        // Try to parse the entire text as JSON
+        const jsonResult = JSON.parse(text);
+        console.log('Successfully parsed entire response as JSON');
+        return jsonResult;
+      } catch (parseError) {
+        console.log('Could not parse response as JSON, returning raw text');
+        console.error('Parse error:', parseError);
+        return text;
+      }
+    } else {
+      console.error('Unexpected response format from Gemini API:', data);
+      throw new Error('Unexpected response format from Gemini API');
+    }
   } catch (error) {
     console.error('Error calling Gemini API:', error);
     throw error;
@@ -2035,6 +2494,27 @@ export const getSEOAuditsByClientId = async (clientId: string): Promise<SEOAudit
   try {
     console.log(`Getting SEO audits for client: ${clientId}`);
     
+    // Check if clientId is a valid UUID
+    const isValidUUID = (id: string) => {
+      const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+      return uuidRegex.test(id);
+    };
+    
+    // For testing without Supabase setup, use localStorage-based mock implementation
+    if (clientId === 'anonymous' || !isValidUUID(clientId)) {
+      console.log('Using mock implementation with localStorage for testing');
+      
+      // Get mock audits from localStorage
+      try {
+        const mockAudits = JSON.parse(localStorage.getItem('mockSeoAudits') || '[]');
+        console.log(`Found ${mockAudits.length} mock audits in localStorage`);
+        return mockAudits;
+      } catch (localStorageError) {
+        console.error('Error reading mock audits from localStorage:', localStorageError);
+        return [];
+      }
+    }
+    
     // Get the current user from Supabase session
     const { data: { session } } = await supabase.auth.getSession();
     const user = session?.user;
@@ -2109,13 +2589,29 @@ export const deleteSEOAudit = async (auditId: string): Promise<boolean> => {
   try {
     console.log(`Deleting SEO audit: ${auditId}`);
     
+    // Check if this is a mock audit in localStorage
+    try {
+      const mockAudits = JSON.parse(localStorage.getItem('mockSeoAudits') || '[]');
+      const auditIndex = mockAudits.findIndex((audit: any) => audit.id === auditId);
+      
+      if (auditIndex !== -1) {
+        console.log('Deleting mock audit from localStorage');
+        mockAudits.splice(auditIndex, 1);
+        localStorage.setItem('mockSeoAudits', JSON.stringify(mockAudits));
+        return true;
+      }
+    } catch (localStorageError) {
+      console.error('Error checking localStorage for mock audit:', localStorageError);
+    }
+    
+    // If not found in localStorage, try Supabase
     const { error } = await supabase
       .from('seo_audits')
       .delete()
       .eq('id', auditId);
     
     if (error) {
-      console.error('Error deleting SEO audit:', error);
+      console.error('Error deleting SEO audit from Supabase:', error);
       return false;
     }
     
@@ -2131,6 +2627,20 @@ export const deleteSEOAudit = async (auditId: string): Promise<boolean> => {
  */
 export const getSEOAuditById = async (auditId: string): Promise<SEOAudit | null> => {
   try {
+    // Check if this is a mock audit in localStorage
+    try {
+      const mockAudits = JSON.parse(localStorage.getItem('mockSeoAudits') || '[]');
+      const mockAudit = mockAudits.find((audit: any) => audit.id === auditId);
+      
+      if (mockAudit) {
+        console.log('Found mock audit in localStorage:', mockAudit.id);
+        return mockAudit;
+      }
+    } catch (localStorageError) {
+      console.error('Error checking localStorage for mock audit:', localStorageError);
+    }
+    
+    // If not found in localStorage, try Supabase
     const { data, error } = await supabase
       .from('seo_audits')
       .select('*')
@@ -2138,7 +2648,7 @@ export const getSEOAuditById = async (auditId: string): Promise<SEOAudit | null>
       .single();
     
     if (error) {
-      console.error('Error fetching SEO audit:', error);
+      console.error('Error fetching SEO audit from Supabase:', error);
       throw error;
     }
     
@@ -2151,6 +2661,7 @@ export const getSEOAuditById = async (auditId: string): Promise<SEOAudit | null>
 
 /**
  * Generates an SEO audit for a given URL using real web data
+ * For testing purposes, this function now bypasses Supabase when using the default client ID
  */
 export const generateSEOAudit = async (url: string, clientId: string, auditId?: string): Promise<SEOAudit> => {
   try {
@@ -2159,18 +2670,53 @@ export const generateSEOAudit = async (url: string, clientId: string, auditId?: 
       url = 'https://' + url;
     }
     
+    // Check if clientId is a valid UUID
+    const isValidUUID = (id: string) => {
+      const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+      return uuidRegex.test(id);
+    };
+    
+    // Use provided auditId or generate a new one if not provided
+    const id = auditId || generateUUID();
+    const timestamp = new Date().toISOString();
+    
+    // If clientId is 'anonymous' or invalid, use a mock implementation that doesn't use Supabase
+    if (clientId === 'anonymous' || !isValidUUID(clientId)) {
+      console.log(`Creating mock SEO audit with ID: ${id} for URL: ${url} (bypassing Supabase)`);
+      
+      // Create a mock audit object
+      const mockAudit: SEOAudit = {
+        id,
+        client_id: '00000000-0000-0000-0000-000000000000',
+        user_id: 'anonymous',
+        url,
+        status: 'in-progress',
+        score: 0,
+        report: null,
+        created_at: timestamp,
+        updated_at: timestamp
+      };
+      
+      // Store in localStorage for persistence during the session
+      const existingAudits = JSON.parse(localStorage.getItem('mockSeoAudits') || '[]');
+      existingAudits.unshift(mockAudit); // Add to beginning of array
+      localStorage.setItem('mockSeoAudits', JSON.stringify(existingAudits));
+      
+      // Start the audit process asynchronously (without Supabase)
+      setTimeout(() => {
+        processMockSEOAudit(url, id);
+      }, 100);
+      
+      return mockAudit;
+    }
+    
+    // Regular implementation with Supabase for valid client IDs
+    console.log(`Creating SEO audit with ID: ${id} for URL: ${url}`);
+    
     // Get the user ID from the session
     const { data: { session } } = await supabase.auth.getSession();
     const userId = session?.user?.id || 'anonymous';
     
-    // Use provided auditId or generate a new one if not provided
-    const id = auditId || generateUUID();
-    
-    console.log(`Creating SEO audit with ID: ${id} for URL: ${url}`);
-    
-    const timestamp = new Date().toISOString();
-    
-    // Create the audit object
     const auditObject = {
       id,
       client_id: clientId,
@@ -2219,6 +2765,67 @@ export const generateSEOAudit = async (url: string, clientId: string, auditId?: 
   } catch (error) {
     console.error('Error generating SEO audit:', error);
     throw error;
+  }
+};
+
+/**
+ * Process a mock SEO audit without using Supabase
+ * This simulates the real audit process but stores results in localStorage
+ */
+const processMockSEOAudit = async (url: string, auditId: string) => {
+  try {
+    console.log(`Processing mock SEO audit for ${url} (ID: ${auditId})`);
+    
+    // Update status to processing
+    updateMockAuditStatus(auditId, 'processing');
+    
+    // Generate the prompt for the Gemini API
+    const prompt = generateSEOAuditPrompt(url);
+    
+    // Call the Gemini API to generate the audit
+    console.log('Calling Gemini API for SEO audit...');
+    const response = await callGeminiAPI(prompt);
+    
+    // Parse the response into a structured report
+    const report = parseGeminiResponse(response, url);
+    
+    // Calculate an overall score based on the report sections
+    const score = report.overall.score;
+    
+    // Update the audit with the report and score
+    updateMockAuditStatus(auditId, 'completed', report, score);
+    
+    console.log(`Mock SEO audit completed for ${url} (ID: ${auditId})`);
+  } catch (error) {
+    console.error(`Error in mock SEO audit for ${url}:`, error);
+    updateMockAuditStatus(auditId, 'failed');
+  }
+};
+
+/**
+ * Update the status of a mock SEO audit
+ */
+const updateMockAuditStatus = (auditId: string, status: string, report?: any, score?: number) => {
+  try {
+    const existingAudits = JSON.parse(localStorage.getItem('mockSeoAudits') || '[]');
+    const auditIndex = existingAudits.findIndex((audit: any) => audit.id === auditId);
+    
+    if (auditIndex !== -1) {
+      existingAudits[auditIndex].status = status;
+      existingAudits[auditIndex].updated_at = new Date().toISOString();
+      
+      if (report) {
+        existingAudits[auditIndex].report = report;
+      }
+      
+      if (score !== undefined) {
+        existingAudits[auditIndex].score = score;
+      }
+      
+      localStorage.setItem('mockSeoAudits', JSON.stringify(existingAudits));
+    }
+  } catch (error) {
+    console.error('Error updating mock SEO audit:', error);
   }
 };
 
