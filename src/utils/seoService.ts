@@ -1389,6 +1389,8 @@ Your task is to generate an EXTREMELY DETAILED and THOROUGH SEO analysis in VALI
 
 CRITICALLY IMPORTANT: Your response MUST be valid, parseable JSON with NO markdown formatting, NO code blocks, and NO explanatory text. DO NOT include any text before or after the JSON. Start your response with '{' and end with '}'. PROVIDE AS MUCH DETAIL AS POSSIBLE IN EVERY SECTION.
 
+I NEED VALID JSON ONLY. DO NOT INCLUDE ANY TEXT OUTSIDE OF THE JSON STRUCTURE. ENSURE ALL PROPERTY NAMES ARE QUOTED AND THERE ARE NO TRAILING COMMAS.
+
 Follow this exact structure:
 
 {
@@ -1710,8 +1712,7 @@ const callGeminiAPI = async (prompt: string): Promise<string> => {
         temperature: 0.01, // Extremely low temperature for maximum factual accuracy and consistency
         topP: 0.99,       // Very high topP for extremely comprehensive coverage
         topK: 40,         // Balanced topK for focused yet diverse considerations
-        maxOutputTokens: 32768, // Maximum token limit for the most detailed analysis possible
-        responseFormat: { type: "json" } // Explicitly request JSON format from the API
+        maxOutputTokens: 32768 // Maximum token limit for the most detailed analysis possible
       }
     };
 
