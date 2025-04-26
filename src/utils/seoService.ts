@@ -1385,33 +1385,41 @@ const parseGeminiResponse = (response: any, url: string): SEOReport => {
 const generateSEOAuditPrompt = (url: string): string => {
   return `You are an ELITE SEO EXPERT performing the MOST COMPREHENSIVE and DETAILED SEO audit possible for the website: ${url}
 
-Your task is to generate an EXTREMELY DETAILED and THOROUGH SEO analysis in VALID JSON FORMAT ONLY. 
+BEFORE RESPONDING: YOU MUST ACTUALLY VISIT AND CRAWL THE WEBSITE AT ${url} AND ANALYZE AT LEAST 10-15 SPECIFIC PAGES. Do not provide generic advice - your analysis must include specific URLs, actual meta tags, real content issues, and precise recommendations for each page.
+
+Your task is to generate an EXTREMELY DETAILED and THOROUGH SEO analysis in VALID JSON FORMAT ONLY.
 
 CRITICALLY IMPORTANT: Your response MUST be valid, parseable JSON with NO markdown formatting, NO code blocks, and NO explanatory text. DO NOT include any text before or after the JSON. Start your response with '{' and end with '}'. PROVIDE AS MUCH DETAIL AS POSSIBLE IN EVERY SECTION.
 
 I NEED VALID JSON ONLY. DO NOT INCLUDE ANY TEXT OUTSIDE OF THE JSON STRUCTURE. ENSURE ALL PROPERTY NAMES ARE QUOTED AND THERE ARE NO TRAILING COMMAS.
 
+YOU MUST INCLUDE SPECIFIC EVIDENCE THAT YOU ACTUALLY CRAWLED THE SITE: Include exact URLs, exact meta tag content, specific content issues found on individual pages, and detailed page-specific recommendations.
+
 Follow this exact structure:
 
 {
   "overall": {
-    "score": 75,
-    "summary": "Detailed assessment of the website's SEO health with key findings and priorities",
-    "timestamp": "${new Date().toISOString()}"
+    "score": 75, // Overall SEO score out of 100
+    "summary": "Concise summary of the website's SEO health and key findings - include specific evidence that you analyzed the actual site",
+    "timestamp": "${new Date().toISOString()}" // Current timestamp
   },
   "pages": [
+    // You MUST include at least 10-15 actual pages from the website with their real URLs and titles
+    // Each page MUST have specific issues found on that exact page (not generic issues)
     {
-      "url": "https://example.com/page1",
-      "title": "Page title",
-      "score": 82,
+      "url": "https://example.com/page1", // REAL URL from the website
+      "title": "Page Title", // ACTUAL title from the page
+      "score": 80,
       "issues": [
         {
-          "title": "Issue title",
-          "description": "Detailed explanation of the issue",
-          "severity": "high",
-          "impact": "Specific impact on SEO performance",
-          "recommendation": "Detailed steps to fix this issue",
-          "priority": 1
+          "title": "Issue Title", // Specific issue found on this exact page
+          "description": "Detailed description of the issue with SPECIFIC EXAMPLES from the page",
+          "severity": "high", // high, medium, or low
+          "impact": "How this issue impacts SEO performance",
+          "recommendation": "Specific action to fix the issue with EXACT details for this page",
+          "priority": 1, // 1-5 with 1 being highest priority
+          "estimatedEffort": "low", // low, medium, high
+          "estimatedImpact": "high" // low, medium, high
         }
       ],
       "metaTags": {
@@ -1483,14 +1491,14 @@ Follow this exact structure:
     "score": 80,
     "issues": [
       {
-        "title": "Technical issue title",
-        "description": "Detailed explanation of the issue",
-        "severity": "medium",
-        "impact": "How this affects SEO performance",
-        "recommendation": "How to fix this issue",
-        "priority": 2
+        "title": "Technical Issue Title",
+        "description": "Detailed description of the technical issue with SPECIFIC EXAMPLES from the website",
+        "severity": "high", // high, medium, or low
+        "impact": "How this issue impacts SEO performance",
+        "recommendation": "Specific action to fix the issue with EXACT implementation details"
       }
     ],
+    "summary": "Summary of technical SEO findings with SPECIFIC EVIDENCE from the website",
     "crawlability": {
       "robotsTxt": "Assessment of robots.txt",
       "sitemapXml": "Assessment of sitemap.xml",
@@ -1680,6 +1688,13 @@ YOUR ANALYSIS SHOULD BE EXTRAORDINARILY COMPREHENSIVE - far more detailed than a
 
 Each section should contain MAXIMUM DETAIL - do not summarize or abbreviate your findings. For every issue found, provide extensive context, impact assessment, and step-by-step remediation instructions.
 
+CRITICALLY IMPORTANT: You MUST include SPECIFIC EVIDENCE that you actually crawled the site:
+1. Include EXACT URLs of at least 10-15 pages you analyzed
+2. Quote ACTUAL meta tags, headings, and content from these pages
+3. Provide SPECIFIC content issues found on individual pages (word count, keyword usage, etc.)
+4. Include DETAILED page-specific recommendations
+5. Reference REAL competitors in the same industry
+
 IMPORTANT: Your response must be VALID JSON only. Do not include any explanatory text, markdown formatting, or code blocks. The response should parse correctly with JSON.parse().
 
 MAKE THIS THE MOST DETAILED AND VALUABLE SEO AUDIT POSSIBLE - INCLUDE EVERYTHING AN SEO EXPERT WOULD WANT TO KNOW.`;
@@ -1713,7 +1728,13 @@ const callGeminiAPI = async (prompt: string): Promise<string> => {
         topP: 0.99,       // Very high topP for extremely comprehensive coverage
         topK: 40,         // Balanced topK for focused yet diverse considerations
         maxOutputTokens: 32768 // Maximum token limit for the most detailed analysis possible
-      }
+      },
+      safetySettings: [
+        {
+          category: "HARM_CATEGORY_DANGEROUS_CONTENT",
+          threshold: "BLOCK_NONE"
+        }
+      ]
     };
 
     console.log('Request payload:', JSON.stringify(payload, null, 2));
