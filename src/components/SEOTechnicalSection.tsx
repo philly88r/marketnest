@@ -4,7 +4,7 @@ import { FiAlertCircle, FiAlertTriangle, FiInfo, FiCheckCircle } from 'react-ico
 import { SEOIssue, SEOScoreSection } from '../utils/seoService';
 
 interface SEOTechnicalSectionProps {
-  technicalData: SEOScoreSection;
+  technicalData: SEOScoreSection | string;
 }
 
 const getScoreColor = (score: number) => {
@@ -14,6 +14,27 @@ const getScoreColor = (score: number) => {
 };
 
 const SEOTechnicalSection: React.FC<SEOTechnicalSectionProps> = ({ technicalData }) => {
+  // Check if technicalData is a string (HTML content)
+  if (typeof technicalData === 'string') {
+    return (
+      <Container>
+        <div 
+          className="seo-technical-content"
+          dangerouslySetInnerHTML={{ __html: technicalData }}
+          style={{
+            fontSize: '14px',
+            lineHeight: '1.6',
+            color: '#ffffff',
+            padding: '20px',
+            backgroundColor: '#262626',
+            borderRadius: '8px',
+          }}
+        />
+      </Container>
+    );
+  }
+  
+  // If it's a structured SEOScoreSection object, continue with the original implementation
   const [filterSeverity, setFilterSeverity] = useState<string | null>(null);
   const [searchQuery, setSearchQuery] = useState('');
   

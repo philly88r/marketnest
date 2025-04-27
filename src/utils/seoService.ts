@@ -1402,6 +1402,13 @@ async function startDirectCrawl(url: string, audit: SEOAudit) {
     // Store the Gemini audit in the report
     (report as any).geminiAudit = geminiAudit;
     console.log('Stored Gemini audit in report. Report structure:', Object.keys(report));
+    
+    // If we have HTML content from Gemini, store it directly
+    if (geminiAudit && geminiAudit.htmlContent) {
+      console.log('Storing HTML content from Gemini in the report');
+      (report as any).htmlContent = geminiAudit.htmlContent;
+      (report as any).geminiTimestamp = geminiAudit.timestamp;
+    }
     // Store the raw crawler data in a custom property
     (report as any).rawData = crawlerData;
     

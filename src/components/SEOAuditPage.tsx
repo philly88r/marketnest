@@ -85,6 +85,34 @@ const renderGeminiAnalysis = (geminiAudit: any) => {
     );
   }
 
+  // Check if we have HTML content from the AI
+  if (geminiAudit.htmlContent) {
+    console.log('Rendering HTML content from Gemini');
+    
+    // Create a styled container for the HTML content
+    return (
+      <div className="seo-audit-container">
+        <div 
+          className="seo-audit-content"
+          dangerouslySetInnerHTML={{ __html: geminiAudit.htmlContent }}
+          style={{
+            fontSize: '14px',
+            lineHeight: '1.6',
+            color: '#ffffff',
+            padding: '20px',
+            backgroundColor: '#262626',
+            borderRadius: '8px',
+          }}
+        />
+        {geminiAudit.timestamp && (
+          <div style={{ fontSize: '12px', color: '#999', marginTop: '16px', textAlign: 'right' }}>
+            Analysis generated on {new Date(geminiAudit.timestamp).toLocaleString()}
+          </div>
+        )}
+      </div>
+    );
+  }
+  
   // Log the structure of the Gemini audit
   console.log('Gemini audit structure:', JSON.stringify(geminiAudit).substring(0, 500) + '...');
   
@@ -133,18 +161,16 @@ const renderGeminiAnalysis = (geminiAudit: any) => {
             <h3>Score: <span className={`score-${getScoreClass(geminiAudit.content.score)}`}>
               {geminiAudit.content.score}/100
             </span></h3>
+            <p>{geminiAudit.content.summary}</p>
             
-            {geminiAudit.content.contentAudit && (
+            {geminiAudit.content.issues && geminiAudit.content.issues.length > 0 && (
               <div>
-                <h3>Content Quality</h3>
-                <p>{geminiAudit.content.contentAudit.qualityAssessment}</p>
-              </div>
-            )}
-            
-            {geminiAudit.content.readability && (
-              <div>
-                <h3>Readability</h3>
-                <p>{geminiAudit.content.readability.assessment}</p>
+                <h3>Issues</h3>
+                <ul>
+                  {geminiAudit.content.issues.map((issue: any, index: number) => (
+                    <li key={index}>{issue.title || issue}</li>
+                  ))}
+                </ul>
               </div>
             )}
           </div>
@@ -157,19 +183,60 @@ const renderGeminiAnalysis = (geminiAudit: any) => {
             <h3>Score: <span className={`score-${getScoreClass(geminiAudit.onPage.score)}`}>
               {geminiAudit.onPage.score}/100
             </span></h3>
+            <p>{geminiAudit.onPage.summary}</p>
             
-            {geminiAudit.onPage.metaTagsAudit && (
+            {geminiAudit.onPage.issues && geminiAudit.onPage.issues.length > 0 && (
               <div>
-                <h3>Meta Tags</h3>
-                <p>Title Tags: {geminiAudit.onPage.metaTagsAudit.titleTags}</p>
-                <p>Meta Descriptions: {geminiAudit.onPage.metaTagsAudit.metaDescriptions}</p>
+                <h3>Issues</h3>
+                <ul>
+                  {geminiAudit.onPage.issues.map((issue: any, index: number) => (
+                    <li key={index}>{issue.title || issue}</li>
+                  ))}
+                </ul>
               </div>
             )}
+          </div>
+        )}
+        
+        {/* Performance */}
+        {geminiAudit.performance && (
+          <div>
+            <h2>Performance</h2>
+            <h3>Score: <span className={`score-${getScoreClass(geminiAudit.performance.score)}`}>
+              {geminiAudit.performance.score}/100
+            </span></h3>
+            <p>{geminiAudit.performance.summary}</p>
             
-            {geminiAudit.onPage.urlStructure && (
+            {geminiAudit.performance.issues && geminiAudit.performance.issues.length > 0 && (
               <div>
-                <h3>URL Structure</h3>
-                <p>{geminiAudit.onPage.urlStructure.assessment}</p>
+                <h3>Issues</h3>
+                <ul>
+                  {geminiAudit.performance.issues.map((issue: any, index: number) => (
+                    <li key={index}>{issue.title || issue}</li>
+                  ))}
+                </ul>
+              </div>
+            )}
+          </div>
+        )}
+        
+        {/* Mobile */}
+        {geminiAudit.mobile && (
+          <div>
+            <h2>Mobile Optimization</h2>
+            <h3>Score: <span className={`score-${getScoreClass(geminiAudit.mobile.score)}`}>
+              {geminiAudit.mobile.score}/100
+            </span></h3>
+            <p>{geminiAudit.mobile.summary}</p>
+            
+            {geminiAudit.mobile.issues && geminiAudit.mobile.issues.length > 0 && (
+              <div>
+                <h3>Issues</h3>
+                <ul>
+                  {geminiAudit.mobile.issues.map((issue: any, index: number) => (
+                    <li key={index}>{issue.title || issue}</li>
+                  ))}
+                </ul>
               </div>
             )}
           </div>
@@ -182,44 +249,53 @@ const renderGeminiAnalysis = (geminiAudit: any) => {
             <h3>Score: <span className={`score-${getScoreClass(geminiAudit.backlinks.score)}`}>
               {geminiAudit.backlinks.score}/100
             </span></h3>
+            <p>{geminiAudit.backlinks.summary}</p>
             
-            {geminiAudit.backlinks.backlinkProfile && (
+            {geminiAudit.backlinks.issues && geminiAudit.backlinks.issues.length > 0 && (
               <div>
-                <h3>Backlink Profile</h3>
-                <p>Total Backlinks: {geminiAudit.backlinks.backlinkProfile.totalBacklinks}</p>
-                <p>Unique Domains: {geminiAudit.backlinks.backlinkProfile.uniqueDomains}</p>
-                <p>{geminiAudit.backlinks.backlinkProfile.qualityAssessment}</p>
+                <h3>Issues</h3>
+                <ul>
+                  {geminiAudit.backlinks.issues.map((issue: any, index: number) => (
+                    <li key={index}>{issue.title || issue}</li>
+                  ))}
+                </ul>
               </div>
             )}
           </div>
         )}
         
-        {/* Recommendations */}
-        {geminiAudit.recommendations && geminiAudit.recommendations.length > 0 && (
+        {/* Keywords */}
+        {geminiAudit.keywords && (
           <div>
-            <h2>Recommendations</h2>
-            <ul>
-              {geminiAudit.recommendations.map((rec: any, index: number) => (
-                <li key={index}>{typeof rec === 'string' ? rec : rec.title || JSON.stringify(rec)}</li>
-              ))}
-            </ul>
+            <h2>Keyword Analysis</h2>
+            <h3>Score: <span className={`score-${getScoreClass(geminiAudit.keywords.score)}`}>
+              {geminiAudit.keywords.score}/100
+            </span></h3>
+            <p>{geminiAudit.keywords.summary}</p>
+            
+            {geminiAudit.keywords.issues && geminiAudit.keywords.issues.length > 0 && (
+              <div>
+                <h3>Issues</h3>
+                <ul>
+                  {geminiAudit.keywords.issues.map((issue: any, index: number) => (
+                    <li key={index}>{issue.title || issue}</li>
+                  ))}
+                </ul>
+              </div>
+            )}
           </div>
         )}
       </div>
     );
   }
   
-  // Fallback if the structure is unexpected
-  console.log('Using fallback display for Gemini audit');
+  // Fallback for any other format
   return (
     <div>
-      <h2>AI Analysis (Raw Data)</h2>
-      <p>The AI analysis data structure is different than expected. Displaying raw data:</p>
-      <div style={{ marginTop: '20px', padding: '15px', backgroundColor: '#f8f9fa', borderRadius: '5px' }}>
-        <pre style={{ fontSize: '12px', whiteSpace: 'pre-wrap', maxHeight: '500px', overflow: 'auto' }}>
-          {JSON.stringify(geminiAudit, null, 2)}
-        </pre>
-      </div>
+      <h2>SEO Analysis</h2>
+      <pre style={{ fontSize: '12px', whiteSpace: 'pre-wrap' }}>
+        {typeof geminiAudit === 'string' ? geminiAudit : JSON.stringify(geminiAudit, null, 2)}
+      </pre>
     </div>
   );
 };

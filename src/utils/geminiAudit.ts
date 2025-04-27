@@ -151,7 +151,7 @@ Links: ${$('a').length}
   const prompt = `${BASE_PROMPT}\n\nTarget site: ${siteUrl}\n\nCrawl data summary:\n${crawlDataForPrompt}`;
 
   try {
-    // Set a timeout of 2 minutes (120000ms) for the Gemini API call
+    // Set a timeout of 10 minutes (600000ms) for the Gemini API call
     const response = await axios.post(
       `${GEMINI_API_URL}?key=${GEMINI_API_KEY}`,
       {
@@ -164,63 +164,17 @@ Links: ${$('a').length}
         timeout: 600000 // 10 minute timeout
       }
     );
-    // Gemini returns a string, so parse it as JSON
+    
+    // Get the text response from Gemini
     let text = response.data?.candidates?.[0]?.content?.parts?.[0]?.text || '';
     console.log(`Gemini API call completed for ${siteUrl}. Response length: ${text.length} characters`);
     console.log(`First 100 characters of response: ${text.substring(0, 100)}...`);
     
-    // Strip markdown formatting if present (```json and ```) 
-    if (text.startsWith('```')) {
-      console.log('Detected markdown code block, stripping formatting...');
-      // Remove opening ```json or ``` and closing ```
-      text = text.replace(/^```(?:json)?\n/, '').replace(/\n```$/, '');
-      console.log(`After stripping markdown, first 100 characters: ${text.substring(0, 100)}...`);
-    }
-    
-    try {
-      // First attempt: standard JSON parse
-      return JSON.parse(text);
-    } catch (parseError) {
-      console.error('Initial JSON parse error:', parseError);
-      console.log('Attempting to fix malformed JSON...');
-      
-      try {
-        // Second attempt: Try to fix common JSON issues
-        const fixedJson = fixMalformedJson(text);
-        console.log('Fixed JSON, attempting to parse again...');
-        return JSON.parse(fixedJson);
-      } catch (fixedParseError) {
-        console.error('Failed to parse fixed JSON:', fixedParseError);
-        
-        // Third attempt: Use a more lenient JSON parser (Function constructor approach)
-        try {
-          console.log('Attempting to use lenient parsing...');
-          // This is a last resort approach that can handle some malformed JSON
-          // It's less secure but we're only parsing AI-generated content
-          const sanitizedText = text
-            .replace(/\n/g, '')
-            .replace(/\r/g, '')
-            .replace(/\t/g, '')
-            .replace(/\\'/g, "'");
-          
-          // Use Function constructor to evaluate the JSON (with safety precautions)
-          const result = new Function('return ' + sanitizedText)();
-          console.log('Successfully parsed using lenient method');
-          return result;
-        } catch (lenientParseError) {
-          console.error('All parsing methods failed:', lenientParseError);
-          
-          // Return the raw text as a structured object for display
-          return {
-            error: 'Failed to parse JSON from Gemini response after multiple attempts',
-            errorDetails: parseError.message,
-            rawTextPreview: text.substring(0, 1000) + '...',
-            rawTextLength: text.length,
-            errorPosition: (parseError as SyntaxError).message
-          };
-        }
-      }
-    }
+    // Return the HTML content directly without trying to parse it as JSON
+    return {
+      htmlContent: text,
+      timestamp: new Date().toISOString()
+    };
   } catch (err: any) {
     console.error(`Gemini audit call failed for ${siteUrl}:`, err?.response?.data || err);
     console.error('Error details:', JSON.stringify(err?.response?.data || err, null, 2));
