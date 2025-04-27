@@ -102,10 +102,53 @@ export async function getGeminiSEOAduit(siteUrl: string, crawlData: any): Promis
   }
 
   console.log(`Starting Gemini API call for ${siteUrl}...`);
-  console.log(`Prompt length: ${BASE_PROMPT.length + siteUrl.length + JSON.stringify(crawlData).slice(0, 8000).length} characters`);
+  
+  // Prepare crawl data for the prompt
+  let crawlDataForPrompt = '';
+  
+  // Check if crawlData is already a string (HTML) or an object
+  if (typeof crawlData === 'string') {
+    // It's HTML, extract key information
+    try {
+      const cheerio = await import('cheerio');
+      const $ = cheerio.load(crawlData);
+      
+      // Extract key SEO elements
+      const title = $('title').text();
+      const metaDescription = $('meta[name="description"]').attr('content') || '';
+      const h1s = $('h1').map((i, el) => $(el).text().trim()).get();
+      const h2s = $('h2').map((i, el) => $(el).text().trim()).get().slice(0, 10); // Limit to 10 headings
+      
+      // Create a summary of the HTML content
+      crawlDataForPrompt = `
+Page Title: ${title}
+Meta Description: ${metaDescription}
+H1 Headings: ${h1s.join(', ')}
+Sample H2 Headings: ${h2s.join(', ')}
+Total Word Count: ${$('body').text().split(/\s+/).length}
+Images: ${$('img').length} (${$('img[alt]').length} with alt text)
+Links: ${$('a').length}
+`;
+      
+      console.log('Successfully extracted key SEO data from HTML for Gemini');
+    } catch (error) {
+      console.error('Error extracting data from HTML:', error);
+      crawlDataForPrompt = 'Error extracting data from HTML. Raw HTML content is too large to include.';
+    }
+  } else {
+    // It's an object, stringify it
+    try {
+      crawlDataForPrompt = JSON.stringify(crawlData).slice(0, 8000);
+    } catch (error) {
+      console.error('Error stringifying crawl data:', error);
+      crawlDataForPrompt = 'Error converting crawl data to string format.';
+    }
+  }
+  
+  console.log(`Prompt length: ${BASE_PROMPT.length + siteUrl.length + crawlDataForPrompt.length} characters`);
   
   // Compose the prompt with site URL and crawl data summary
-  const prompt = `${BASE_PROMPT}\n\nTarget site: ${siteUrl}\n\nCrawl data summary:\n${JSON.stringify(crawlData).slice(0, 8000)}`;
+  const prompt = `${BASE_PROMPT}\n\nTarget site: ${siteUrl}\n\nCrawl data summary:\n${crawlDataForPrompt}`;
 
   try {
     // Set a timeout of 2 minutes (120000ms) for the Gemini API call

@@ -1259,7 +1259,16 @@ async function startDirectCrawl(url: string, audit: SEOAudit) {
     let geminiAudit = null;
     try {
       console.log('Calling Gemini for SEO audit...');
-      geminiAudit = await getGeminiSEOAduit(url, crawlerData);
+      
+      // If we received HTML directly and analyzed it, pass the raw HTML to Gemini
+      if (rawText && (rawText.trim().startsWith('<!') || rawText.trim().startsWith('<html'))) {
+        console.log('Passing HTML content directly to Gemini for analysis');
+        geminiAudit = await getGeminiSEOAduit(url, rawText);
+      } else {
+        // Otherwise pass the structured data
+        geminiAudit = await getGeminiSEOAduit(url, crawlerData);
+      }
+      
       console.log('Gemini audit completed successfully!');
       console.log('Gemini audit data type:', typeof geminiAudit);
       console.log('Gemini audit keys:', geminiAudit ? Object.keys(geminiAudit) : 'null');
