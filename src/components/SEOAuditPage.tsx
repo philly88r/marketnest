@@ -921,13 +921,47 @@ const SEOAuditPage: React.FC<SEOAuditPageProps> = ({ clientId }) => {
                       
                       {activeTab === 'issues' && selectedAudit?.report && (
                         <>
+                          {console.log('Issues tab selected, rendering issues...')}
                           <SummaryCard>
                             <SectionTitle>All SEO Issues</SectionTitle>
                             <SummaryText>
                               Consolidated list of all issues found across different SEO categories, sorted by severity.
                             </SummaryText>
                             
-                            {renderAllIssues(selectedAudit.report)}
+                            {/* Direct display of issues in a simple format */}
+                            <div style={{ marginTop: '20px', padding: '15px', backgroundColor: '#f8f9fa', borderRadius: '5px' }}>
+                              <h3>Technical Issues</h3>
+                              <ul>
+                                {selectedAudit.report.technical?.issues?.map((issue: any, index: number) => (
+                                  <li key={`tech-${index}`}>
+                                    {typeof issue === 'string' ? issue : issue.title || 'Technical Issue'}
+                                  </li>
+                                )) || <li>No technical issues found</li>}
+                              </ul>
+                              
+                              <h3>Content Issues</h3>
+                              <ul>
+                                {selectedAudit.report.content?.issues?.map((issue: any, index: number) => (
+                                  <li key={`content-${index}`}>
+                                    {typeof issue === 'string' ? issue : issue.title || 'Content Issue'}
+                                  </li>
+                                )) || <li>No content issues found</li>}
+                              </ul>
+                              
+                              <h3>On-Page Issues</h3>
+                              <ul>
+                                {selectedAudit.report.onPage?.issues?.map((issue: any, index: number) => (
+                                  <li key={`onpage-${index}`}>
+                                    {typeof issue === 'string' ? issue : issue.title || 'On-Page Issue'}
+                                  </li>
+                                )) || <li>No on-page issues found</li>}
+                              </ul>
+                            </div>
+                            
+                            <div style={{ marginTop: '30px' }}>
+                              <h3>All Issues (Using renderAllIssues)</h3>
+                              {renderAllIssues(selectedAudit.report)}
+                            </div>
                           </SummaryCard>
                         </>
                       )}
