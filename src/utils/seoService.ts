@@ -1172,7 +1172,25 @@ async function startDirectCrawl(url: string, audit: SEOAudit) {
       throw new Error(`Crawler failed: ${response.status} ${response.statusText}`);
     }
     
-    const crawlerData = await response.json();
+    // Get the raw text first to check if it's HTML or JSON
+    const rawText = await response.text();
+    
+    // Check if the response looks like HTML
+    if (rawText.trim().startsWith('<!') || rawText.trim().startsWith('<html')) {
+      console.error('Received HTML instead of JSON from crawler endpoint');
+      console.error('First 200 characters of response:', rawText.substring(0, 200));
+      throw new Error('Crawler returned HTML instead of JSON. The server might be returning an error page.');
+    }
+    
+    // Parse the text as JSON
+    let crawlerData;
+    try {
+      crawlerData = JSON.parse(rawText);
+    } catch (parseError) {
+      console.error('Failed to parse crawler response as JSON:', parseError);
+      console.error('First 200 characters of response:', rawText.substring(0, 200));
+      throw new Error(`Invalid JSON response from crawler: ${parseError.message}`);
+    }
     
     // Use the crawler data directly as the report
     console.log(`Crawler completed successfully, analyzing pages: ${crawlerData.pages?.length || 0}`);
