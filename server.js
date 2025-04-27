@@ -9,6 +9,7 @@ const aiContentGenerator = require('./server/aiContentGenerator');
 const context7Integration = require('./server/context7Integration');
 const browserUseIntegration = require('./server/browserUseIntegration');
 const geminiImageGenerator = require('./server/geminiImageGenerator');
+const seoCrawler = require('./server/seoCrawler');
 
 const app = express();
 const PORT = process.env.PORT || 3001;
@@ -23,6 +24,11 @@ app.use(express.json());
 
 // API routes
 app.use('/api', googleAuthHandler);
+
+// SEO Crawler route - must be defined BEFORE the general seoProxy
+app.get('/api/seo/crawl', seoCrawler.crawlWebsiteHandler);
+
+// General SEO proxy for other SEO routes
 app.use('/api/seo', seoProxy);
 
 // Search Console API routes
@@ -45,6 +51,8 @@ app.post('/api/browser-use/generate-content', browserUseIntegration.generateCont
 
 // Gemini Image Generation route
 app.post('/api/generate-image', geminiImageGenerator.handleImageGeneration);
+
+// SEO Crawler routes are defined above
 
 // Serve static files in production
 if (process.env.NODE_ENV === 'production') {
