@@ -1172,24 +1172,84 @@ async function startDirectCrawl(url: string, audit: SEOAudit) {
       throw new Error(`Crawler failed: ${response.status} ${response.statusText}`);
     }
     
-    // Get the raw text first to check if it's HTML or JSON
+    // Get the raw text from the response
     const rawText = await response.text();
     
-    // Check if the response looks like HTML
-    if (rawText.trim().startsWith('<!') || rawText.trim().startsWith('<html')) {
-      console.error('Received HTML instead of JSON from crawler endpoint');
-      console.error('First 200 characters of response:', rawText.substring(0, 200));
-      throw new Error('Crawler returned HTML instead of JSON. The server might be returning an error page.');
-    }
-    
-    // Parse the text as JSON
+    // Determine if the response is HTML or JSON
     let crawlerData;
-    try {
-      crawlerData = JSON.parse(rawText);
-    } catch (parseError) {
-      console.error('Failed to parse crawler response as JSON:', parseError);
-      console.error('First 200 characters of response:', rawText.substring(0, 200));
-      throw new Error(`Invalid JSON response from crawler: ${parseError.message}`);
+    
+    if (rawText.trim().startsWith('<!') || rawText.trim().startsWith('<html')) {
+      console.log('Received HTML from crawler endpoint - analyzing directly');
+      
+      // Use cheerio to parse the HTML
+      const cheerio = await import('cheerio');
+      const $ = cheerio.load(rawText);
+      
+      // Extract basic SEO data directly from the HTML
+      const title = $('title').text();
+      const metaDescription = $('meta[name="description"]').attr('content') || '';
+      const h1s = $('h1').map((i, el) => $(el).text().trim()).get();
+      const h2s = $('h2').map((i, el) => $(el).text().trim()).get();
+      const h3s = $('h3').map((i, el) => $(el).text().trim()).get();
+      
+      // Count images and check for alt text
+      const images = $('img');
+      const imagesWithAlt = $('img[alt]');
+      
+      // Create a basic structure from the HTML
+      crawlerData = {
+        pages: [{
+          url: url,
+          title,
+          metaTags: {
+            title,
+            description: metaDescription,
+            keywords: $('meta[name="keywords"]').attr('content') || ''
+          },
+          headings: {
+            h1: h1s,
+            h2: h2s,
+            h3: h3s
+          },
+          images: {
+            total: images.length,
+            withAlt: imagesWithAlt.length,
+            withoutAlt: images.length - imagesWithAlt.length
+          },
+          contentWordCount: $('body').text().split(/\s+/).length
+        }],
+        crawledUrls: [url],
+        overallScore: 70,
+        summary: `Basic SEO analysis of ${url}`,
+        _meta: {
+          source: 'html-direct',
+          timestamp: new Date().toISOString()
+        }
+      };
+      
+      console.log('Successfully created crawler data from HTML');
+    } else {
+      // Try to parse as JSON
+      try {
+        crawlerData = JSON.parse(rawText);
+        console.log('Successfully parsed JSON response from crawler');
+      } catch (parseError) {
+        console.error('Failed to parse crawler response as JSON:', parseError);
+        console.error('First 200 characters of response:', rawText.substring(0, 200));
+        
+        // If it's not HTML and not valid JSON, create a minimal structure
+        crawlerData = {
+          pages: [],
+          crawledUrls: [url],
+          overallScore: 0,
+          summary: `Failed to analyze ${url}: Invalid response format`,
+          error: parseError.message,
+          _meta: {
+            source: 'error',
+            timestamp: new Date().toISOString()
+          }
+        };
+      }
     }
     
     // Use the crawler data directly as the report
