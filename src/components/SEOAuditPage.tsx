@@ -10,6 +10,7 @@ import {
   SEOIssue,
   PageAnalysis
 } from '../utils/seoService';
+import { getCurrentUser } from '../utils/authService';
 import SEOTechnicalSection from './SEOTechnicalSection';
 
 // Utility functions
@@ -36,16 +37,399 @@ const getScoreColor = (score: number) => {
   return '#ff3b30';
 };
 
-// Format date for display
+// Function to format a date
 const formatDate = (dateString: string) => {
   const date = new Date(dateString);
   return date.toLocaleDateString('en-US', {
     year: 'numeric',
-    month: 'short',
+    month: 'long',
     day: 'numeric',
     hour: '2-digit',
     minute: '2-digit'
   });
+};
+
+// Function to render the Gemini analysis in a structured way
+const renderGeminiAnalysis = (geminiAudit: any) => {
+  console.log('renderGeminiAnalysis called with:', geminiAudit);
+  console.log('geminiAudit type:', typeof geminiAudit);
+  
+  // If geminiAudit is null or undefined, show a message
+  if (!geminiAudit) {
+    console.log('geminiAudit is null or undefined');
+    return (
+      <div>
+        <h2>No AI Analysis Available</h2>
+        <p>The AI analysis data is missing or not yet generated.</p>
+      </div>
+    );
+  }
+  
+  // If there's an error in the Gemini audit
+  if (geminiAudit?.error) {
+    console.log('geminiAudit contains an error:', geminiAudit.error);
+    return (
+      <div>
+        <h2>Analysis Error</h2>
+        <p>{geminiAudit.error}</p>
+        {geminiAudit.errorDetails && <p>Details: {geminiAudit.errorDetails}</p>}
+        {geminiAudit.rawTextPreview && (
+          <div>
+            <h3>Raw Response Preview</h3>
+            <pre style={{ fontSize: '12px', whiteSpace: 'pre-wrap' }}>
+              {geminiAudit.rawTextPreview}
+            </pre>
+          </div>
+        )}
+      </div>
+    );
+  }
+
+  // Log the structure of the Gemini audit
+  console.log('Gemini audit structure:', JSON.stringify(geminiAudit).substring(0, 500) + '...');
+  
+  // If the Gemini audit is still a raw JSON object, display it in a structured way
+  if (typeof geminiAudit === 'object') {
+    return (
+      <div>
+        <h2>SEO Analysis Summary</h2>
+        
+        {/* Overall Score */}
+        {geminiAudit.overall && (
+          <div>
+            <h3>Overall Score: <span className={`score-${getScoreClass(geminiAudit.overall.score)}`}>
+              {geminiAudit.overall.score}/100
+            </span></h3>
+            <p>{geminiAudit.overall.summary}</p>
+          </div>
+        )}
+        
+        {/* Technical SEO */}
+        {geminiAudit.technical && (
+          <div>
+            <h2>Technical SEO</h2>
+            <h3>Score: <span className={`score-${getScoreClass(geminiAudit.technical.score)}`}>
+              {geminiAudit.technical.score}/100
+            </span></h3>
+            <p>{geminiAudit.technical.summary}</p>
+            
+            {geminiAudit.technical.issues && geminiAudit.technical.issues.length > 0 && (
+              <div>
+                <h3>Issues</h3>
+                <ul>
+                  {geminiAudit.technical.issues.map((issue: any, index: number) => (
+                    <li key={index}>{issue.title || issue}</li>
+                  ))}
+                </ul>
+              </div>
+            )}
+          </div>
+        )}
+        
+        {/* Content */}
+        {geminiAudit.content && (
+          <div>
+            <h2>Content Analysis</h2>
+            <h3>Score: <span className={`score-${getScoreClass(geminiAudit.content.score)}`}>
+              {geminiAudit.content.score}/100
+            </span></h3>
+            
+            {geminiAudit.content.contentAudit && (
+              <div>
+                <h3>Content Quality</h3>
+                <p>{geminiAudit.content.contentAudit.qualityAssessment}</p>
+              </div>
+            )}
+            
+            {geminiAudit.content.readability && (
+              <div>
+                <h3>Readability</h3>
+                <p>{geminiAudit.content.readability.assessment}</p>
+              </div>
+            )}
+          </div>
+        )}
+        
+        {/* On-Page SEO */}
+        {geminiAudit.onPage && (
+          <div>
+            <h2>On-Page SEO</h2>
+            <h3>Score: <span className={`score-${getScoreClass(geminiAudit.onPage.score)}`}>
+              {geminiAudit.onPage.score}/100
+            </span></h3>
+            
+            {geminiAudit.onPage.metaTagsAudit && (
+              <div>
+                <h3>Meta Tags</h3>
+                <p>Title Tags: {geminiAudit.onPage.metaTagsAudit.titleTags}</p>
+                <p>Meta Descriptions: {geminiAudit.onPage.metaTagsAudit.metaDescriptions}</p>
+              </div>
+            )}
+            
+            {geminiAudit.onPage.urlStructure && (
+              <div>
+                <h3>URL Structure</h3>
+                <p>{geminiAudit.onPage.urlStructure.assessment}</p>
+              </div>
+            )}
+          </div>
+        )}
+        
+        {/* Backlinks */}
+        {geminiAudit.backlinks && (
+          <div>
+            <h2>Backlink Analysis</h2>
+            <h3>Score: <span className={`score-${getScoreClass(geminiAudit.backlinks.score)}`}>
+              {geminiAudit.backlinks.score}/100
+            </span></h3>
+            
+            {geminiAudit.backlinks.backlinkProfile && (
+              <div>
+                <h3>Backlink Profile</h3>
+                <p>Total Backlinks: {geminiAudit.backlinks.backlinkProfile.totalBacklinks}</p>
+                <p>Unique Domains: {geminiAudit.backlinks.backlinkProfile.uniqueDomains}</p>
+                <p>{geminiAudit.backlinks.backlinkProfile.qualityAssessment}</p>
+              </div>
+            )}
+          </div>
+        )}
+        
+        {/* Recommendations */}
+        {geminiAudit.recommendations && geminiAudit.recommendations.length > 0 && (
+          <div>
+            <h2>Recommendations</h2>
+            <ul>
+              {geminiAudit.recommendations.map((rec: any, index: number) => (
+                <li key={index}>{typeof rec === 'string' ? rec : rec.title || JSON.stringify(rec)}</li>
+              ))}
+            </ul>
+          </div>
+        )}
+      </div>
+    );
+  }
+  
+  // Fallback if the structure is unexpected
+  console.log('Using fallback display for Gemini audit');
+  return (
+    <div>
+      <h2>AI Analysis (Raw Data)</h2>
+      <p>The AI analysis data structure is different than expected. Displaying raw data:</p>
+      <div style={{ marginTop: '20px', padding: '15px', backgroundColor: '#f8f9fa', borderRadius: '5px' }}>
+        <pre style={{ fontSize: '12px', whiteSpace: 'pre-wrap', maxHeight: '500px', overflow: 'auto' }}>
+          {JSON.stringify(geminiAudit, null, 2)}
+        </pre>
+      </div>
+    </div>
+  );
+};
+
+// Helper function to determine score class
+const getScoreClass = (score: number): string => {
+  if (score >= 80) return 'high';
+  if (score >= 50) return 'medium';
+  return 'low';
+};
+
+// Function to extract and render all issues from the report
+const renderAllIssues = (report: any) => {
+  // Array to store all issues
+  const allIssues: Array<{
+    title: string;
+    description?: string;
+    category: string;
+    severity: string;
+    priority?: number;
+    impact?: string;
+    recommendation?: string;
+  }> = [];
+  
+  // Extract issues from technical SEO
+  if (report.technical?.issues && Array.isArray(report.technical.issues)) {
+    report.technical.issues.forEach((issue: any) => {
+      allIssues.push({
+        title: typeof issue === 'string' ? issue : issue.title || 'Technical Issue',
+        description: issue.description,
+        category: 'Technical SEO',
+        severity: issue.severity || 'medium',
+        priority: issue.priority,
+        impact: issue.impact,
+        recommendation: issue.recommendation
+      });
+    });
+  }
+  
+  // Extract issues from content
+  if (report.content?.issues && Array.isArray(report.content.issues)) {
+    report.content.issues.forEach((issue: any) => {
+      allIssues.push({
+        title: typeof issue === 'string' ? issue : issue.title || 'Content Issue',
+        description: issue.description,
+        category: 'Content',
+        severity: issue.severity || 'medium',
+        priority: issue.priority,
+        impact: issue.impact,
+        recommendation: issue.recommendation
+      });
+    });
+  }
+  
+  // Extract issues from on-page SEO
+  if (report.onPage?.issues && Array.isArray(report.onPage.issues)) {
+    report.onPage.issues.forEach((issue: any) => {
+      allIssues.push({
+        title: typeof issue === 'string' ? issue : issue.title || 'On-Page SEO Issue',
+        description: issue.description,
+        category: 'On-Page SEO',
+        severity: issue.severity || 'medium',
+        priority: issue.priority,
+        impact: issue.impact,
+        recommendation: issue.recommendation
+      });
+    });
+  }
+  
+  // Extract issues from performance
+  if (report.performance?.issues && Array.isArray(report.performance.issues)) {
+    report.performance.issues.forEach((issue: any) => {
+      allIssues.push({
+        title: typeof issue === 'string' ? issue : issue.title || 'Performance Issue',
+        description: issue.description,
+        category: 'Performance',
+        severity: issue.severity || 'medium',
+        priority: issue.priority,
+        impact: issue.impact,
+        recommendation: issue.recommendation
+      });
+    });
+  }
+  
+  // Extract issues from mobile
+  if (report.mobile?.issues && Array.isArray(report.mobile.issues)) {
+    report.mobile.issues.forEach((issue: any) => {
+      allIssues.push({
+        title: typeof issue === 'string' ? issue : issue.title || 'Mobile Issue',
+        description: issue.description,
+        category: 'Mobile',
+        severity: issue.severity || 'medium',
+        priority: issue.priority,
+        impact: issue.impact,
+        recommendation: issue.recommendation
+      });
+    });
+  }
+  
+  // Extract issues from backlinks
+  if (report.backlinks?.issues && Array.isArray(report.backlinks.issues)) {
+    report.backlinks.issues.forEach((issue: any) => {
+      allIssues.push({
+        title: typeof issue === 'string' ? issue : issue.title || 'Backlink Issue',
+        description: issue.description,
+        category: 'Backlinks',
+        severity: issue.severity || 'medium',
+        priority: issue.priority,
+        impact: issue.impact,
+        recommendation: issue.recommendation
+      });
+    });
+  }
+  
+  // Extract issues from keywords
+  if (report.keywords?.issues && Array.isArray(report.keywords.issues)) {
+    report.keywords.issues.forEach((issue: any) => {
+      allIssues.push({
+        title: typeof issue === 'string' ? issue : issue.title || 'Keyword Issue',
+        description: issue.description,
+        category: 'Keywords',
+        severity: issue.severity || 'medium',
+        priority: issue.priority,
+        impact: issue.impact,
+        recommendation: issue.recommendation
+      });
+    });
+  }
+  
+  // Extract issues from Gemini analysis if available
+  if ((report as any)?.geminiAudit) {
+    const geminiAudit = (report as any).geminiAudit;
+    
+    // Try to extract issues from various sections of the Gemini audit
+    const extractGeminiIssues = (section: any, category: string) => {
+      if (section?.issues && Array.isArray(section.issues)) {
+        section.issues.forEach((issue: any) => {
+          allIssues.push({
+            title: typeof issue === 'string' ? issue : issue.title || `${category} Issue`,
+            description: issue.description,
+            category: `${category} (AI)`,
+            severity: issue.severity || 'medium',
+            priority: issue.priority,
+            impact: issue.impact,
+            recommendation: issue.recommendation
+          });
+        });
+      }
+    };
+    
+    // Extract issues from different sections of the Gemini audit
+    if (geminiAudit.technical) extractGeminiIssues(geminiAudit.technical, 'Technical SEO');
+    if (geminiAudit.content) extractGeminiIssues(geminiAudit.content, 'Content');
+    if (geminiAudit.onPage) extractGeminiIssues(geminiAudit.onPage, 'On-Page SEO');
+    if (geminiAudit.performance) extractGeminiIssues(geminiAudit.performance, 'Performance');
+    if (geminiAudit.mobile) extractGeminiIssues(geminiAudit.mobile, 'Mobile');
+    if (geminiAudit.backlinks) extractGeminiIssues(geminiAudit.backlinks, 'Backlinks');
+    if (geminiAudit.keywords) extractGeminiIssues(geminiAudit.keywords, 'Keywords');
+  }
+  
+  // Sort issues by severity (high to low)
+  const severityOrder = { 'high': 0, 'medium': 1, 'low': 2 };
+  allIssues.sort((a, b) => {
+    const severityA = (a.severity?.toLowerCase() || 'medium') as 'high' | 'medium' | 'low';
+    const severityB = (b.severity?.toLowerCase() || 'medium') as 'high' | 'medium' | 'low';
+    return severityOrder[severityA] - severityOrder[severityB];
+  });
+  
+  // If no issues found
+  if (allIssues.length === 0) {
+    return (
+      <div style={{ padding: '20px', textAlign: 'center' }}>
+        <p>No issues found. Your website is performing well!</p>
+      </div>
+    );
+  }
+  
+  // Render all issues
+  return (
+    <div>
+      <IssuesTable>
+        <thead>
+          <tr>
+            <th>Severity</th>
+            <th>Issue</th>
+            <th>Category</th>
+            <th>Recommendation</th>
+          </tr>
+        </thead>
+        <tbody>
+          {allIssues.map((issue, index) => (
+            <tr key={index}>
+              <td>
+                <SeverityBadge $severity={issue.severity || 'medium'}>
+                  {issue.severity?.toUpperCase() || 'MEDIUM'}
+                </SeverityBadge>
+              </td>
+              <td>
+                <strong>{issue.title}</strong>
+                {issue.description && <p>{issue.description}</p>}
+                {issue.impact && <p><strong>Impact:</strong> {issue.impact}</p>}
+              </td>
+              <td>{issue.category}</td>
+              <td>{issue.recommendation || 'Fix the issue to improve SEO performance.'}</td>
+            </tr>
+          ))}
+        </tbody>
+      </IssuesTable>
+    </div>
+  );
 };
 
 interface SEOAuditPageProps {
@@ -92,7 +476,7 @@ const SEOAuditPage: React.FC<SEOAuditPageProps> = ({ clientId }) => {
   const [error, setError] = useState<string | null>(null);
   const [url, setUrl] = useState('');
   const [showNewAuditForm, setShowNewAuditForm] = useState(false);
-  const [activeTab, setActiveTab] = useState<'overview' | 'pages' | 'technical' | 'content' | 'onPage' | 'performance' | 'backlinks' | 'keywords' | 'recommendations'>('overview');
+  const [activeTab, setActiveTab] = useState<'overview' | 'pages' | 'technical' | 'content' | 'onPage' | 'performance' | 'backlinks' | 'keywords' | 'recommendations' | 'rawdata' | 'aianalysis' | 'issues'>('overview');
 
   // Load audits when the component mounts
   useEffect(() => {
@@ -142,28 +526,36 @@ const SEOAuditPage: React.FC<SEOAuditPageProps> = ({ clientId }) => {
     
     console.log('Setting up polling for audit:', selectedAudit.id);
     
-    // Start polling for updates
-    const pollInterval = setInterval(async () => {
+    // Start polling for updates - with in-memory storage, we need to force UI refreshes
+    const pollInterval = setInterval(() => {
       try {
-        // Fetch the latest audits
-        const updatedAudits = await getSEOAuditsByClientId(clientId);
+        // With in-memory storage, we need to directly access the current audits array
+        // and force a refresh of the UI by creating new references
         
-        if (!updatedAudits || !Array.isArray(updatedAudits)) {
-          console.error('Invalid audit data received:', updatedAudits);
-          return;
-        }
+        // Get the latest audits from memory (this will have the updated report)
+        const latestAudits = [...audits]; // Create a copy to force React to see changes
         
-        setAudits(updatedAudits);
+        // Find the current audit in the list
+        const updatedAudit = latestAudits.find(audit => audit && audit.id === selectedAudit?.id);
         
-        // Find the current audit in the updated list
-        const updatedAudit = updatedAudits.find(audit => audit && audit.id === selectedAudit.id);
-        
-        // Update the selected audit if it exists
+        // If we found the audit and it has a status, update the UI
         if (updatedAudit) {
-          setSelectedAudit(updatedAudit);
+          // Force React to see this as a new object by creating a shallow copy
+          const refreshedAudit = {...updatedAudit};
+          
+          // Update the selected audit to trigger a re-render
+          setSelectedAudit(refreshedAudit);
+          
+          console.log('Polling: Audit status =', refreshedAudit.status, 'Has report =', !!refreshedAudit.report);
+          
+          // Debug the report data
+          if (refreshedAudit.report) {
+            console.log('REPORT DATA:', JSON.stringify(refreshedAudit.report, null, 2).substring(0, 500) + '...');
+          }
           
           // If the audit is completed or failed, stop polling
-          if (updatedAudit.status === 'completed' || updatedAudit.status === 'failed') {
+          if (refreshedAudit.status === 'completed' || refreshedAudit.status === 'failed') {
+            console.log('Audit completed or failed, stopping polling');
             clearInterval(pollInterval);
           }
         }
@@ -193,13 +585,18 @@ const SEOAuditPage: React.FC<SEOAuditPageProps> = ({ clientId }) => {
     try {
       console.log('Creating new SEO audit for URL:', url);
       
-      // Use a default client ID if not available (for testing without Supabase setup)
-      const effectiveClientId = clientId === 'anonymous' ? '00000000-0000-0000-0000-000000000000' : clientId;
-      console.log('Using client ID:', effectiveClientId);
+      // Get the current user to use their real UUID
+      const user = getCurrentUser();
+      const userId = user?.id || 'anonymous';
+      
+      // Use the real user ID instead of client ID to ensure real audits
+      // Only fall back to anonymous if no user is logged in
+      const userUuid = userId !== 'anonymous' ? userId : '00000000-0000-0000-0000-000000000000';
+      console.log('Using user ID:', userUuid);
       
       // Generate a new UUID for each audit - don't reuse existing IDs
       // Create an initial audit with 'in-progress' status
-      const newAudit = await generateSEOAudit(url, effectiveClientId);
+      const newAudit = await generateSEOAudit(url, userUuid);
       
       console.log('Received new audit:', newAudit);
       
@@ -209,8 +606,20 @@ const SEOAuditPage: React.FC<SEOAuditPageProps> = ({ clientId }) => {
         throw new Error('Failed to create audit - invalid response');
       }
       
-      // Add the new audit to the list and select it
-      setAudits(prevAudits => [newAudit, ...prevAudits]);
+      // Add the new audit to the list and select it, ensuring no duplicates
+      setAudits(prevAudits => {
+        // Check if this audit ID already exists in the array
+        const exists = prevAudits.some(audit => audit.id === newAudit.id);
+        if (exists) {
+          // If it exists, replace it instead of adding a duplicate
+          return prevAudits.map(audit => 
+            audit.id === newAudit.id ? newAudit : audit
+          );
+        } else {
+          // If it's new, add it to the beginning of the array
+          return [newAudit, ...prevAudits];
+        }
+      });
       setSelectedAudit(newAudit);
       setUrl('');
       setShowNewAuditForm(false);
@@ -428,12 +837,50 @@ const SEOAuditPage: React.FC<SEOAuditPageProps> = ({ clientId }) => {
 
                 {selectedAudit.status === 'completed' && (
                   <>
+                    <SummaryCard>
+                      <SectionTitle>Debug Information</SectionTitle>
+                      <div style={{ marginBottom: '20px' }}>
+                        <strong>Status:</strong> {selectedAudit.status}<br />
+                        <strong>Has Report:</strong> {selectedAudit.report ? 'Yes' : 'No'}<br />
+                        <strong>Score:</strong> {selectedAudit.score}<br />
+                        <strong>Report Keys:</strong> {selectedAudit.report ? Object.keys(selectedAudit.report).join(', ') : 'No report'}<br />
+                        <strong>Overall:</strong> {selectedAudit.report?.overall ? JSON.stringify(selectedAudit.report.overall).substring(0, 100) : 'No overall data'}
+                      </div>
+                    </SummaryCard>
+                    
+                    <SummaryCard>
+                      <SectionTitle>Raw Crawler Data</SectionTitle>
+                      <div style={{ marginBottom: '20px', maxHeight: '400px', overflow: 'auto' }}>
+                        <pre style={{ whiteSpace: 'pre-wrap', fontSize: '12px' }}>
+                          {JSON.stringify(selectedAudit.report, null, 2)}
+                        </pre>
+                      </div>
+                    </SummaryCard>
+
                     <TabsContainer>
                       <Tab 
                         $isActive={activeTab === 'overview'} 
                         onClick={() => setActiveTab('overview')}
                       >
                         Overview
+                      </Tab>
+                      <Tab 
+                        $isActive={activeTab === 'rawdata'} 
+                        onClick={() => setActiveTab('rawdata')}
+                      >
+                        Raw Data
+                      </Tab>
+                      <Tab 
+                        $isActive={activeTab === 'aianalysis'} 
+                        onClick={() => setActiveTab('aianalysis')}
+                      >
+                        AI Analysis
+                      </Tab>
+                      <Tab 
+                        $isActive={activeTab === 'issues'} 
+                        onClick={() => setActiveTab('issues')}
+                      >
+                        Issues Summary
                       </Tab>
                       <Tab 
                         $isActive={activeTab === 'technical'} 
@@ -449,6 +896,83 @@ const SEOAuditPage: React.FC<SEOAuditPageProps> = ({ clientId }) => {
                     </TabsContainer>
 
                     <TabContent>
+                      {activeTab === 'rawdata' && selectedAudit && (
+                        <>
+                          <SummaryCard>
+                            <SectionTitle>Raw Crawler Data</SectionTitle>
+                            <div style={{ maxHeight: '600px', overflow: 'auto' }}>
+                              <pre style={{ whiteSpace: 'pre-wrap', fontSize: '12px' }}>
+                                {JSON.stringify((selectedAudit.report as any)?.rawData || selectedAudit.report, null, 2)}
+                              </pre>
+                            </div>
+                          </SummaryCard>
+                          
+                          {/* GEMINI ANALYSIS DISPLAY #2 */}
+                          <SummaryCard style={{ marginTop: '20px' }}>
+                            <SectionTitle>Gemini AI Analysis</SectionTitle>
+                            <div style={{ maxHeight: '600px', overflow: 'auto' }}>
+                              <pre style={{ whiteSpace: 'pre-wrap', fontSize: '12px' }}>
+                                {JSON.stringify((selectedAudit.report as any)?.geminiAudit, null, 2)}
+                              </pre>
+                            </div>
+                          </SummaryCard>
+                        </>
+                      )}
+                      
+                      {activeTab === 'issues' && selectedAudit?.report && (
+                        <>
+                          <SummaryCard>
+                            <SectionTitle>All SEO Issues</SectionTitle>
+                            <SummaryText>
+                              Consolidated list of all issues found across different SEO categories, sorted by severity.
+                            </SummaryText>
+                            
+                            {renderAllIssues(selectedAudit.report)}
+                          </SummaryCard>
+                        </>
+                      )}
+                      
+                      {activeTab === 'aianalysis' && selectedAudit && (
+                        <>
+                          <SummaryCard>
+                            <SectionTitle>AI-Powered SEO Analysis</SectionTitle>
+                            <SummaryText>
+                              Comprehensive analysis powered by Google's Gemini AI
+                            </SummaryText>
+                            {(() => {
+                              console.log('AI Analysis tab selected');
+                              console.log('Selected audit:', selectedAudit);
+                              console.log('Report structure:', selectedAudit?.report ? Object.keys(selectedAudit.report) : 'No report');
+                              console.log('Gemini audit available:', (selectedAudit.report as any)?.geminiAudit ? 'Yes' : 'No');
+                              
+                              if ((selectedAudit.report as any)?.geminiAudit) {
+                                console.log('Gemini audit data type:', typeof (selectedAudit.report as any).geminiAudit);
+                                console.log('Gemini audit keys:', Object.keys((selectedAudit.report as any).geminiAudit));
+                                return (
+                                  <div style={{ maxHeight: '600px', overflow: 'auto' }}>
+                                    <AIAnalysisContainer>
+                                      {renderGeminiAnalysis((selectedAudit.report as any)?.geminiAudit)}
+                                    </AIAnalysisContainer>
+                                  </div>
+                                );
+                              } else {
+                                return (
+                                  <SummaryText>
+                                    AI analysis is still processing or unavailable. Please check back in a few minutes.
+                                    <br/><br/>
+                                    <strong>Debug Info:</strong><br/>
+                                    Report available: {selectedAudit?.report ? 'Yes' : 'No'}<br/>
+                                    Report keys: {selectedAudit?.report ? Object.keys(selectedAudit.report).join(', ') : 'None'}<br/>
+                                    Status: {selectedAudit?.status}<br/>
+                                    Last updated: {selectedAudit?.updated_at}
+                                  </SummaryText>
+                                );
+                              }
+                            })()}
+                          </SummaryCard>
+                        </>
+                      )}
+                      
                       {activeTab === 'overview' && selectedAudit?.report && (
                         <>
                           <SummaryCard>
@@ -459,10 +983,27 @@ const SEOAuditPage: React.FC<SEOAuditPageProps> = ({ clientId }) => {
                             <AuditTimestamp>
                               Audit performed: {new Date(selectedAudit.report.overall.timestamp).toLocaleString()}
                             </AuditTimestamp>
+                            
+                            {/* GEMINI ANALYSIS DISPLAY #1 */}
+                            {(selectedAudit.report as any)?.geminiAudit && (
+                              <div style={{ marginTop: '20px', padding: '15px', backgroundColor: '#f8f9fa', borderRadius: '5px' }}>
+                                <h3 style={{ marginBottom: '10px', color: '#4a5568' }}>AI-Powered Insights</h3>
+                                <div style={{ fontSize: '14px', lineHeight: '1.6' }}>
+                                  <pre style={{ whiteSpace: 'pre-wrap', maxHeight: '300px', overflow: 'auto' }}>
+                                    {JSON.stringify((selectedAudit.report as any).geminiAudit, null, 2)}
+                                  </pre>
+                                </div>
+                              </div>
+                            )}
                           </SummaryCard>
                           
                           <OverviewSection>
-                            <SectionTitle>Performance Scores</SectionTitle>
+                            <SectionTitle>Critical Issues Summary</SectionTitle>
+                            <div style={{ marginBottom: '30px' }}>
+                              {renderAllIssues(selectedAudit.report)}
+                            </div>
+                            
+                            <SectionTitle>SEO Score Breakdown</SectionTitle>
                             <ScoreGrid>
                               <ScoreCard>
                                 <ScoreLabel>Overall Score</ScoreLabel>
@@ -1330,14 +1871,165 @@ const SummaryCard = styled.div`
 `;
 
 const SummaryText = styled.div`
-  font-size: 14px;
-  line-height: 1.5;
-  margin: 0;
+  font-size: 16px;
+  line-height: 1.6;
+  color: #4a5568;
+  margin-bottom: 20px;
+`;
+
+const IssuesTable = styled.table`
+  width: 100%;
+  border-collapse: collapse;
+  margin-top: 20px;
+  font-family: 'DM Sans', sans-serif;
+  
+  th, td {
+    padding: 12px 15px;
+    text-align: left;
+    border-bottom: 1px solid #e2e8f0;
+  }
+  
+  th {
+    background-color: #f7fafc;
+    font-weight: 600;
+    color: #4a5568;
+    position: sticky;
+    top: 0;
+    z-index: 10;
+  }
+  
+  tr:hover {
+    background-color: #f7fafc;
+  }
+  
+  td p {
+    margin: 5px 0 0 0;
+    font-size: 14px;
+    color: #718096;
+  }
+`;
+
+interface SeverityBadgeProps {
+  $severity: string;
+}
+
+const SeverityBadge = styled.span<SeverityBadgeProps>`
+  display: inline-block;
+  padding: 4px 8px;
+  border-radius: 4px;
+  font-size: 12px;
+  font-weight: 600;
+  text-transform: uppercase;
+  background-color: ${props => {
+    switch (props.$severity.toLowerCase()) {
+      case 'high':
+        return '#FED7D7';
+      case 'medium':
+        return '#FEEBC8';
+      case 'low':
+        return '#C6F6D5';
+      default:
+        return '#EDF2F7';
+    }
+  }};
+  color: ${props => {
+    switch (props.$severity.toLowerCase()) {
+      case 'high':
+        return '#9B2C2C';
+      case 'medium':
+        return '#9C4221';
+      case 'low':
+        return '#276749';
+      default:
+        return '#4A5568';
+    }
+  }};
+`;
+
+const AIAnalysisContainer = styled.div`
+  padding: 20px;
+  font-family: 'DM Sans', sans-serif;
+  
+  h2 {
+    font-size: 20px;
+    font-weight: 600;
+    margin-top: 30px;
+    margin-bottom: 15px;
+    color: #2d3748;
+    border-bottom: 1px solid #e2e8f0;
+    padding-bottom: 8px;
+  }
+  
+  h3 {
+    font-size: 18px;
+    font-weight: 500;
+    margin-top: 20px;
+    margin-bottom: 10px;
+    color: #4a5568;
+  }
+  
+  p {
+    font-size: 15px;
+    line-height: 1.6;
+    margin-bottom: 15px;
+    color: #4a5568;
+  }
+  
+  ul, ol {
+    margin-left: 20px;
+    margin-bottom: 20px;
+  }
+  
+  li {
+    margin-bottom: 8px;
+    line-height: 1.5;
+  }
+  
+  table {
+    width: 100%;
+    border-collapse: collapse;
+    margin-bottom: 20px;
+  }
+  
+  th, td {
+    border: 1px solid #e2e8f0;
+    padding: 10px;
+    text-align: left;
+  }
+  
+  th {
+    background-color: #f7fafc;
+    font-weight: 600;
+  }
+  
+  code {
+    background-color: #f7fafc;
+    padding: 2px 4px;
+    border-radius: 4px;
+    font-family: monospace;
+    font-size: 14px;
+  }
+  
+  .score-high {
+    color: #38a169;
+    font-weight: 600;
+  }
+  
+  .score-medium {
+    color: #dd6b20;
+    font-weight: 600;
+  }
+  
+  .score-low {
+    color: #e53e3e;
+    font-weight: 600;
+  }
 `;
 
 const ScoreGrid = styled.div`
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
+{{ ... }}
   gap: 16px;
 `;
 
