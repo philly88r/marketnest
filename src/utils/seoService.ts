@@ -1277,21 +1277,23 @@ async function startDirectCrawl(url: string, audit: SEOAudit) {
     // This ensures we get real, rendered data including JavaScript content
     console.log(`Using Playwright to fetch and verify website data from ${url}`);
     
-    // Request screenshot and verification data along with HTML
-    const crawlerEndpoint = `/api/seo/crawl?url=${encodeURIComponent(verifiedUrl)}&includeScreenshot=true&verifyData=true`;
-    console.log(`Calling crawler endpoint: ${crawlerEndpoint}`);
+    // Request multi-page crawling with screenshot and verification data
+    const crawlerEndpoint = `/api/seo/crawl?url=${encodeURIComponent(verifiedUrl)}&includeScreenshot=true&verifyData=true&multiPage=true&maxPages=20`;
+    console.log(`Calling crawler endpoint for multi-page crawling: ${crawlerEndpoint}`);
     
     const crawlerResponse = await fetch(crawlerEndpoint, {
       headers: {
         'Accept': 'application/json, text/plain, */*'
       },
-      // Set a longer timeout for comprehensive crawling
-      signal: AbortSignal.timeout(120000) // 2 minute timeout
+      // Set a longer timeout for comprehensive multi-page crawling
+      signal: AbortSignal.timeout(300000) // 5 minute timeout for multi-page crawling
     });
     
     if (!crawlerResponse.ok) {
       throw new Error(`Crawler failed: ${crawlerResponse.status} ${crawlerResponse.statusText}`);
     }
+    
+    console.log('Multi-page crawling initiated - collecting data from up to 20 pages');
     
     // Parse the crawler response with robust error handling
     let crawlerData;
@@ -1410,23 +1412,68 @@ async function startDirectCrawl(url: string, audit: SEOAudit) {
     // Prepare comprehensive data bundle for Gemini
     console.log('Preparing comprehensive data bundle for Gemini analysis...');
     
-    // Create a comprehensive data bundle for Gemini
+    // Extract links for multi-page analysis
+    const pageLinks = $('a');
+    const internalPageLinks: string[] = [];
+    
+    // Collect internal links for multi-page crawling
+    pageLinks.each((i, el) => {
+      const href = $(el).attr('href');
+      if (!href) return;
+      
+      try {
+        // Check if it's an internal link
+        if (href.startsWith('/') || href.includes(new URL(url).hostname)) {
+          // Normalize the URL
+          let fullUrl = href;
+          if (href.startsWith('/')) {
+            const baseUrl = new URL(url);
+            fullUrl = `${baseUrl.protocol}//${baseUrl.hostname}${href}`;
+          }
+          
+          // Add to internal links if not already present
+          if (!internalPageLinks.includes(fullUrl) && internalPageLinks.length < 20) {
+            internalPageLinks.push(fullUrl);
+          }
+        }
+      } catch (e) {
+        // If URL parsing fails, try to handle relative URLs
+        if (href.startsWith('/')) {
+          try {
+            const baseUrl = new URL(url);
+            const fullUrl = `${baseUrl.protocol}//${baseUrl.hostname}${href}`;
+            if (!internalPageLinks.includes(fullUrl) && internalPageLinks.length < 20) {
+              internalPageLinks.push(fullUrl);
+            }
+          } catch (e) {
+            console.warn('Error parsing URL:', e);
+          }
+        }
+      }
+    });
+    
+    console.log(`Found ${internalPageLinks.length} internal links for multi-page analysis`);
+    
+    // Create a comprehensive data bundle for Gemini with multi-page data
     const seoDataBundle = {
       url: url,
       verificationToken: verificationToken,  // Include verification token
-      html: rawHtml,                         // Full HTML content
+      html: rawHtml,                         // Full HTML content of main page
       title: title,                          // Page title
       metaTags: metaTags,                    // All meta tags
       cssContent: cssContent,                // Inline CSS
       linkedStylesheets: linkedCss,          // Linked stylesheets
       schemaData: schemaData,                // Structured data
       screenshot: screenshotData,            // Screenshot (base64)
+      internalLinks: internalPageLinks,          // Internal links for multi-page analysis
+      crawledPages: crawlerData.pages || [], // Additional pages crawled
       verificationResults: {                 // Verification results
         htmlLength: rawHtml.length,
         hasHeadAndBody: $('head').length > 0 && $('body').length > 0,
         hasTitle: !!title,
         tokenReflected: htmlIncludesToken,
-        hasScreenshot: !!screenshotData
+        hasScreenshot: !!screenshotData,
+        pagesAnalyzed: (crawlerData.pages || []).length + 1
       }
     };
     
