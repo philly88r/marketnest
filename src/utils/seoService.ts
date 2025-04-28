@@ -1259,6 +1259,7 @@ export const generateSEOAudit = async (url: string, userId: string, auditId?: st
 /**
  * Start a direct crawl without database operations
  * Enhanced with verification checks and screenshot capture
+ * Now using Axios+Cheerio for more reliable data collection
  */
 async function startDirectCrawl(url: string, audit: SEOAudit) {
   try {
@@ -1273,12 +1274,12 @@ async function startDirectCrawl(url: string, audit: SEOAudit) {
     console.log(`Using verification token: ${verificationToken}`);
     console.log(`Verified URL: ${verifiedUrl}`);
     
-    // Use Playwright via our crawler endpoint for comprehensive data collection
-    // This ensures we get real, rendered data including JavaScript content
-    console.log(`Using Playwright to fetch and verify website data from ${url}`);
+    // Use Axios+Cheerio via our crawler endpoint for more reliable data collection
+    // This approach is more direct and less prone to issues than Playwright
+    console.log(`Using Axios+Cheerio to fetch and verify website data from ${url}`);
     
-    // Request multi-page crawling with screenshot and verification data
-    const crawlerEndpoint = `/api/seo/crawl?url=${encodeURIComponent(verifiedUrl)}&includeScreenshot=true&verifyData=true&multiPage=true&maxPages=20`;
+    // Request multi-page crawling with verification data
+    const crawlerEndpoint = `/api/seo/crawl?url=${encodeURIComponent(verifiedUrl)}&verifyData=true&multiPage=true&maxPages=20`;
     console.log(`Calling crawler endpoint for multi-page crawling: ${crawlerEndpoint}`);
     
     const crawlerResponse = await fetch(crawlerEndpoint, {

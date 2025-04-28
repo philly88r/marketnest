@@ -8,15 +8,17 @@ if (!GEMINI_API_KEY) {
 }
 
 // The extremely detailed audit prompt template with strict anti-hallucination controls
+// Now enhanced for use with our more reliable Axios+Cheerio crawler
 const BASE_PROMPT = `CRITICAL INSTRUCTION: You are ONLY allowed to analyze the ACTUAL HTML, CSS, and data provided to you. DO NOT make up or hallucinate ANY information about the website. If you cannot find certain information in the provided data, explicitly state "No data available" for that section.
 
 ### VERIFICATION REQUIREMENTS:
 1. You MUST include a "Data Verification" section at the beginning of your response that lists:
    - The exact URL(s) you were provided
    - The total HTML size in bytes
-   - Whether you received screenshots
-   - How many pages of data you actually received
+   - The number of pages successfully crawled
+   - The number of pages that failed to crawl (if any)
    - A sample of the actual HTML content (first 100 characters)
+   - The crawl verification data provided
 
 2. For ANY claim you make about the website, you MUST cite the specific evidence from the provided data.
 

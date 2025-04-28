@@ -9,7 +9,9 @@ const aiContentGenerator = require('./server/aiContentGenerator');
 const context7Integration = require('./server/context7Integration');
 const browserUseIntegration = require('./server/browserUseIntegration');
 const geminiImageGenerator = require('./server/geminiImageGenerator');
-const seoCrawler = require('./server/seoCrawler');
+// Import both crawlers to allow switching between them
+const { crawlWebsiteHandler: playwrightCrawlHandler } = require('./server/seoCrawler');
+const { crawlWebsiteHandler: axiosCrawlHandler } = require('./server/axiosCrawler');
 
 const app = express();
 const PORT = process.env.PORT || 3001;
@@ -31,8 +33,12 @@ app.use(express.json());
 // API routes
 app.use('/api', googleAuthHandler);
 
-// SEO Crawler route - must be defined BEFORE the general seoProxy
-app.get('/api/seo/crawl', seoCrawler.crawlWebsiteHandler);
+// SEO Crawler routes - must be defined BEFORE the general seoProxy
+// Use Axios crawler by default (more reliable than Playwright)
+app.get('/api/seo/crawl', axiosCrawlHandler);
+
+// Keep the Playwright crawler as a fallback option
+app.get('/api/seo/crawl-playwright', playwrightCrawlHandler);
 
 // General SEO proxy for other SEO routes
 app.use('/api/seo', seoProxy);
