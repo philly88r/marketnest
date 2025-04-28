@@ -31,9 +31,26 @@ let browsersChecked = false;
 /**
  * Crawl a website and gather SEO-relevant data
  * @param {string} targetUrl - The URL to start crawling from
+ * @param {object} options - Crawling options
+ * @param {boolean} options.includeScreenshot - Whether to include screenshots
+ * @param {boolean} options.verifyData - Whether to verify data integrity
+ * @param {boolean} options.multiPage - Whether to crawl multiple pages
+ * @param {number} options.maxPages - Maximum number of pages to crawl
  * @returns {Promise<object>} - Comprehensive SEO data from the crawl
  */
-async function crawlWebsite(targetUrl) {
+async function crawlWebsite(targetUrl, options = {}) {
+  // Set default options
+  const {
+    includeScreenshot = false,
+    verifyData = false,
+    multiPage = false,
+    maxPages = MAX_PAGES
+  } = options;
+  
+  console.log(`Crawl options: includeScreenshot=${includeScreenshot}, verifyData=${verifyData}, multiPage=${multiPage}, maxPages=${maxPages}`);
+  
+  // Use global.MAX_PAGES if it's been set, otherwise use the constant
+  const effectiveMaxPages = global.MAX_PAGES || maxPages;
   console.log(`Starting SEO crawl of ${targetUrl}`);
   
   let browser;
@@ -79,6 +96,20 @@ async function crawlWebsite(targetUrl) {
   // Store crawled pages and their data
   const crawledPages = new Map();
   const pagesToCrawl = [targetUrl];
+  
+  // Only crawl multiple pages if multiPage is enabled
+  const maxPagesToCrawl = multiPage ? effectiveMaxPages : 1;
+  console.log(`Will crawl up to ${maxPagesToCrawl} pages`);
+  
+  // Track verification data if requested
+  const verificationData = {
+    startTime: new Date().toISOString(),
+    pagesAttempted: 0,
+    pagesSuccessful: 0,
+    pagesFailed: 0,
+    totalBytes: 0,
+    hasScreenshots: includeScreenshot
+  };
   const baseUrlObj = new URL(targetUrl);
   const baseUrl = baseUrlObj.origin;
   
@@ -719,11 +750,21 @@ function generateSummary(pages, technicalIssues, targetUrl) {
  */
 async function crawlWebsiteHandler(req, res) {
   try {
-    const { url } = req.query;
+    const { url, includeScreenshot, verifyData, multiPage, maxPages } = req.query;
     
     if (!url) {
       return res.status(400).json({ error: 'URL parameter is required' });
     }
+    
+    // Parse boolean parameters
+    const shouldIncludeScreenshot = includeScreenshot === 'true';
+    const shouldVerifyData = verifyData === 'true';
+    const shouldMultiPage = multiPage === 'true';
+    
+    // Parse maxPages parameter with fallback to default
+    const pagesToCrawl = shouldMultiPage ? (parseInt(maxPages) || MAX_PAGES) : 1;
+    
+    console.log(`Crawl configuration: includeScreenshot=${shouldIncludeScreenshot}, verifyData=${shouldVerifyData}, multiPage=${shouldMultiPage}, maxPages=${pagesToCrawl}`);
     
     console.log(`Received crawl request for ${url}`);
     
@@ -761,7 +802,21 @@ async function crawlWebsiteHandler(req, res) {
     }
     
     try {
-      console.log(`Starting crawl of ${url}...`);
+      console.log(`Starting crawl of ${url} with ${pagesToCrawl} pages maximum...`);
+      
+      // Override MAX_PAGES if multiPage is enabled
+      if (shouldMultiPage) {
+        // Temporarily override the module constant
+        const originalMaxPages = MAX_PAGES;
+        global.MAX_PAGES = pagesToCrawl;
+        
+        console.log(`Set maximum pages to crawl: ${global.MAX_PAGES}`);
+        
+        // Reset after crawl completes
+        setTimeout(() => {
+          global.MAX_PAGES = originalMaxPages;
+        }, 300000); // Reset after 5 minutes max
+      }
       
       // Try a simple browser test first to diagnose issues
       try {
@@ -784,17 +839,27 @@ async function crawlWebsiteHandler(req, res) {
       }
       
       // Proceed with the actual crawl
-      console.log('Now attempting the actual crawl...');
+      console.log('Now attempting the actual crawl with options...');
       try {
-        const seoData = await crawlWebsite(url);
-        console.log(`Crawl of ${url} completed successfully`);
+        // Pass all the options to the crawlWebsite function
+        const crawlOptions = {
+          includeScreenshot: shouldIncludeScreenshot,
+          verifyData: shouldVerifyData,
+          multiPage: shouldMultiPage,
+          maxPages: pagesToCrawl
+        };
+        
+        console.log('Crawl options:', crawlOptions);
+        const seoData = await crawlWebsite(url, crawlOptions);
+        console.log(`Crawl of ${url} completed successfully with ${seoData.pages?.length || 0} pages`);
         return res.json(seoData);
       } catch (playwrightError) {
         console.error('Playwright crawl failed, trying fallback method:', playwrightError.message);
         
         // Fallback to a simpler HTTP request-based crawl
         console.log('Attempting fallback crawl with HTTP requests...');
-        const fallbackData = await fallbackCrawlWebsite(url);
+        // Even in fallback mode, respect the multiPage setting
+        const fallbackData = await fallbackCrawlWebsite(url, { multiPage: shouldMultiPage, maxPages: pagesToCrawl });
         console.log('Fallback crawl completed');
         return res.json(fallbackData);
       }
