@@ -1166,7 +1166,22 @@ async function startDirectCrawl(url: string, audit: SEOAudit) {
     const crawlerEndpoint = `/api/seo/crawl?url=${encodeURIComponent(url)}`;
     console.log(`Calling crawler endpoint: ${crawlerEndpoint}`);
     
-    const response = await fetch(crawlerEndpoint);
+    // Make sure we're using the absolute URL for the API call
+    const apiUrl = window.location.origin + crawlerEndpoint;
+    console.log(`Full API URL: ${apiUrl}`);
+    
+    // Add a timeout to the fetch request to prevent hanging indefinitely
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), 120000); // 2 minute timeout
+    
+    const response = await fetch(crawlerEndpoint, {
+      signal: controller.signal,
+      headers: {
+        'Accept': 'application/json, text/plain, */*'
+      }
+    });
+    
+    clearTimeout(timeoutId);
     
     if (!response.ok) {
       throw new Error(`Crawler failed: ${response.status} ${response.statusText}`);
@@ -1174,6 +1189,8 @@ async function startDirectCrawl(url: string, audit: SEOAudit) {
     
     // Get the raw text from the response
     const rawText = await response.text();
+    console.log(`Received response with length: ${rawText.length} characters`);
+    console.log(`First 100 characters: ${rawText.substring(0, 100)}`);
     
     // Determine if the response is HTML or JSON
     let crawlerData;
@@ -1196,7 +1213,7 @@ async function startDirectCrawl(url: string, audit: SEOAudit) {
       const images = $('img');
       const imagesWithAlt = $('img[alt]');
       
-      // Create a basic structure from the HTML
+      // Create a structure from the actual HTML
       crawlerData = {
         pages: [{
           url: url,
@@ -1219,8 +1236,8 @@ async function startDirectCrawl(url: string, audit: SEOAudit) {
           contentWordCount: $('body').text().split(/\s+/).length
         }],
         crawledUrls: [url],
-        overallScore: 70,
-        summary: `Basic SEO analysis of ${url}`,
+        overallScore: 0, // Will be calculated based on actual data
+        summary: `SEO analysis of ${url} based on HTML content`,
         _meta: {
           source: 'html-direct',
           timestamp: new Date().toISOString()
@@ -1232,23 +1249,13 @@ async function startDirectCrawl(url: string, audit: SEOAudit) {
       // Try to parse as JSON
       try {
         crawlerData = JSON.parse(rawText);
-        console.log('Successfully parsed JSON response from crawler');
+        console.log('Successfully parsed JSON response from crawler with keys:', Object.keys(crawlerData));
       } catch (parseError) {
         console.error('Failed to parse crawler response as JSON:', parseError);
         console.error('First 200 characters of response:', rawText.substring(0, 200));
         
-        // If it's not HTML and not valid JSON, create a minimal structure
-        crawlerData = {
-          pages: [],
-          crawledUrls: [url],
-          overallScore: 0,
-          summary: `Failed to analyze ${url}: Invalid response format`,
-          error: parseError.message,
-          _meta: {
-            source: 'error',
-            timestamp: new Date().toISOString()
-          }
-        };
+        // Try to extract any useful information from the raw text
+        throw new Error(`Failed to parse crawler response: ${parseError.message}. Please check the server logs.`);
       }
     }
     
@@ -1277,7 +1284,13 @@ async function startDirectCrawl(url: string, audit: SEOAudit) {
       geminiAudit = { error: 'Gemini audit failed', details: err?.message || String(err) };
     }
 
-    // Create a complete report structure that includes all required properties
+    // Use the actual data from the crawler to create the report
+    console.log('Using real crawler data to create report');
+    
+    // Extract technical issues if available
+    const technicalIssues = crawlerData.technicalIssues || [];
+    
+    // Create a report structure using the actual crawled data
     const report: SEOReport = {
       url: url,
       crawledUrls: crawlerData.crawledUrls || [],
@@ -1288,67 +1301,67 @@ async function startDirectCrawl(url: string, audit: SEOAudit) {
       links: crawlerData.links || [],
       contentWordCount: crawlerData.contentWordCount || 0,
       overall: {
-        score: crawlerData.overallScore || 0,
-        summary: crawlerData.summary || 'No summary available',
+        score: crawlerData.overallScore || calculateOverallScore(crawlerData),
+        summary: crawlerData.summary || `SEO analysis of ${url} based on ${crawlerData.pages?.length || 0} pages`,
         timestamp: new Date().toISOString()
       },
       technical: {
         score: crawlerData.technicalScore || 0,
-        issues: [],
-        summary: 'Technical SEO analysis',
-        crawlability: {
-          robotsTxt: 'Analyzed',
-          sitemapXml: 'Analyzed',
-          crawlErrors: []
+        issues: technicalIssues,
+        summary: crawlerData.technicalSummary || 'Technical SEO analysis based on crawler data',
+        crawlability: crawlerData.crawlability || {
+          robotsTxt: crawlerData.robotsTxt || 'Not analyzed',
+          sitemapXml: crawlerData.sitemapXml || 'Not analyzed',
+          crawlErrors: crawlerData.crawlErrors || []
         },
-        security: {
+        security: crawlerData.security || {
           https: url.startsWith('https'),
           sslCertificate: url.startsWith('https') ? 'Valid' : 'Not using HTTPS'
         }
       },
       content: {
-        score: 85,
-        issues: [],
-        contentAudit: {
-          qualityAssessment: 'Content quality assessment',
+        score: crawlerData.contentScore || 0,
+        issues: crawlerData.contentIssues || [],
+        contentAudit: crawlerData.contentAudit || {
+          qualityAssessment: 'Based on crawler analysis',
           topPerformingContent: [],
           contentGaps: [],
           recommendations: []
         },
-        readability: {
-          averageScore: 70,
-          assessment: 'Average readability',
+        readability: crawlerData.readability || {
+          averageScore: 0,
+          assessment: 'Based on crawler analysis',
           improvements: []
         }
       },
       onPage: {
-        score: 90,
-        issues: [],
-        metaTagsAudit: {
-          titleTags: 'Title tags analyzed',
-          metaDescriptions: 'Meta descriptions analyzed',
-          canonicalTags: 'Canonical tags analyzed'
+        score: crawlerData.onPageScore || 0,
+        issues: crawlerData.onPageIssues || [],
+        metaTagsAudit: crawlerData.metaTagsAudit || {
+          titleTags: 'Based on crawler analysis',
+          metaDescriptions: 'Based on crawler analysis',
+          canonicalTags: 'Based on crawler analysis'
         },
-        urlStructure: {
-          assessment: 'URL structure analysis',
+        urlStructure: crawlerData.urlStructure || {
+          assessment: 'Based on crawler analysis',
           issues: []
         },
-        internalLinking: {
-          assessment: 'Internal linking structure',
+        internalLinking: crawlerData.internalLinking || {
+          assessment: 'Based on crawler analysis',
           opportunities: []
         }
       },
       performance: {
-        score: 80,
-        issues: [],
-        pageSpeed: {
-          desktop: 'Desktop performance analyzed',
-          mobile: 'Mobile performance analyzed',
+        score: crawlerData.performanceScore || 0,
+        issues: crawlerData.performanceIssues || [],
+        pageSpeed: crawlerData.pageSpeed || {
+          desktop: 'Based on crawler analysis',
+          mobile: 'Based on crawler analysis',
           improvements: []
         },
-        resourceOptimization: {
-          images: 'Image optimization analyzed',
-          javascript: 'JavaScript optimization analyzed',
+        resourceOptimization: crawlerData.resourceOptimization || {
+          images: 'Based on crawler analysis',
+          javascript: 'Based on crawler analysis',
           css: 'CSS optimization analyzed',
           html: 'HTML optimization analyzed'
         }

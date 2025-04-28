@@ -98,13 +98,40 @@ function fixMalformedJson(text: string): string {
 
 export async function getGeminiSEOAduit(siteUrl: string, crawlData: any): Promise<any> {
   if (!GEMINI_API_KEY) {
-    throw new Error('Gemini API key not set.');
+    console.error('Gemini API key not set. Using fallback analysis.');
+    return {
+      htmlContent: `<h2>SEO Analysis for ${siteUrl}</h2><p>Unable to perform AI-powered analysis: API key not configured.</p>`,
+      timestamp: new Date().toISOString(),
+      error: 'API key not configured'
+    };
   }
 
   console.log(`Starting Gemini API call for ${siteUrl}...`);
   
   // Prepare crawl data for the prompt
   let crawlDataForPrompt = '';
+  
+  // Define interface for crawl summary
+  interface CrawlSummary {
+    title?: string;
+    metaDescription?: string;
+    h1Count?: number;
+    h2Count?: number;
+    wordCount?: number;
+    imageCount?: number;
+    imagesWithAlt?: number;
+    linkCount?: number;
+    internalLinks?: number;
+    externalLinks?: number;
+    pageCount?: number;
+    crawledUrls?: number;
+    sampleUrls?: string[];
+    technicalIssues?: number;
+    contentIssues?: number;
+  }
+  
+  // Initialize with proper typing
+  let crawlSummary: CrawlSummary = {};
   
   // Check if crawlData is already a string (HTML) or an object
   if (typeof crawlData === 'string') {
@@ -119,15 +146,37 @@ export async function getGeminiSEOAduit(siteUrl: string, crawlData: any): Promis
       const h1s = $('h1').map((i, el) => $(el).text().trim()).get();
       const h2s = $('h2').map((i, el) => $(el).text().trim()).get().slice(0, 10); // Limit to 10 headings
       
+      // Count images and check for alt text
+      const images = $('img');
+      const imagesWithAlt = $('img[alt]');
+      
+      // Count links and categorize them
+      const allLinks = $('a');
+      const internalLinks = $('a[href^="/"], a[href^="' + siteUrl + '"]');
+      const externalLinks = allLinks.length - internalLinks.length;
+      
       // Create a summary of the HTML content
+      crawlSummary = {
+        title,
+        metaDescription,
+        h1Count: h1s.length,
+        h2Count: h2s.length,
+        wordCount: $('body').text().split(/\s+/).length,
+        imageCount: images.length,
+        imagesWithAlt: imagesWithAlt.length,
+        linkCount: allLinks.length,
+        internalLinks: internalLinks.length,
+        externalLinks: externalLinks
+      };
+      
       crawlDataForPrompt = `
 Page Title: ${title}
 Meta Description: ${metaDescription}
-H1 Headings: ${h1s.join(', ')}
-Sample H2 Headings: ${h2s.join(', ')}
-Total Word Count: ${$('body').text().split(/\s+/).length}
-Images: ${$('img').length} (${$('img[alt]').length} with alt text)
-Links: ${$('a').length}
+H1 Headings (${h1s.length}): ${h1s.join(', ')}
+Sample H2 Headings (${h2s.length} total): ${h2s.join(', ')}
+Total Word Count: ${crawlSummary.wordCount}
+Images: ${images.length} (${imagesWithAlt.length} with alt text, ${images.length - imagesWithAlt.length} without)
+Links: ${allLinks.length} (${internalLinks.length} internal, ${externalLinks} external)
 `;
       
       console.log('Successfully extracted key SEO data from HTML for Gemini');
@@ -136,22 +185,49 @@ Links: ${$('a').length}
       crawlDataForPrompt = 'Error extracting data from HTML. Raw HTML content is too large to include.';
     }
   } else {
-    // It's an object, stringify it
+    // It's an object, create a summary and then stringify it
     try {
-      crawlDataForPrompt = JSON.stringify(crawlData).slice(0, 8000);
+      // Extract key information from the crawler data object
+      const pages = crawlData.pages || [];
+      const crawledUrls = crawlData.crawledUrls || [];
+      
+      crawlSummary = {
+        pageCount: pages.length,
+        crawledUrls: crawledUrls.length,
+        sampleUrls: crawledUrls.slice(0, 5),
+        technicalIssues: (crawlData.technicalIssues || []).length,
+        contentIssues: (crawlData.contentIssues || []).length
+      };
+      
+      // Create a summary string
+      crawlDataForPrompt = `
+Pages Analyzed: ${pages.length}
+Crawled URLs: ${crawledUrls.length}
+Sample URLs: ${crawlSummary.sampleUrls.join('\n')}
+Technical Issues: ${crawlSummary.technicalIssues}
+Content Issues: ${crawlSummary.contentIssues}
+`;
+      
+      // Add the full data (limited to 8000 chars to avoid token limits)
+      crawlDataForPrompt += '\n\nFull crawl data (truncated):\n' + 
+        JSON.stringify(crawlData, null, 2).slice(0, 8000);
+      
+      console.log('Successfully created crawler data summary for Gemini');
     } catch (error) {
-      console.error('Error stringifying crawl data:', error);
-      crawlDataForPrompt = 'Error converting crawl data to string format.';
+      console.error('Error processing crawl data:', error);
+      crawlDataForPrompt = 'Error processing crawl data: ' + error.message;
     }
   }
   
   console.log(`Prompt length: ${BASE_PROMPT.length + siteUrl.length + crawlDataForPrompt.length} characters`);
+  console.log('Crawl summary:', crawlSummary);
   
   // Compose the prompt with site URL and crawl data summary
   const prompt = `${BASE_PROMPT}\n\nTarget site: ${siteUrl}\n\nCrawl data summary:\n${crawlDataForPrompt}`;
 
   try {
     // Set a timeout of 10 minutes (600000ms) for the Gemini API call
+    console.log('Sending request to Gemini API...');
     const response = await axios.post(
       `${GEMINI_API_URL}?key=${GEMINI_API_KEY}`,
       {
@@ -170,14 +246,50 @@ Links: ${$('a').length}
     console.log(`Gemini API call completed for ${siteUrl}. Response length: ${text.length} characters`);
     console.log(`First 100 characters of response: ${text.substring(0, 100)}...`);
     
-    // Return the HTML content directly without trying to parse it as JSON
-    return {
-      htmlContent: text,
-      timestamp: new Date().toISOString()
-    };
+    // Try to parse the response as JSON first (since our prompt asks for JSON)
+    try {
+      // Fix common JSON issues
+      const fixedText = fixMalformedJson(text);
+      const jsonData = JSON.parse(fixedText);
+      console.log('Successfully parsed Gemini response as JSON');
+      
+      // Return both the parsed JSON and the HTML content
+      return {
+        data: jsonData,
+        htmlContent: `<pre>${JSON.stringify(jsonData, null, 2)}</pre>`,
+        timestamp: new Date().toISOString(),
+        crawlSummary
+      };
+    } catch (parseError) {
+      console.error('Failed to parse Gemini response as JSON:', parseError);
+      console.log('Returning raw HTML content instead');
+      
+      // Return the HTML content directly
+      return {
+        htmlContent: text,
+        timestamp: new Date().toISOString(),
+        crawlSummary,
+        parseError: parseError.message
+      };
+    }
   } catch (err: any) {
     console.error(`Gemini audit call failed for ${siteUrl}:`, err?.response?.data || err);
-    console.error('Error details:', JSON.stringify(err?.response?.data || err, null, 2));
-    throw err;
+    
+    // Create a more user-friendly error message
+    const errorMessage = err?.response?.data?.error?.message || err?.message || 'Unknown error';
+    console.error('Error details:', errorMessage);
+    
+    // Return an error object that can be displayed to the user
+    return {
+      htmlContent: `<div class="error-container">
+        <h2>SEO Analysis Error</h2>
+        <p>We encountered an error while analyzing ${siteUrl}:</p>
+        <pre>${errorMessage}</pre>
+        <p>Please try again later or contact support if the problem persists.</p>
+      </div>`,
+      timestamp: new Date().toISOString(),
+      error: errorMessage,
+      crawlSummary
+    };
   }
 }

@@ -14,6 +14,10 @@ const getScoreColor = (score: number) => {
 };
 
 const SEOTechnicalSection: React.FC<SEOTechnicalSectionProps> = ({ technicalData }) => {
+  // Always declare hooks at the top level, regardless of conditions
+  const [filterSeverity, setFilterSeverity] = useState<string | null>(null);
+  const [searchQuery, setSearchQuery] = useState('');
+  
   // Check if technicalData is a string (HTML content)
   if (typeof technicalData === 'string') {
     return (
@@ -33,10 +37,6 @@ const SEOTechnicalSection: React.FC<SEOTechnicalSectionProps> = ({ technicalData
       </Container>
     );
   }
-  
-  // If it's a structured SEOScoreSection object, continue with the original implementation
-  const [filterSeverity, setFilterSeverity] = useState<string | null>(null);
-  const [searchQuery, setSearchQuery] = useState('');
   
   const { score, issues } = technicalData;
 

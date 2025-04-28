@@ -101,26 +101,70 @@ const callGeminiAPIDirect = async (prompt: string): Promise<any> => {
 };
 
 /**
- * Makes a request to analyze a URL through a Supabase Edge Function proxy
- * This function will scrape the website and return data for SEO analysis
+ * Makes a request to analyze a URL for SEO purposes
+ * First tries the local server API endpoint, then falls back to Supabase Edge Function
  * @param url The URL to analyze
  * @returns Website data for SEO analysis
  */
 export const analyzeWebsite = async (url: string): Promise<any> => {
   try {
-    console.log(`Analyzing website: ${url} through Supabase proxy...`);
+    // First try to use the local server API endpoint
+    console.log(`Analyzing website: ${url} using local server API...`);
     
-    // Call the Supabase Edge Function that will analyze the website
-    const { data, error } = await supabase.functions.invoke('website-analyzer', {
-      body: { url }
-    });
+    // Create the API endpoint URL
+    const apiEndpoint = `/api/seo/crawl?url=${encodeURIComponent(url)}`;
+    console.log(`Calling API endpoint: ${apiEndpoint}`);
     
-    if (error) {
-      console.error('Error analyzing website through proxy:', error);
-      throw new Error(`Proxy error: ${error.message}`);
+    // Add a timeout to prevent hanging indefinitely
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), 120000); // 2 minute timeout
+    
+    try {
+      const response = await fetch(apiEndpoint, {
+        method: 'GET',
+        headers: {
+          'Accept': 'application/json, text/plain, */*'
+        },
+        signal: controller.signal
+      });
+      
+      clearTimeout(timeoutId);
+      
+      if (!response.ok) {
+        throw new Error(`Server API error: ${response.status} ${response.statusText}`);
+      }
+      
+      // Try to parse the response as JSON
+      const responseText = await response.text();
+      console.log(`Received response with length: ${responseText.length} characters`);
+      console.log(`First 100 characters: ${responseText.substring(0, 100)}`);
+      
+      try {
+        const data = JSON.parse(responseText);
+        console.log('Successfully parsed JSON response from local server');
+        return data;
+      } catch (parseError) {
+        console.error('Failed to parse response as JSON:', parseError);
+        console.error('First 200 characters of response:', responseText.substring(0, 200));
+        throw new Error(`Invalid JSON response: ${parseError.message}`);
+      }
+    } catch (localApiError) {
+      // If local API fails, try Supabase Edge Function as fallback
+      console.error('Error using local API:', localApiError);
+      console.log('Falling back to Supabase Edge Function...');
+      
+      // Call the Supabase Edge Function that will analyze the website
+      const { data, error } = await supabase.functions.invoke('website-analyzer', {
+        body: { url }
+      });
+      
+      if (error) {
+        console.error('Error analyzing website through Supabase proxy:', error);
+        throw new Error(`Proxy error: ${error.message}`);
+      }
+      
+      return data;
     }
-    
-    return data;
   } catch (error) {
     console.error('Error in analyzeWebsite:', error);
     throw error;
