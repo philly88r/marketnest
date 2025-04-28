@@ -118,6 +118,30 @@ function fixMalformedJson(text: string): string {
   return result;
 }
 
+/**
+ * Check if HTML content appears to be a React error page
+ * @param html HTML content to check
+ * @returns boolean indicating if this is a React error page
+ */
+function isReactErrorPage(html: string): boolean {
+  if (!html) return false;
+  
+  // Check for common React error page patterns
+  const hasReactCreateElement = html.includes('React.createElement');
+  const hasErrorText = html.includes('Error:') || html.includes('stack:');
+  const hasWebpackInternal = html.includes('webpack-internal:');
+  const hasComponentStack = html.includes('The above error occurred in');
+  
+  // If it has multiple React error indicators, it's likely an error page
+  let errorSignals = 0;
+  if (hasReactCreateElement) errorSignals++;
+  if (hasErrorText) errorSignals++;
+  if (hasWebpackInternal) errorSignals++;
+  if (hasComponentStack) errorSignals++;
+  
+  return errorSignals >= 2; // If 2 or more signals are present, it's likely an error page
+}
+
 export async function getGeminiSEOAduit(siteUrl: string, crawlData: any): Promise<any> {
   if (!GEMINI_API_KEY) {
     console.error('Gemini API key not set. Using fallback analysis.');
@@ -126,6 +150,37 @@ export async function getGeminiSEOAduit(siteUrl: string, crawlData: any): Promis
       timestamp: new Date().toISOString(),
       error: 'API key not configured'
     };
+  }
+  
+  // Check if we received a React error page instead of real website content
+  if (crawlData.html && isReactErrorPage(crawlData.html)) {
+    console.error('Detected React error page in crawl data. Refusing to analyze fake content.');
+    return {
+      error: true,
+      message: 'The crawler received a React error page instead of the actual website content. This would result in fake analysis data.',
+      recommendation: 'Please check your server logs for errors in the crawling process.'
+    };
+  }
+  
+  // Also check pages array if it exists
+  if (crawlData.pages && Array.isArray(crawlData.pages)) {
+    const reactErrorPages = crawlData.pages.filter(page => 
+      page.html && isReactErrorPage(page.html)
+    );
+    
+    if (reactErrorPages.length > 0) {
+      console.error(`Detected ${reactErrorPages.length} React error pages in multi-page crawl data.`);
+      // If ALL pages are React errors, abort
+      if (reactErrorPages.length === crawlData.pages.length) {
+        return {
+          error: true,
+          message: 'All crawled pages contain React error content instead of actual website content. This would result in fake analysis data.',
+          recommendation: 'Please check your server logs for errors in the crawling process.'
+        };
+      }
+      // Otherwise, just log a warning and continue with the valid pages
+      console.warn(`Proceeding with analysis of ${crawlData.pages.length - reactErrorPages.length} valid pages.`);
+    }
   }
   
   // Add verification metadata to help prevent hallucinations

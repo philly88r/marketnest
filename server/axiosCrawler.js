@@ -150,6 +150,28 @@ async function crawlWebsite(targetUrl, options = {}) {
         const html = response.data;
         verificationData.totalBytes += html.length;
         
+        // Check for React error pages to avoid analyzing them as real content
+        const isReactErrorPage = html.includes('React.createElement') && 
+                               (html.includes('Error: ') || html.includes('stack:')) &&
+                               html.includes('webpack-internal:');
+                               
+        if (isReactErrorPage) {
+          console.error(`[CRAWLER] Detected React error page for ${currentUrl}`);
+          console.error(`[CRAWLER] This is likely a client-side error, not actual website content`);
+          
+          // Save the error page but mark it as an error
+          crawledPages.set(currentUrl, {
+            url: currentUrl,
+            error: 'React error page detected',
+            html: html,
+            isReactError: true,
+            timestamp: new Date().toISOString()
+          });
+          
+          verificationData.pagesFailed++;
+          continue; // Skip to next URL
+        }
+        
         // Parse the HTML with Cheerio
         const $ = cheerio.load(html);
         
