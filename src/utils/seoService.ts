@@ -1093,6 +1093,9 @@ const calculateSectionScore = (issues: SEOIssue[]): number => {
  * Calculates the overall SEO score based on the section scores
  */
 const calculateOverallScore = (report: SEOReport): number => {
+  // If report is undefined or incomplete, return a default score
+  if (!report) return 50;
+  
   // Weights for each section
   const weights = {
     technical: 0.25,
@@ -1103,14 +1106,24 @@ const calculateOverallScore = (report: SEOReport): number => {
     backlinks: 0.10
   };
   
+  // Safely get scores with fallbacks to prevent undefined errors
+  const technicalScore = report.technical?.score || 0;
+  const contentScore = report.content?.score || 0;
+  const onPageScore = report.onPage?.score || 0;
+  const performanceScore = report.performance?.score || 0;
+  const mobileScore = report.mobile?.score || 0;
+  const backlinksScore = report.backlinks?.score || 0;
+  const keywordsScore = report.keywords?.score || 0;
+  
   // Calculate weighted average
   const weightedScore = 
-    report.technical.score * weights.technical +
-    report.content.score * weights.content +
-    report.onPage.score * weights.onPage +
-    report.performance.score * weights.performance +
-    (report.backlinks?.score || 0) * weights.backlinks +
-    (report.keywords?.score || 0) * weights.backlinks;
+    technicalScore * weights.technical +
+    contentScore * weights.content +
+    onPageScore * weights.onPage +
+    performanceScore * weights.performance +
+    mobileScore * weights.mobile +
+    backlinksScore * weights.backlinks +
+    keywordsScore * weights.backlinks;
   
   // Round to nearest integer
   return Math.round(weightedScore);

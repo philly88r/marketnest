@@ -248,8 +248,16 @@ Content Issues: ${crawlSummary.contentIssues}
     
     // Try to parse the response as JSON first (since our prompt asks for JSON)
     try {
-      // Fix common JSON issues
-      const fixedText = fixMalformedJson(text);
+      // Fix common JSON issues and extract JSON from markdown code blocks if present
+      let fixedText = fixMalformedJson(text);
+      
+      // Check if the response is wrapped in a markdown code block
+      const jsonBlockMatch = fixedText.match(/```(?:json)?([\s\S]*?)```/m);
+      if (jsonBlockMatch && jsonBlockMatch[1]) {
+        console.log('Found JSON in markdown code block, extracting...');
+        fixedText = jsonBlockMatch[1].trim();
+      }
+      
       const jsonData = JSON.parse(fixedText);
       console.log('Successfully parsed Gemini response as JSON');
       
