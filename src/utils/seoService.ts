@@ -1261,213 +1261,276 @@ export const generateSEOAudit = async (url: string, userId: string, auditId?: st
  */
 async function startDirectCrawl(url: string, audit: SEOAudit) {
   try {
-    // Call the crawler endpoint directly
-    const crawlerEndpoint = `/api/seo/crawl?url=${encodeURIComponent(url)}`;
-    console.log(`Calling crawler endpoint: ${crawlerEndpoint}`);
+    console.log(`Starting direct crawl of ${url}`);
     
-    // Make sure we're using the absolute URL for the API call
-    const apiUrl = window.location.origin + crawlerEndpoint;
-    console.log(`Full API URL: ${apiUrl}`);
-    
-    // Add a timeout to the fetch request to prevent hanging indefinitely
+    // IMPORTANT: Directly fetch the actual website HTML instead of using the crawler endpoint
+    // This ensures we get real data from the website
     const controller = new AbortController();
-    const timeoutId = setTimeout(() => controller.abort(), 120000); // 2 minute timeout
+    const timeoutId = setTimeout(() => controller.abort(), 60000); // 1 minute timeout
     
-    const response = await fetch(crawlerEndpoint, {
-      signal: controller.signal,
-      headers: {
-        'Accept': 'application/json, text/plain, */*'
+    // Use a CORS proxy to fetch the website content directly
+    console.log(`Directly fetching website HTML from ${url}`);
+    let response;
+    let rawHtml = '';
+    
+    try {
+      // Try using our API proxy endpoint first
+      const proxyEndpoint = `/api/seo/fetch?url=${encodeURIComponent(url)}`;
+      console.log(`Using proxy endpoint: ${proxyEndpoint}`);
+      
+      response = await fetch(proxyEndpoint, {
+        signal: controller.signal,
+        headers: {
+          'Accept': 'text/html,application/xhtml+xml,application/xml'
+        }
+      });
+      
+      if (response.ok) {
+        rawHtml = await response.text();
+        console.log(`Successfully fetched HTML via proxy, length: ${rawHtml.length} characters`);
+      } else {
+        console.error(`Proxy fetch failed: ${response.status} ${response.statusText}`);
       }
-    });
+    } catch (proxyError) {
+      console.error('Error fetching via proxy:', proxyError);
+    }
+    
+    // If proxy failed, try direct fetch as fallback (may fail due to CORS)
+    if (!rawHtml) {
+      try {
+        console.log('Attempting direct fetch as fallback (may fail due to CORS)');
+        response = await fetch(url, {
+          signal: controller.signal,
+          mode: 'no-cors', // This will limit what we can access but might allow the request
+          headers: {
+            'Accept': 'text/html,application/xhtml+xml,application/xml'
+          }
+        });
+        
+        // Note: with no-cors, we might not be able to read the response content
+        try {
+          rawHtml = await response.text();
+          console.log(`Direct fetch succeeded, response length: ${rawHtml.length}`);
+        } catch (readError) {
+          console.error('Could not read direct fetch response:', readError);
+        }
+      } catch (directFetchError) {
+        console.error('Direct fetch failed:', directFetchError);
+      }
+    }
     
     clearTimeout(timeoutId);
     
-    if (!response.ok) {
-      throw new Error(`Crawler failed: ${response.status} ${response.statusText}`);
-    }
-    
-    // Get the raw text from the response
-    const rawText = await response.text();
-    console.log(`Received response with length: ${rawText.length} characters`);
-    console.log(`First 100 characters: ${rawText.substring(0, 100)}`);
-    
-    // Determine if the response is HTML or JSON
-    let crawlerData;
-    
-    if (rawText.trim().startsWith('<!') || rawText.trim().startsWith('<html')) {
-      console.log('Received HTML from crawler endpoint - analyzing directly');
+    // If we still don't have HTML, use the crawler endpoint as a last resort
+    if (!rawHtml) {
+      console.log('Direct fetching failed, falling back to crawler endpoint');
+      const crawlerEndpoint = `/api/seo/crawl?url=${encodeURIComponent(url)}`;
       
-      // Use cheerio to parse the HTML
-      const cheerio = await import('cheerio');
-      const $ = cheerio.load(rawText);
-      
-      // Extract basic SEO data directly from the HTML
-      const title = $('title').text();
-      const metaDescription = $('meta[name="description"]').attr('content') || '';
-      const h1s = $('h1').map((i, el) => $(el).text().trim()).get();
-      const h2s = $('h2').map((i, el) => $(el).text().trim()).get();
-      const h3s = $('h3').map((i, el) => $(el).text().trim()).get();
-      
-      // Count images and check for alt text
-      const images = $('img');
-      const imagesWithAlt = $('img[alt]');
-      
-      // Create a structure from the actual HTML
-      crawlerData = {
-        pages: [{
-          url: url,
-          title,
-          metaTags: {
-            title,
-            description: metaDescription,
-            keywords: $('meta[name="keywords"]').attr('content') || ''
-          },
-          headings: {
-            h1: h1s,
-            h2: h2s,
-            h3: h3s
-          },
-          images: {
-            total: images.length,
-            withAlt: imagesWithAlt.length,
-            withoutAlt: images.length - imagesWithAlt.length
-          },
-          contentWordCount: $('body').text().split(/\s+/).length
-        }],
-        crawledUrls: [url],
-        overallScore: 0, // Will be calculated based on actual data
-        summary: `SEO analysis of ${url} based on HTML content`,
-        _meta: {
-          source: 'html-direct',
-          timestamp: new Date().toISOString()
+      const crawlerResponse = await fetch(crawlerEndpoint, {
+        headers: {
+          'Accept': 'application/json, text/plain, */*'
         }
-      };
+      });
       
-      console.log('Successfully created crawler data from HTML');
-    } else {
-      // Try to parse as JSON
-      try {
-        crawlerData = JSON.parse(rawText);
-        console.log('Successfully parsed JSON response from crawler with keys:', Object.keys(crawlerData));
-      } catch (parseError) {
-        console.error('Failed to parse crawler response as JSON:', parseError);
-        console.error('First 200 characters of response:', rawText.substring(0, 200));
-        
-        // Try to extract any useful information from the raw text
-        throw new Error(`Failed to parse crawler response: ${parseError.message}. Please check the server logs.`);
+      if (!crawlerResponse.ok) {
+        throw new Error(`Crawler failed: ${crawlerResponse.status} ${crawlerResponse.statusText}`);
       }
+      
+      rawHtml = await crawlerResponse.text();
+      console.log(`Received crawler response with length: ${rawHtml.length} characters`);
     }
     
-    // Use the crawler data directly as the report
-    console.log(`Crawler completed successfully, analyzing pages: ${crawlerData.pages?.length || 0}`);
+    // Now we should have HTML content one way or another
+    if (!rawHtml || rawHtml.length < 100) {
+      throw new Error('Failed to get valid HTML content from the website');
+    }
     
-    // Call Gemini for an AI-powered audit (store in report)
+    console.log(`Processing HTML content, first 100 chars: ${rawHtml.substring(0, 100)}`);
+    
+    // Initialize crawlerData object to store parsed HTML data
+    const crawlerData = {
+      pages: [],
+      url,
+      htmlContent: rawHtml
+    };
+
+    // Use cheerio to parse the HTML
+    const cheerio = await import('cheerio');
+    const $ = cheerio.load(rawHtml);
+    
+    // Extract basic SEO data directly from the HTML
+    const title = $('title').text();
+    const metaDescription = $('meta[name="description"]').attr('content') || '';
+    const h1s = $('h1').map((i, el) => $(el).text().trim()).get();
+    const h2s = $('h2').map((i, el) => $(el).text().trim()).get();
+    const h3s = $('h3').map((i, el) => $(el).text().trim()).get();
+    
+    // Count images and check for alt text
+    const images = $('img');
+    const imagesWithAlt = $('img[alt]');
+    
+    // Count links
+    const internalLinks = $('a').filter((i, el) => {
+      const href = $(el).attr('href');
+      if (!href) return false;
+      try {
+        return href.startsWith('/') || href.includes(new URL(url).hostname);
+      } catch (e) {
+        return href.startsWith('/');
+      }
+    });
+    const externalLinks = $('a').length - internalLinks.length;
+    
+    // Parse site-specific content using our HTML parser
+    const { parseHtmlContent, analyzeSeoIssues } = await import('./htmlParser');
+    const siteSpecificContent = parseHtmlContent(rawHtml);
+    
+    // Get HTML-specific SEO issues
+    const htmlIssues = analyzeSeoIssues(rawHtml);
+    
+    // Convert HTML issues to SEOIssue format
+    const technicalIssues: SEOIssue[] = [];
+    
+    // Add each HTML issue to the technical issues array
+    if (Array.isArray(htmlIssues)) {
+      htmlIssues.forEach(issue => {
+        technicalIssues.push({
+          title: issue.title,
+          description: issue.description,
+          severity: issue.severity as 'high' | 'medium' | 'low',
+          impact: issue.impact,
+          recommendation: issue.recommendation,
+          priority: 1
+        });
+      });
+    }
+    
+    console.log('Extracted site-specific content:', siteSpecificContent);
+    
+    // Call Gemini for an AI-powered audit
     let geminiAudit = null;
     try {
       console.log('Calling Gemini for SEO audit...');
-      
-      // If we received HTML directly and analyzed it, pass the raw HTML to Gemini
-      if (rawText && (rawText.trim().startsWith('<!') || rawText.trim().startsWith('<html'))) {
-        console.log('Passing HTML content directly to Gemini for analysis');
-        geminiAudit = await getGeminiSEOAduit(url, rawText);
-      } else {
-        // Otherwise pass the structured data
-        geminiAudit = await getGeminiSEOAduit(url, crawlerData);
-      }
-      
+      geminiAudit = await getGeminiSEOAduit(url, rawHtml);
       console.log('Gemini audit completed successfully!');
-      console.log('Gemini audit data type:', typeof geminiAudit);
-      console.log('Gemini audit keys:', geminiAudit ? Object.keys(geminiAudit) : 'null');
     } catch (err) {
       console.error('Error in Gemini audit:', err);
-      geminiAudit = { error: 'Gemini audit failed', details: err?.message || String(err) };
+      geminiAudit = null;
     }
-
-    // Use the actual data from the crawler to create the report
-    console.log('Using real crawler data to create report');
     
-    // Extract technical issues if available
-    const technicalIssues = crawlerData.technicalIssues || [];
+    // Create a page analysis object from the HTML data
+    const pageAnalysis: PageAnalysis[] = [{
+      url: url,
+      title: title,
+      score: 0, // Will be calculated later
+      issues: technicalIssues,
+      metaTags: {
+        title,
+        description: metaDescription,
+        keywords: $('meta[name="keywords"]').attr('content') || ''
+      },
+      headings: {
+        h1: h1s,
+        h2: h2s,
+        h3: h3s
+      },
+      content: {
+        wordCount: $('body').text().split(/\s+/).length,
+        readabilityScore: 0,
+        quality: 'Based on actual HTML content'
+      },
+      images: {
+        total: images.length,
+        withAlt: imagesWithAlt.length,
+        withoutAlt: images.length - imagesWithAlt.length
+      },
+      links: {
+        internal: {
+          count: internalLinks.length,
+          quality: 'Based on actual HTML content',
+          anchors: []
+        },
+        external: {
+          count: externalLinks,
+          quality: 'Based on actual HTML content',
+          domains: []
+        }
+      }
+    }];
     
-    // Create a report structure using the actual crawled data
+    // Create a report structure using the actual HTML data
     const report: SEOReport = {
       url: url,
-      crawledUrls: crawlerData.crawledUrls || [],
-      siteSpecificContent: crawlerData.siteSpecificContent || {},
-      metaTags: crawlerData.metaTags || [],
-      headings: crawlerData.headings || [],
-      images: crawlerData.images || [],
-      links: crawlerData.links || [],
-      contentWordCount: crawlerData.contentWordCount || 0,
+      crawledUrls: [url],
+      siteSpecificContent: siteSpecificContent,
+      pages: pageAnalysis,
+      // Required properties from SEOReport interface
+      metaTags: {
+        title: title,
+        description: metaDescription,
+        keywords: $('meta[name="keywords"]').attr('content') || ''
+      },
+      headings: {
+        h1: h1s,
+        h2: h2s,
+        h3: h3s
+      },
+      images: {
+        total: images.length,
+        withAlt: imagesWithAlt.length,
+        withoutAlt: images.length - imagesWithAlt.length
+      },
+      links: {
+        internalCount: internalLinks.length,
+        externalCount: externalLinks
+      },
+      contentWordCount: $('body').text().split(/\s+/).length,
       overall: {
-        score: crawlerData.overallScore || calculateOverallScore(crawlerData),
-        summary: crawlerData.summary || `SEO analysis of ${url} based on ${crawlerData.pages?.length || 0} pages`,
+        score: 0, // Will be calculated later
+        summary: `SEO analysis of ${url} based on actual website content`,
         timestamp: new Date().toISOString()
       },
       technical: {
-        score: crawlerData.technicalScore || 0,
+        score: 0, // Will be calculated based on issues
         issues: technicalIssues,
-        summary: crawlerData.technicalSummary || 'Technical SEO analysis based on crawler data',
-        crawlability: crawlerData.crawlability || {
-          robotsTxt: crawlerData.robotsTxt || 'Not analyzed',
-          sitemapXml: crawlerData.sitemapXml || 'Not analyzed',
-          crawlErrors: crawlerData.crawlErrors || []
-        },
-        security: crawlerData.security || {
-          https: url.startsWith('https'),
-          sslCertificate: url.startsWith('https') ? 'Valid' : 'Not using HTTPS'
-        }
+        summary: 'Technical SEO analysis based on actual website HTML'
       },
       content: {
-        score: crawlerData.contentScore || 0,
-        issues: crawlerData.contentIssues || [],
-        contentAudit: crawlerData.contentAudit || {
-          qualityAssessment: 'Based on crawler analysis',
-          topPerformingContent: [],
-          contentGaps: [],
-          recommendations: []
-        },
-        readability: crawlerData.readability || {
-          averageScore: 0,
-          assessment: 'Based on crawler analysis',
-          improvements: []
-        }
+        score: 0, // Will be calculated based on issues
+        issues: [],
+        summary: 'Content analysis based on actual website HTML'
       },
       onPage: {
-        score: crawlerData.onPageScore || 0,
-        issues: crawlerData.onPageIssues || [],
-        metaTagsAudit: crawlerData.metaTagsAudit || {
-          titleTags: 'Based on crawler analysis',
-          metaDescriptions: 'Based on crawler analysis',
-          canonicalTags: 'Based on crawler analysis'
-        },
-        urlStructure: crawlerData.urlStructure || {
-          assessment: 'Based on crawler analysis',
-          issues: []
-        },
-        internalLinking: crawlerData.internalLinking || {
-          assessment: 'Based on crawler analysis',
-          opportunities: []
-        }
+        score: 0, // Will be calculated based on issues
+        issues: [],
+        summary: 'On-page SEO analysis based on actual website HTML'
       },
       performance: {
-        score: crawlerData.performanceScore || 0,
-        issues: crawlerData.performanceIssues || [],
-        pageSpeed: crawlerData.pageSpeed || {
-          desktop: 'Based on crawler analysis',
-          mobile: 'Based on crawler analysis',
+        score: 0,
+        issues: [],
+        summary: 'Performance analysis based on actual website HTML',
+        coreWebVitals: {
+          LCP: 'Not measured',
+          FID: 'Not measured',
+          CLS: 'Not measured',
           improvements: []
         },
-        resourceOptimization: crawlerData.resourceOptimization || {
-          images: 'Based on crawler analysis',
-          javascript: 'Based on crawler analysis',
-          css: 'CSS optimization analyzed',
-          html: 'HTML optimization analyzed'
+        pageSpeed: {
+          desktop: 'Not measured',
+          mobile: 'Not measured',
+          improvements: []
+        },
+        resourceOptimization: {
+          images: 'Not analyzed',
+          javascript: 'Not analyzed',
+          css: 'Not analyzed',
+          html: 'Not analyzed'
         }
       },
       mobile: {
-        score: 85,
+        score: 0,
         issues: [],
+        summary: 'Mobile optimization analysis',
         responsiveness: 'Responsive design analyzed',
         mobileUsability: 'Mobile usability analyzed',
         acceleratedMobilePages: 'AMP not implemented',
@@ -1477,11 +1540,13 @@ async function startDirectCrawl(url: string, audit: SEOAudit) {
       backlinks: {
         score: 75,
         issues: [],
+        summary: 'Backlink analysis',
         backlinkProfile: {
           totalBacklinks: 0,
           uniqueDomains: 0,
           qualityAssessment: 'Backlink quality assessment',
-          topBacklinks: []
+          topBacklinks: [],
+          competitorComparison: 'Not analyzed'
         },
         anchorTextAnalysis: {
           assessment: 'Anchor text analysis',
@@ -1492,6 +1557,7 @@ async function startDirectCrawl(url: string, audit: SEOAudit) {
       keywords: {
         score: 80,
         issues: [],
+        summary: 'Keyword analysis',
         currentTargeting: {
           primaryKeywords: [],
           secondaryKeywords: [],
@@ -1505,30 +1571,38 @@ async function startDirectCrawl(url: string, audit: SEOAudit) {
           competitorKeywords: [],
           keywordGaps: []
         },
-        recommendations: []
       },
       pages: crawlerData.pages || [],
-      recommendations: []
+      recommendations: [] as SEORecommendation[]
     };
     
-    // Store the Gemini audit in the report
-    (report as any).geminiAudit = geminiAudit;
-    console.log('Stored Gemini audit in report. Report structure:', Object.keys(report));
+    // Store the Gemini audit and raw data in the report
+    const typedReport = report as SEOReport & {
+      geminiAudit?: {
+        htmlContent?: string;
+        timestamp?: string;
+        insights?: any;
+      };
+      rawData?: any;
+    };
     
-    // If we have HTML content from Gemini, store it directly
-    if (geminiAudit && geminiAudit.htmlContent) {
-      console.log('Storing HTML content from Gemini in the report');
-      (report as any).htmlContent = geminiAudit.htmlContent;
-      (report as any).geminiTimestamp = geminiAudit.timestamp;
+    if (geminiAudit) {
+      typedReport.geminiAudit = {
+        ...geminiAudit,
+        htmlContent: geminiAudit.htmlContent || undefined,
+        timestamp: geminiAudit.timestamp || new Date().toISOString()
+      };
+      console.log('Stored Gemini audit in report. Report structure:', Object.keys(report));
     }
+    
     // Store the raw crawler data in a custom property
-    (report as any).rawData = crawlerData;
+    typedReport.rawData = crawlerData;
     
     // Update the audit with the report and score
     const updatedAudit: SEOAudit = {
       ...audit,
-      report,
-      score: report.overall.score,
+      report: typedReport,
+      score: typedReport.overall.score,
       status: 'completed' as 'in-progress' | 'processing' | 'completed' | 'failed',
       updated_at: new Date().toISOString()
     };

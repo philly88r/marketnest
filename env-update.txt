@@ -1,0 +1,2 @@
+# Add this line to your .env file:
+BROWSER_USE_API_KEY=bu_VQ1QW4w4jBUGbOvk1P6d12at_q9ty6FEt7UFuVQ363Y

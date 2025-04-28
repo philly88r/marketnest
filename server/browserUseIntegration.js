@@ -10,7 +10,7 @@ const fetch = require('node-fetch');
 
 // Browser Use API configuration
 const BROWSER_USE_API_URL = 'https://api.browser-use.com/api/v1';
-const BROWSER_USE_API_KEY = process.env.BROWSER_USE_API_KEY; // Add this to your .env file
+const BROWSER_USE_API_KEY = process.env.REACT_APP_BROWSER_USE_API_KEY; // Using the same key from React app
 
 // Gemini API configuration
 const GEMINI_API_KEY = process.env.REACT_APP_GEMINI_API_KEY;
@@ -24,9 +24,19 @@ const GEMINI_WRITING_MODEL = 'gemini-2.0-flash-001'; // Correct model name for G
  */
 async function createBrowserTask(instructions) {
   try {
+    console.log('Creating browser task with instructions:', instructions);
+    console.log('Using API URL:', BROWSER_USE_API_URL);
+    console.log('API Key defined:', !!BROWSER_USE_API_KEY);
+
     if (!BROWSER_USE_API_KEY) {
       throw new Error('BROWSER_USE_API_KEY is not defined in environment variables');
     }
+
+    const requestBody = {
+      task: instructions,
+      model: GEMINI_RESEARCH_MODEL // Use Gemini-2.5-Pro-Preview-03-25 for research
+    };
+    console.log('Request body:', JSON.stringify(requestBody));
 
     const response = await fetch(`${BROWSER_USE_API_URL}/run-task`, {
       method: 'POST',
@@ -34,19 +44,35 @@ async function createBrowserTask(instructions) {
         'Content-Type': 'application/json',
         'Authorization': `Bearer ${BROWSER_USE_API_KEY}`
       },
-      body: JSON.stringify({
-        task: instructions,
-        model: GEMINI_RESEARCH_MODEL // Use Gemini-2.5-Pro-Preview-03-25 for research
-      })
+      body: JSON.stringify(requestBody)
     });
 
+    console.log('Response status:', response.status, response.statusText);
+
     if (!response.ok) {
-      const errorData = await response.json();
-      console.error('Browser Use API error:', errorData);
+      const errorText = await response.text();
+      console.error('Browser Use API error response:', errorText);
+      try {
+        const errorData = JSON.parse(errorText);
+        console.error('Browser Use API error (parsed):', errorData);
+      } catch (jsonError) {
+        console.error('Could not parse error response as JSON');
+      }
       throw new Error(`Browser Use API error: ${response.status} ${response.statusText}`);
     }
 
-    const data = await response.json();
+    const responseText = await response.text();
+    console.log('Response text:', responseText);
+    
+    let data;
+    try {
+      data = JSON.parse(responseText);
+      console.log('Parsed response data:', data);
+    } catch (jsonError) {
+      console.error('Error parsing response as JSON:', jsonError);
+      throw new Error('Invalid JSON response from Browser Use API');
+    }
+
     return data.id;
   } catch (error) {
     console.error('Error creating browser task:', error);
@@ -61,10 +87,14 @@ async function createBrowserTask(instructions) {
  */
 async function getBrowserTaskStatus(taskId) {
   try {
+    console.log(`Checking status for task ID: ${taskId}`);
+    console.log('API Key defined:', !!BROWSER_USE_API_KEY);
+    
     if (!BROWSER_USE_API_KEY) {
       throw new Error('BROWSER_USE_API_KEY is not defined in environment variables');
     }
 
+    console.log(`Making request to: ${BROWSER_USE_API_URL}/task/${taskId}/status`);
     const response = await fetch(`${BROWSER_USE_API_URL}/task/${taskId}/status`, {
       method: 'GET',
       headers: {
@@ -72,13 +102,33 @@ async function getBrowserTaskStatus(taskId) {
       }
     });
 
+    console.log(`Status check response: ${response.status} ${response.statusText}`);
+
     if (!response.ok) {
-      const errorData = await response.json();
-      console.error('Browser Use API error:', errorData);
+      const errorText = await response.text();
+      console.error('Error checking task status response:', errorText);
+      try {
+        const errorData = JSON.parse(errorText);
+        console.error('Error checking task status (parsed):', errorData);
+      } catch (jsonError) {
+        console.error('Could not parse error response as JSON');
+      }
       throw new Error(`Browser Use API error: ${response.status} ${response.statusText}`);
     }
 
-    return await response.json();
+    const responseText = await response.text();
+    console.log(`Task status response text: ${responseText}`);
+    
+    let data;
+    try {
+      data = JSON.parse(responseText);
+      console.log('Task status data:', data);
+    } catch (jsonError) {
+      console.error('Error parsing task status response as JSON:', jsonError);
+      throw new Error('Invalid JSON response from task status API');
+    }
+
+    return data;
   } catch (error) {
     console.error('Error getting browser task status:', error);
     throw error;
@@ -92,10 +142,14 @@ async function getBrowserTaskStatus(taskId) {
  */
 async function getBrowserTaskDetails(taskId) {
   try {
+    console.log(`Getting details for task ID: ${taskId}`);
+    console.log('API Key defined:', !!BROWSER_USE_API_KEY);
+    
     if (!BROWSER_USE_API_KEY) {
       throw new Error('BROWSER_USE_API_KEY is not defined in environment variables');
     }
 
+    console.log(`Making request to: ${BROWSER_USE_API_URL}/task/${taskId}`);
     const response = await fetch(`${BROWSER_USE_API_URL}/task/${taskId}`, {
       method: 'GET',
       headers: {
@@ -103,13 +157,36 @@ async function getBrowserTaskDetails(taskId) {
       }
     });
 
+    console.log(`Details check response: ${response.status} ${response.statusText}`);
+
     if (!response.ok) {
-      const errorData = await response.json();
-      console.error('Browser Use API error:', errorData);
+      const errorText = await response.text();
+      console.error('Error getting task details response:', errorText);
+      try {
+        const errorData = JSON.parse(errorText);
+        console.error('Error getting task details (parsed):', errorData);
+      } catch (jsonError) {
+        console.error('Could not parse error response as JSON');
+      }
       throw new Error(`Browser Use API error: ${response.status} ${response.statusText}`);
     }
 
-    return await response.json();
+    const responseText = await response.text();
+    console.log(`Task details response text (first 200 chars): ${responseText.substring(0, 200)}...`);
+    
+    let data;
+    try {
+      data = JSON.parse(responseText);
+      console.log('Task details data keys:', Object.keys(data));
+      if (data.result) {
+        console.log('Task result available, length:', data.result.length);
+      }
+    } catch (jsonError) {
+      console.error('Error parsing task details response as JSON:', jsonError);
+      throw new Error('Invalid JSON response from task details API');
+    }
+
+    return data;
   } catch (error) {
     console.error('Error getting browser task details:', error);
     throw error;
@@ -138,7 +215,7 @@ Please format the content professionally with proper headings, paragraphs, and f
 `;
 
     // Using the correct endpoint format for Gemini-2.0-Flash-001
-    const response = await fetch(`https://generativelanguage.googleapis.com/v1/models/${GEMINI_WRITING_MODEL}:generateContent?key=${GEMINI_API_KEY}`, {
+    const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${GEMINI_WRITING_MODEL}:generateContent?key=${GEMINI_API_KEY}`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
@@ -203,16 +280,57 @@ async function startWebResearch(req, res) {
 /**
  * Express route handler for checking the status of a web research task
  */
+// Store task progress for each task ID
+const taskProgress = {};
+
 async function checkWebResearchStatus(req, res) {
   try {
     const { taskId } = req.params;
+    console.log('Checking status for task from frontend:', taskId);
 
     if (!taskId) {
       return res.status(400).json({ error: 'Missing taskId parameter' });
     }
 
     const status = await getBrowserTaskStatus(taskId);
-    return res.json(status);
+    
+    // Initialize progress tracking for this task if it doesn't exist
+    if (!taskProgress[taskId]) {
+      taskProgress[taskId] = {
+        startTime: Date.now(),
+        progress: 0.1 // Start at 10%
+      };
+    }
+    
+    // Calculate simulated progress based on time elapsed
+    // We'll assume a typical task takes about 3-5 minutes
+    if (status === 'running') {
+      const elapsed = (Date.now() - taskProgress[taskId].startTime) / 1000; // seconds
+      const maxProgress = 0.9; // Max progress while running (90%)
+      
+      // Gradually increase progress, faster at first then slower
+      // This creates a more realistic progress simulation
+      if (elapsed < 60) { // First minute
+        taskProgress[taskId].progress = Math.min(0.4, 0.1 + (elapsed / 60) * 0.3);
+      } else if (elapsed < 180) { // 1-3 minutes
+        taskProgress[taskId].progress = Math.min(0.7, 0.4 + ((elapsed - 60) / 120) * 0.3);
+      } else { // After 3 minutes
+        taskProgress[taskId].progress = Math.min(maxProgress, 0.7 + ((elapsed - 180) / 300) * 0.2);
+      }
+    } else if (status === 'completed') {
+      taskProgress[taskId].progress = 1.0; // 100% when complete
+    }
+    
+    // Format the response to match what the frontend expects
+    const formattedStatus = {
+      status: status === 'running' ? 'running' : 
+              status === 'completed' ? 'finished' : 
+              status === 'failed' ? 'failed' : status,
+      progress: taskProgress[taskId].progress
+    };
+    
+    console.log(`Sending formatted status to frontend: { status: '${formattedStatus.status}', progress: ${formattedStatus.progress.toFixed(2)} }`);
+    return res.json(formattedStatus);
   } catch (error) {
     console.error('Error checking web research status:', error);
     return res.status(500).json({ error: 'Failed to check web research status: ' + error.message });
@@ -225,12 +343,29 @@ async function checkWebResearchStatus(req, res) {
 async function getWebResearchResults(req, res) {
   try {
     const { taskId } = req.params;
+    console.log('Getting results for task from frontend:', taskId);
 
     if (!taskId) {
       return res.status(400).json({ error: 'Missing taskId parameter' });
     }
 
+    // Get the complete task details from BrowserUse API
     const details = await getBrowserTaskDetails(taskId);
+    console.log('Got task details, available fields:', Object.keys(details));
+    
+    // Log a preview of the output field if it exists
+    if (details.output) {
+      console.log('Output field preview:', details.output.substring(0, 100));
+    }
+    
+    // Log browser_data structure if it exists
+    if (details.browser_data) {
+      console.log('Browser data fields:', Object.keys(details.browser_data));
+    }
+    
+    // Following the Context7 pattern, return the complete response to the client
+    // This allows the client to handle the structure and extract what it needs
+    console.log('Sending complete task details to frontend');
     return res.json(details);
   } catch (error) {
     console.error('Error getting web research results:', error);
@@ -256,6 +391,43 @@ async function generateContentWithWebResearch(req, res) {
     return res.status(500).json({ error: 'Failed to generate content: ' + error.message });
   }
 }
+
+/**
+ * Function to check a specific task status directly
+ * @param {string} taskId - The task ID to check
+ */
+async function checkSpecificTask(taskId) {
+  try {
+    console.log(`Checking specific task ID: ${taskId}`);
+    
+    if (!taskId) {
+      console.error('No task ID provided');
+      return;
+    }
+
+    // Check status
+    console.log('Checking status...');
+    const status = await getBrowserTaskStatus(taskId);
+    console.log(`Task status: ${status}`);
+    
+    // If completed, get details
+    if (status === 'completed') {
+      console.log('Task completed, getting details...');
+      const details = await getBrowserTaskDetails(taskId);
+      console.log('Task details:', details);
+      if (details.result) {
+        console.log('Result preview (first 200 chars):', details.result.substring(0, 200));
+      } else {
+        console.log('No result available in task details');
+      }
+    }
+  } catch (error) {
+    console.error('Error checking specific task:', error);
+  }
+}
+
+// Check the task that was running for about 10 minutes
+checkSpecificTask('a0507963-5645-4a27-bc46-4f86fd88a1d0');
 
 module.exports = {
   startWebResearch,

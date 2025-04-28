@@ -46,15 +46,15 @@ const TabContainer = styled.div`
   border-bottom: 1px solid rgba(255, 255, 255, 0.1);
 `;
 
-const Tab = styled.button<{ active: boolean }>`
-  background: ${props => props.active ? 'rgba(31, 83, 255, 0.1)' : 'transparent'};
-  color: ${props => props.active ? '#1F53FF' : 'white'};
+const Tab = styled.button<{ $active: boolean }>`
+  background: ${props => props.$active ? 'rgba(31, 83, 255, 0.1)' : 'transparent'};
+  color: ${props => props.$active ? '#1F53FF' : 'white'};
   border: none;
   padding: 12px 24px;
   font-size: 16px;
   font-weight: 600;
   cursor: pointer;
-  border-bottom: 2px solid ${props => props.active ? '#1F53FF' : 'transparent'};
+  border-bottom: 2px solid ${props => props.$active ? '#1F53FF' : 'transparent'};
   transition: all 0.3s ease;
   
   &:hover {
@@ -271,7 +271,7 @@ const ContentWritingPage: React.FC = () => {
   const [copied, setCopied] = useState(false);
   const [taskId, setTaskId] = useState<string | null>(null);
 
-  // Start web research
+  // Start web research using the server-side BrowserUse API implementation
   const startWebResearch = async () => {
     if (!searchQuery.trim()) {
       setStatusMessage({ text: 'Please enter a search query', type: 'error' });
@@ -280,19 +280,70 @@ const ContentWritingPage: React.FC = () => {
 
     try {
       setIsResearching(true);
-      setResearchProgress(0);
+      setResearchProgress(10);
       setStatusMessage({ text: 'Starting web research...', type: 'info' });
       setResearchData('');
 
-      const BROWSER_USE_API_URL = process.env.REACT_APP_BROWSER_USE_API_URL || 'https://api.browseruse.com';
-      const response = await axios.post(`${BROWSER_USE_API_URL}/research`, { 
-        query: searchQuery,
-        apiKey: process.env.REACT_APP_BROWSER_USE_API_KEY
+      // Call our server-side API to start a BrowserUse research task
+      const response = await axios.post('/api/browser-use/research', { 
+        query: searchQuery
       });
-      setTaskId(response.data.taskId);
+      
+      const taskId = response.data.taskId;
+      setTaskId(taskId);
       
       // Start polling for status
       setStatusMessage({ text: 'Research in progress...', type: 'info' });
+      
+      // Begin polling for task completion
+      const pollInterval = setInterval(async () => {
+        try {
+          // Check task status through our server API
+          const statusResponse = await axios.get(`/api/browser-use/research/${taskId}/status`);
+          const status = statusResponse.data;
+          
+          // Update progress based on status
+          if (status.progress) {
+            setResearchProgress(Math.min(90, status.progress * 100));
+          } else {
+            // If no progress info, use a simulated progress
+            setResearchProgress(prev => Math.min(90, prev + 5));
+          }
+          
+          // Check if task is complete
+          if (status.status === 'finished' || status.status === 'completed') {
+            clearInterval(pollInterval);
+            
+            // Get results from our server API
+            const resultsResponse = await axios.get(`/api/browser-use/research/${taskId}/results`);
+            const results = resultsResponse.data;
+            
+            console.log('Received complete task details:', Object.keys(results));
+            
+            // Extract the research data from the output field
+            const researchText = results.output || 'No research data available';
+            setResearchData(researchText);
+            
+            // Store browser data if available (useful for web automation)
+            if (results.browser_data) {
+              console.log('Browser data available:', Object.keys(results.browser_data));
+              // You could store this data for future automation tasks
+              // This aligns with your web automation expertise
+            }
+            
+            setResearchProgress(100);
+            setStatusMessage({ text: 'Research completed successfully!', type: 'success' });
+            setIsResearching(false);
+          } else if (status.status === 'failed' || status.status === 'stopped') {
+            clearInterval(pollInterval);
+            setStatusMessage({ text: 'Research failed. Please try again.', type: 'error' });
+            setIsResearching(false);
+          }
+        } catch (pollError) {
+          console.error('Error checking research status:', pollError);
+          // Don't clear the interval yet, try again
+        }
+      }, 3000); // Poll every 3 seconds
     } catch (error) {
       console.error('Error starting research:', error);
       setStatusMessage({ 
@@ -303,64 +354,15 @@ const ContentWritingPage: React.FC = () => {
     }
   };
 
-  // Poll for research status
+  // We don't need a separate polling effect since we're handling polling in the startWebResearch function
   useEffect(() => {
-    let interval: NodeJS.Timeout;
-    
-    if (taskId && isResearching) {
-      interval = setInterval(async () => {
-        try {
-          const BROWSER_USE_API_URL = process.env.REACT_APP_BROWSER_USE_API_URL || 'https://api.browseruse.com';
-          const statusResponse = await axios.get(`${BROWSER_USE_API_URL}/research/${taskId}/status`, {
-            headers: {
-              'Authorization': `Bearer ${process.env.REACT_APP_BROWSER_USE_API_KEY}`
-            }
-          });
-          const status = statusResponse.data;
-          
-          // Update progress based on status
-          if (status.progress) {
-            setResearchProgress(status.progress * 100);
-          }
-          
-          // Check if task is complete
-          if (status.status === 'finished') {
-            clearInterval(interval);
-            
-            // Get results
-            const resultsResponse = await axios.get(`${BROWSER_USE_API_URL}/research/${taskId}/results`, {
-              headers: {
-                'Authorization': `Bearer ${process.env.REACT_APP_BROWSER_USE_API_KEY}`
-              }
-            });
-            const results = resultsResponse.data;
-            
-            // Format research data
-            const formattedData = results.output || 'No research data available';
-            setResearchData(formattedData);
-            
-            setStatusMessage({ text: 'Research completed successfully!', type: 'success' });
-            setIsResearching(false);
-          } else if (status.status === 'failed' || status.status === 'stopped') {
-            clearInterval(interval);
-            setStatusMessage({ text: 'Research failed. Please try again.', type: 'error' });
-            setIsResearching(false);
-          }
-        } catch (error) {
-          console.error('Error checking research status:', error);
-          clearInterval(interval);
-          setStatusMessage({ text: 'Error checking research status', type: 'error' });
-          setIsResearching(false);
-        }
-      }, 2000);
-    }
-    
+    // Cleanup function
     return () => {
-      if (interval) clearInterval(interval);
+      // Any cleanup if needed
     };
-  }, [taskId, isResearching]);
+  }, []);
 
-  // Generate content
+  // Generate content using server-side API
   const generateContent = async () => {
     if (!contentPrompt.trim()) {
       setStatusMessage({ text: 'Please enter a content prompt', type: 'error' });
@@ -376,12 +378,15 @@ const ContentWritingPage: React.FC = () => {
       setIsGenerating(true);
       setStatusMessage({ text: 'Generating content...', type: 'info' });
 
+      // Use server-side API for content generation
       const response = await axios.post('/api/browser-use/generate-content', {
         prompt: contentPrompt,
-        researchData
+        researchData: researchData
       });
 
-      setGeneratedContent(response.data.content);
+      // Extract the generated content from the response
+      const generatedText = response.data.content;
+      setGeneratedContent(generatedText);
       setStatusMessage({ text: 'Content generated successfully!', type: 'success' });
       setIsGenerating(false);
     } catch (error) {
@@ -424,13 +429,13 @@ const ContentWritingPage: React.FC = () => {
 
       <TabContainer>
         <Tab 
-          active={activeTab === 'research'} 
+          $active={activeTab === 'research'} 
           onClick={() => setActiveTab('research')}
         >
           Research
         </Tab>
         <Tab 
-          active={activeTab === 'write'} 
+          $active={activeTab === 'write'} 
           onClick={() => setActiveTab('write')}
         >
           Write
