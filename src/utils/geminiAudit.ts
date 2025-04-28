@@ -7,8 +7,24 @@ if (!GEMINI_API_KEY) {
   console.error('WARNING: REACT_APP_GEMINI_API_KEY is not set in environment variables! Gemini audit will not work.');
 }
 
-// The extremely detailed audit prompt template (as provided by the user)
-const BASE_PROMPT = `Analyze the website thoroughly, crawling multiple pages to provide a comprehensive audit. Include:
+// The extremely detailed audit prompt template with strict anti-hallucination controls
+const BASE_PROMPT = `CRITICAL INSTRUCTION: You are ONLY allowed to analyze the ACTUAL HTML, CSS, and data provided to you. DO NOT make up or hallucinate ANY information about the website. If you cannot find certain information in the provided data, explicitly state "No data available" for that section.
+
+### VERIFICATION REQUIREMENTS:
+1. You MUST include a "Data Verification" section at the beginning of your response that lists:
+   - The exact URL(s) you were provided
+   - The total HTML size in bytes
+   - Whether you received screenshots
+   - How many pages of data you actually received
+   - A sample of the actual HTML content (first 100 characters)
+
+2. For ANY claim you make about the website, you MUST cite the specific evidence from the provided data.
+
+3. If the provided data is minimal or appears to be a placeholder page, state this clearly and focus your analysis ONLY on what is actually present.
+
+4. NEVER invent URLs, page content, meta tags, or any other information not explicitly provided in the data.
+
+Now, analyze the website data provided to you and include:
 
 1. Page-by-page analysis: Examine at least 20-25 individual pages (including homepage, product pages, category pages, blog posts, and key landing pages) and provide specific issues and recommendations for each.
 
@@ -46,9 +62,13 @@ YOUR ANALYSIS SHOULD BE EXTRAORDINARILY COMPREHENSIVE - far more detailed than a
 
 Each section should contain MAXIMUM DETAIL - do not summarize or abbreviate your findings. For every issue found, provide extensive context, impact assessment, and step-by-step remediation instructions.
 
-CRITICALLY IMPORTANT: You MUST include SPECIFIC EVIDENCE that you actually crawled the site:
-1. Include EXACT URLs of at least 20-25 pages you analyzed
-2. Quote ACTUAL meta tags, headings, and content from these pages
+CRITICALLY IMPORTANT: You MUST include SPECIFIC EVIDENCE that you actually analyzed the site:
+1. Only include EXACT URLs that were provided in the data
+2. Only quote ACTUAL meta tags, headings, and content from the provided data
+3. If you don't have enough data to complete a section, state "Insufficient data provided" for that section
+4. Include a final "Data Limitations" section that honestly describes what you were and weren't able to analyze based on the provided data
+
+REMEMBER: It is better to provide a limited but ACCURATE analysis than to make up information. NEVER fabricate data or pretend to have analyzed pages that weren't provided to you.
 3. Provide SPECIFIC content issues found on individual pages (word count, keyword usage, etc.)
 4. Include DETAILED page-specific recommendations
 5. Reference REAL competitors in the same industry
@@ -105,6 +125,27 @@ export async function getGeminiSEOAduit(siteUrl: string, crawlData: any): Promis
       error: 'API key not configured'
     };
   }
+  
+  // Add verification metadata to help prevent hallucinations
+  const verificationMetadata = {
+    analysisTimestamp: new Date().toISOString(),
+    dataVerification: {
+      url: siteUrl,
+      dataType: typeof crawlData,
+      isBundle: typeof crawlData === 'object' && !Array.isArray(crawlData),
+      htmlProvided: typeof crawlData === 'string' || (typeof crawlData === 'object' && crawlData.html),
+      htmlSize: typeof crawlData === 'string' ? crawlData.length : 
+               (typeof crawlData === 'object' && crawlData.html ? crawlData.html.length : 0),
+      hasScreenshot: typeof crawlData === 'object' && !!crawlData.screenshot,
+      pagesProvided: typeof crawlData === 'object' && Array.isArray(crawlData.crawledPages) ? 
+                    crawlData.crawledPages.length : 
+                    (typeof crawlData === 'object' && Array.isArray(crawlData.pages) ? crawlData.pages.length : 0),
+      htmlSample: typeof crawlData === 'string' ? crawlData.substring(0, 100) : 
+                (typeof crawlData === 'object' && crawlData.html ? crawlData.html.substring(0, 100) : 'No HTML provided')
+    }
+  };
+  
+  console.log('Verification metadata:', verificationMetadata);
 
   console.log(`Starting Gemini API call for ${siteUrl}...`);
   
@@ -222,8 +263,8 @@ Content Issues: ${crawlSummary.contentIssues}
   console.log(`Prompt length: ${BASE_PROMPT.length + siteUrl.length + crawlDataForPrompt.length} characters`);
   console.log('Crawl summary:', crawlSummary);
   
-  // Compose the prompt with site URL and crawl data summary
-  const prompt = `${BASE_PROMPT}\n\nTarget site: ${siteUrl}\n\nCrawl data summary:\n${crawlDataForPrompt}`;
+  // Compose the prompt with site URL, crawl data summary, and verification metadata
+  const prompt = `${BASE_PROMPT}\n\nTarget site: ${siteUrl}\n\nCrawl data summary:\n${crawlDataForPrompt}\n\nVERIFICATION METADATA (DO NOT FABRICATE BEYOND THIS DATA):\n${JSON.stringify(verificationMetadata, null, 2)}`;
 
   try {
     // Set a timeout of 10 minutes (600000ms) for the Gemini API call
