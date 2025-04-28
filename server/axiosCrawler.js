@@ -583,21 +583,27 @@ function compileReport(crawledPages, targetUrl) {
   });
   
   // Calculate overall score
-  const pages = validPages.map(page => ({
-    url: page.url,
-    title: page.title,
-    score: page.score,
-    issues: page.issues || [],
-    metaTags: page.metaTags,
-    headings: page.headings,
-    content: {
-      wordCount: page.wordCount,
-      readabilityScore: 0, // Placeholder
-      quality: 'Based on actual HTML content'
-    },
-    images: page.images,
-    links: page.links
-  }));
+  const pages = validPages.map(page => {
+    // Log the page data structure for debugging
+    console.log(`Processing page ${page.url}, has HTML: ${Boolean(page.html)}, HTML length: ${page.html ? page.html.length : 0}`);
+    
+    return {
+      url: page.url,
+      title: page.title,
+      html: page.html, // Include the HTML content
+      score: page.score,
+      issues: page.issues || [],
+      metaTags: page.metaTags,
+      headings: page.headings,
+      content: {
+        wordCount: page.wordCount,
+        readabilityScore: 0, // Placeholder
+        quality: 'Based on actual HTML content'
+      },
+      images: page.images,
+      links: page.links
+    };
+  });
   
   // Calculate average page score
   const avgScore = pages.length > 0
