@@ -2,6 +2,7 @@ import { supabase } from './supabaseClient';
 import { analyzeWebsite } from './apiProxy';
 import * as cheerio from 'cheerio';
 import { getGeminiSEOAduit } from './geminiAudit';
+import { parseHtmlContent, analyzeSeoIssues } from './htmlParser';
 
 // Types for SEO data
 export interface SEOAudit {
@@ -632,13 +633,98 @@ const updateMockAuditStatus = (auditId: string, status: string, report?: any, sc
  * @returns {SEOReport} - A structured SEO report
  */
 const createReportFromCrawlerData = (crawlerData: any, url: string): SEOReport => {
+  // Parse HTML content for site-specific data
+  let siteSpecificContent = {};
+  
+  if (crawlerData.html) {
+    try {
+      // Extract site-specific content from HTML
+      const parsedContent = parseHtmlContent(crawlerData.html);
+      
+      // Analyze HTML for SEO issues
+      const htmlAnalysis = analyzeSeoIssues(crawlerData.html);
+      
+      // Add HTML-specific issues to technical issues
+      if (htmlAnalysis.issues && htmlAnalysis.issues.length > 0) {
+        crawlerData.technical = crawlerData.technical || {};
+        crawlerData.technical.issues = crawlerData.technical.issues || [];
+        crawlerData.technical.issues.push(...htmlAnalysis.issues);
+      }
+      
+      // Set site-specific content
+      siteSpecificContent = parsedContent;
+    } catch (error) {
+      console.error('Error parsing HTML content:', error);
+    }
+  }
   console.log('Creating report from crawler data:', JSON.stringify(crawlerData, null, 2).substring(0, 500) + '...');
   
   // Create a simple report structure that matches what the UI expects
-  const report = createEmptyReport();
-  
-  // Set the URL
-  report.url = url;
+  const report: SEOReport = {
+    url,
+    overall: {
+      score: 0, // Will be calculated later
+      summary: crawlerData.summary || 'SEO audit completed successfully.',
+      timestamp: new Date().toISOString()
+    },
+    siteSpecificContent: siteSpecificContent as any,
+    technical: {
+      score: 0,
+      issues: [],
+      summary: ''
+    },
+    content: {
+      score: 0,
+      issues: [],
+      summary: ''
+    },
+    onPage: {
+      score: 0,
+      issues: [],
+      summary: ''
+    },
+    performance: {
+      score: 0,
+      issues: [],
+      summary: ''
+    },
+    mobile: {
+      score: 0,
+      issues: [],
+      summary: ''
+    },
+    backlinks: {
+      score: 0,
+      issues: [],
+      summary: ''
+    },
+    keywords: {
+      score: 0,
+      issues: [],
+      summary: ''
+    },
+    recommendations: [],
+    metaTags: {
+      title: '',
+      description: '',
+      keywords: ''
+    },
+    headings: {
+      h1: [],
+      h2: [],
+      h3: []
+    },
+    images: {
+      total: 0,
+      withAlt: 0,
+      withoutAlt: 0
+    },
+    links: {
+      internalCount: 0,
+      externalCount: 0
+    },
+    contentWordCount: 0
+  };
   
   // Direct mapping from crawler data to report
   report.overall = {
