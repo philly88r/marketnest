@@ -1258,108 +1258,136 @@ export const generateSEOAudit = async (url: string, userId: string, auditId?: st
 
 /**
  * Start a direct crawl without database operations
+ * Enhanced with verification checks and screenshot capture
  */
 async function startDirectCrawl(url: string, audit: SEOAudit) {
   try {
     console.log(`Starting direct crawl of ${url}`);
     
-    // IMPORTANT: Directly fetch the actual website HTML instead of using the crawler endpoint
-    // This ensures we get real data from the website
-    const controller = new AbortController();
-    const timeoutId = setTimeout(() => controller.abort(), 60000); // 1 minute timeout
+    // Add verification token to ensure we're getting fresh data
+    const verificationToken = `verify_${Date.now()}_${Math.random().toString(36).substring(2, 10)}`;
+    const verificationUrl = new URL(url);
+    verificationUrl.searchParams.append('verification', verificationToken);
+    const verifiedUrl = verificationUrl.toString();
     
-    // Use a CORS proxy to fetch the website content directly
-    console.log(`Directly fetching website HTML from ${url}`);
-    let response;
-    let rawHtml = '';
+    console.log(`Using verification token: ${verificationToken}`);
+    console.log(`Verified URL: ${verifiedUrl}`);
     
-    try {
-      // Try using our API proxy endpoint first
-      const proxyEndpoint = `/api/seo/fetch?url=${encodeURIComponent(url)}`;
-      console.log(`Using proxy endpoint: ${proxyEndpoint}`);
-      
-      response = await fetch(proxyEndpoint, {
-        signal: controller.signal,
-        headers: {
-          'Accept': 'text/html,application/xhtml+xml,application/xml'
-        }
-      });
-      
-      if (response.ok) {
-        rawHtml = await response.text();
-        console.log(`Successfully fetched HTML via proxy, length: ${rawHtml.length} characters`);
-      } else {
-        console.error(`Proxy fetch failed: ${response.status} ${response.statusText}`);
-      }
-    } catch (proxyError) {
-      console.error('Error fetching via proxy:', proxyError);
+    // Use Playwright via our crawler endpoint for comprehensive data collection
+    // This ensures we get real, rendered data including JavaScript content
+    console.log(`Using Playwright to fetch and verify website data from ${url}`);
+    
+    // Request screenshot and verification data along with HTML
+    const crawlerEndpoint = `/api/seo/crawl?url=${encodeURIComponent(verifiedUrl)}&includeScreenshot=true&verifyData=true`;
+    console.log(`Calling crawler endpoint: ${crawlerEndpoint}`);
+    
+    const crawlerResponse = await fetch(crawlerEndpoint, {
+      headers: {
+        'Accept': 'application/json, text/plain, */*'
+      },
+      // Set a longer timeout for comprehensive crawling
+      signal: AbortSignal.timeout(120000) // 2 minute timeout
+    });
+    
+    if (!crawlerResponse.ok) {
+      throw new Error(`Crawler failed: ${crawlerResponse.status} ${crawlerResponse.statusText}`);
     }
     
-    // If proxy failed, try direct fetch as fallback (may fail due to CORS)
-    if (!rawHtml) {
-      try {
-        console.log('Attempting direct fetch as fallback (may fail due to CORS)');
-        response = await fetch(url, {
-          signal: controller.signal,
-          mode: 'no-cors', // This will limit what we can access but might allow the request
-          headers: {
-            'Accept': 'text/html,application/xhtml+xml,application/xml'
-          }
-        });
-        
-        // Note: with no-cors, we might not be able to read the response content
-        try {
-          rawHtml = await response.text();
-          console.log(`Direct fetch succeeded, response length: ${rawHtml.length}`);
-        } catch (readError) {
-          console.error('Could not read direct fetch response:', readError);
-        }
-      } catch (directFetchError) {
-        console.error('Direct fetch failed:', directFetchError);
-      }
+    // Parse the crawler response
+    const crawlerData = await crawlerResponse.json();
+    const rawHtml = crawlerData.html || '';
+    
+    // VERIFICATION CHECKS
+    // 1. Verify we got substantial HTML content
+    if (!rawHtml || rawHtml.length < 1000) {
+      throw new Error(`Suspicious response: HTML content too small (${rawHtml.length} bytes), possible fake data`);
     }
     
-    clearTimeout(timeoutId);
-    
-    // If we still don't have HTML, use the crawler endpoint as a last resort
-    if (!rawHtml) {
-      console.log('Direct fetching failed, falling back to crawler endpoint');
-      const crawlerEndpoint = `/api/seo/crawl?url=${encodeURIComponent(url)}`;
-      
-      const crawlerResponse = await fetch(crawlerEndpoint, {
-        headers: {
-          'Accept': 'application/json, text/plain, */*'
-        }
-      });
-      
-      if (!crawlerResponse.ok) {
-        throw new Error(`Crawler failed: ${crawlerResponse.status} ${crawlerResponse.statusText}`);
-      }
-      
-      rawHtml = await crawlerResponse.text();
-      console.log(`Received crawler response with length: ${rawHtml.length} characters`);
-    }
-    
-    // Now we should have HTML content one way or another
-    if (!rawHtml || rawHtml.length < 100) {
-      throw new Error('Failed to get valid HTML content from the website');
-    }
-    
-    console.log(`Processing HTML content, first 100 chars: ${rawHtml.substring(0, 100)}`);
-    
-    // Initialize crawlerData object to store parsed HTML data
-    const crawlerData = {
-      pages: [],
-      url,
-      htmlContent: rawHtml
-    };
-
-    // Use cheerio to parse the HTML
+    // 2. Check for expected HTML structure
+    console.log('Verifying HTML structure...');
     const cheerio = await import('cheerio');
     const $ = cheerio.load(rawHtml);
     
-    // Extract basic SEO data directly from the HTML
+    if ($('head').length === 0 || $('body').length === 0) {
+      throw new Error('HTML missing critical elements (head or body), possible fake data');
+    }
+    
+    // 3. Verify title and basic meta tags exist
     const title = $('title').text();
+    if (!title) {
+      console.warn('Warning: Page has no title tag, unusual for a real website');
+    }
+    
+    // 4. Check for verification token in HTML (if it was reflected in the page)
+    const htmlIncludesToken = rawHtml.includes(verificationToken);
+    if (htmlIncludesToken) {
+      console.log('Verification successful: Token found in returned HTML');
+    }
+    
+    // 5. Check if we have a screenshot
+    let screenshotData = crawlerData.screenshot;
+    if (!screenshotData) {
+      console.warn('Warning: No screenshot captured, verification incomplete');
+    } else {
+      console.log('Screenshot verification successful');
+    }
+    
+    // 6. Extract CSS and structured data for more comprehensive analysis
+    const cssContent = [];
+    $('style').each((i, el) => {
+      cssContent.push($(el).html());
+    });
+    
+    const linkedCss = [];
+    $('link[rel="stylesheet"]').each((i, el) => {
+      linkedCss.push($(el).attr('href'));
+    });
+    
+    // 7. Extract schema.org data
+    const schemaData = [];
+    $('script[type="application/ld+json"]').each((i, el) => {
+      try {
+        const json = JSON.parse($(el).html() || '{}');
+        schemaData.push(json);
+      } catch (e) {
+        console.warn('Warning: Invalid JSON-LD schema found');
+      }
+    });
+    
+    // 8. Extract all meta tags
+    const metaTags = {};
+    $('meta').each((i, el) => {
+      const name = $(el).attr('name') || $(el).attr('property');
+      const content = $(el).attr('content');
+      if (name && content) {
+        metaTags[name] = content;
+      }
+    });
+    
+    // Prepare comprehensive data bundle for Gemini
+    console.log('Preparing comprehensive data bundle for Gemini analysis...');
+    
+    // Create a comprehensive data bundle for Gemini
+    const seoDataBundle = {
+      url: url,
+      verificationToken: verificationToken,  // Include verification token
+      html: rawHtml,                         // Full HTML content
+      title: title,                          // Page title
+      metaTags: metaTags,                    // All meta tags
+      cssContent: cssContent,                // Inline CSS
+      linkedStylesheets: linkedCss,          // Linked stylesheets
+      schemaData: schemaData,                // Structured data
+      screenshot: screenshotData,            // Screenshot (base64)
+      verificationResults: {                 // Verification results
+        htmlLength: rawHtml.length,
+        hasHeadAndBody: $('head').length > 0 && $('body').length > 0,
+        hasTitle: !!title,
+        tokenReflected: htmlIncludesToken,
+        hasScreenshot: !!screenshotData
+      }
+    };
+    
+    // Extract some basic data for the report structure
     const metaDescription = $('meta[name="description"]').attr('content') || '';
     const h1s = $('h1').map((i, el) => $(el).text().trim()).get();
     const h2s = $('h2').map((i, el) => $(el).text().trim()).get();
@@ -1382,36 +1410,27 @@ async function startDirectCrawl(url: string, audit: SEOAudit) {
     const externalLinks = $('a').length - internalLinks.length;
     
     // Parse site-specific content using our HTML parser
-    const { parseHtmlContent, analyzeSeoIssues } = await import('./htmlParser');
+    const { parseHtmlContent } = await import('./htmlParser');
     const siteSpecificContent = parseHtmlContent(rawHtml);
     
-    // Get HTML-specific SEO issues
-    const htmlIssues = analyzeSeoIssues(rawHtml);
-    
-    // Convert HTML issues to SEOIssue format
+    // Initialize crawlerData object with verified data
+    // Create a basic technical issues array for the report structure
     const technicalIssues: SEOIssue[] = [];
     
-    // Add each HTML issue to the technical issues array
-    if (Array.isArray(htmlIssues)) {
-      htmlIssues.forEach(issue => {
-        technicalIssues.push({
-          title: issue.title,
-          description: issue.description,
-          severity: issue.severity as 'high' | 'medium' | 'low',
-          impact: issue.impact,
-          recommendation: issue.recommendation,
-          priority: 1
-        });
-      });
-    }
+    // Update crawlerData with verified data
+    crawlerData.pages = [];
+    crawlerData.htmlContent = rawHtml;
+    crawlerData.verificationData = seoDataBundle.verificationResults;
+    crawlerData.screenshot = screenshotData;
     
-    console.log('Extracted site-specific content:', siteSpecificContent);
+    console.log('Extracted site-specific content and verification data');
     
-    // Call Gemini for an AI-powered audit
+    // Call Gemini for an AI-powered audit with comprehensive data
     let geminiAudit = null;
     try {
-      console.log('Calling Gemini for SEO audit...');
-      geminiAudit = await getGeminiSEOAduit(url, rawHtml);
+      console.log('Calling Gemini for SEO audit with comprehensive verified data...');
+      // Pass the entire data bundle to Gemini instead of just the HTML
+      geminiAudit = await getGeminiSEOAduit(url, seoDataBundle);
       console.log('Gemini audit completed successfully!');
     } catch (err) {
       console.error('Error in Gemini audit:', err);
