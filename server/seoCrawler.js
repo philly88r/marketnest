@@ -126,20 +126,61 @@ async function crawlWebsite(targetUrl, options = {}) {
       console.log(`Crawling page ${crawledPages.size + 1}/${MAX_PAGES}: ${currentUrl}`);
       
       try {
-        // Navigate to the page
+        // Navigate to the page with more robust handling
         const page = await context.newPage();
-        const response = await page.goto(currentUrl, { waitUntil: 'networkidle', timeout: 30000 });
         
-        if (!response.ok()) {
-          console.error(`Failed to load ${currentUrl}: ${response.status()}`);
-          crawledPages.set(currentUrl, { error: `HTTP ${response.status()}` });
+        // Enable request interception to handle potential redirects and errors
+        await page.route('**/*', route => {
+          console.log(`Request: ${route.request().url()}`);
+          return route.continue();
+        });
+        
+        console.log(`Attempting to navigate to ${currentUrl} with extended timeout...`);
+        const response = await page.goto(currentUrl, { 
+          waitUntil: 'networkidle', 
+          timeout: 60000 // Extended timeout for slow sites
+        });
+        
+        // More detailed response validation
+        if (!response) {
+          console.error(`No response received for ${currentUrl}`);
+          crawledPages.set(currentUrl, { 
+            error: 'No response', 
+            url: currentUrl,
+            timestamp: new Date().toISOString(),
+            html: await page.content() // Capture whatever content we did get
+          });
           await page.close();
           continue;
         }
         
-        // Extract page data
-        const pageData = await extractPageData(page, currentUrl);
+        if (!response.ok()) {
+          console.error(`Failed to load ${currentUrl}: ${response.status()}`);
+          // Still capture the HTML even if status code indicates error
+          const errorHtml = await page.content();
+          crawledPages.set(currentUrl, { 
+            error: `HTTP ${response.status()}`, 
+            statusText: response.statusText(),
+            url: currentUrl,
+            html: errorHtml,
+            timestamp: new Date().toISOString()
+          });
+          await page.close();
+          continue;
+        }
+        
+        // Verify we actually got HTML content
+        const contentType = response.headers()['content-type'] || '';
+        if (!contentType.includes('text/html')) {
+          console.warn(`Warning: Response for ${currentUrl} is not HTML (${contentType})`);
+        }
+        
+        // Extract page data with screenshot if enabled
+        const pageData = await extractPageData(page, currentUrl, { includeScreenshot });
         crawledPages.set(currentUrl, pageData);
+        
+        // Log success with content length
+        console.log(`Successfully extracted data from ${currentUrl}: ${pageData.html?.length || 0} bytes of HTML`);
         
         // Find links to other pages on the same domain
         if (pageData.links) {
@@ -157,8 +198,34 @@ async function crawlWebsite(targetUrl, options = {}) {
       }
     }
     
-    // Compile the overall SEO report
+    // Compile the overall SEO report with verification data
+    console.log(`Crawl completed. Pages attempted: ${crawledPages.size}`);
+    
+    // Log detailed crawl results for debugging
+    const crawlSummary = {
+      totalPages: crawledPages.size,
+      successfulPages: Array.from(crawledPages.values()).filter(page => !page.error).length,
+      failedPages: Array.from(crawledPages.values()).filter(page => page.error).length,
+      urls: Array.from(crawledPages.keys())
+    };
+    console.log('Crawl summary:', crawlSummary);
+    
+    // Check if we have any successful pages
+    if (crawlSummary.successfulPages === 0) {
+      console.error('WARNING: No pages were successfully crawled!');
+    }
+    
     const seoReport = compileReport(crawledPages, targetUrl);
+    
+    // Add verification data to the report
+    seoReport.crawlVerification = {
+      timestamp: new Date().toISOString(),
+      pagesAttempted: crawledPages.size,
+      pagesSuccessful: crawlSummary.successfulPages,
+      pagesFailed: crawlSummary.failedPages,
+      crawledUrls: Array.from(crawledPages.keys())
+    };
+    
     return seoReport;
     
   } finally {
@@ -171,9 +238,12 @@ async function crawlWebsite(targetUrl, options = {}) {
  * Extract SEO-relevant data from a page
  * @param {Page} page - Playwright page object
  * @param {string} pageUrl - URL of the current page
+ * @param {object} options - Options for data extraction
+ * @param {boolean} options.includeScreenshot - Whether to include a screenshot
  * @returns {Promise<object>} - Page data
  */
-async function extractPageData(page, pageUrl) {
+async function extractPageData(page, pageUrl, options = {}) {
+  const { includeScreenshot = false } = options;
   try {
     console.log(`Extracting data from page: ${pageUrl}`);
     
@@ -191,10 +261,42 @@ async function extractPageData(page, pageUrl) {
       return '';
     });
     
-    // Get page content
+    // Get page content with verification
     console.log('Getting page content...');
     const content = await page.content();
-    const $ = cheerio.load(content);
+    
+    // Verify we got actual HTML content
+    if (!content || content.length < 100) {
+      console.error(`Warning: Received suspiciously small HTML content (${content?.length || 0} bytes) for ${pageUrl}`);
+      // Take a screenshot for verification
+      try {
+        await page.screenshot({ path: `error-${Date.now()}.png` });
+        console.log('Captured error screenshot');
+      } catch (screenshotError) {
+        console.error('Failed to capture error screenshot:', screenshotError);
+      }
+    }
+    
+    console.log(`Received HTML content: ${content?.length || 0} bytes`);
+    const $ = cheerio.load(content || '<html><body>Empty content</body></html>');
+    
+    // Capture screenshot if enabled
+    let screenshot = null;
+    if (includeScreenshot) {
+      try {
+        console.log(`Capturing screenshot for ${pageUrl}...`);
+        // Take full-page screenshot and convert to base64
+        const screenshotBuffer = await page.screenshot({ 
+          fullPage: true,
+          type: 'jpeg',
+          quality: 80 // Lower quality for smaller size
+        });
+        screenshot = screenshotBuffer.toString('base64');
+        console.log(`Screenshot captured: ${screenshot.length} bytes`);
+      } catch (screenshotError) {
+        console.error('Failed to capture screenshot:', screenshotError);
+      }
+    }
     
     // Extract specific content elements to prove we're crawling the actual site
     const pageSpecificContent = {};
@@ -450,8 +552,21 @@ async function extractPageData(page, pageUrl) {
     return {
       url: pageUrl,
       title,
-      metaDescription,
-      metaKeywords,
+      html: content, // Include the full HTML content
+      timestamp: new Date().toISOString(),
+      metaTags: {
+        description: metaDescription,
+        keywords: metaKeywords,
+        canonical: canonical,
+        robots: $('meta[name="robots"]').attr('content') || '',
+        ogTitle: $('meta[property="og:title"]').attr('content') || '',
+        ogDescription: $('meta[property="og:description"]').attr('content') || '',
+        ogImage: $('meta[property="og:image"]').attr('content') || '',
+        twitterCard: $('meta[name="twitter:card"]').attr('content') || '',
+        twitterTitle: $('meta[name="twitter:title"]').attr('content') || '',
+        twitterDescription: $('meta[name="twitter:description"]').attr('content') || '',
+        twitterImage: $('meta[name="twitter:image"]').attr('content') || ''
+      },
       headings: { h1, h2, h3 },
       links: { internal: internalLinks, external: externalLinks },
       images,
@@ -461,9 +576,12 @@ async function extractPageData(page, pageUrl) {
       isMobileFriendly,
       hreflangTags,
       wordCount,
-      textContent: textContent.substring(0, 1000), // Limit text content to 1000 chars
-      pageSpecificContent, // Add the specific content we extracted to prove we crawled the page
-      pageIssues
+      textContent: textContent.substring(0, 1000), 
+      pageSpecificContent, 
+      issues: pageIssues,
+      score: 0, 
+      contentLength: content?.length || 0,
+      screenshot: screenshot // Include screenshot if captured
     };
 
   } catch (error) {
@@ -603,11 +721,11 @@ function compileReport(crawledPages, targetUrl) {
   
   // Calculate overall score
   const validPages = pages.filter(page => page.score > 0);
-  const averagePageScore = validPages.length > 0
+  const avgScore = validPages.length > 0
     ? Math.round(validPages.reduce((sum, page) => sum + page.score, 0) / validPages.length)
     : 0;
   
-  const overallScore = Math.round((averagePageScore + technicalScore) / 2);
+  const overallScore = Math.round((avgScore + technicalScore) / 2);
   
   // Generate summary
   const summary = generateSummary(pages, technicalIssues, targetUrl);
@@ -617,7 +735,7 @@ function compileReport(crawledPages, targetUrl) {
     url: targetUrl,
     overallScore,
     technicalScore,
-    averagePageScore,
+    averagePageScore: avgScore,
     summary,
     pages,
     technicalIssues,
@@ -821,18 +939,9 @@ async function crawlWebsiteHandler(req, res) {
       // Try a simple browser test first to diagnose issues
       try {
         console.log('Performing browser test before full crawl...');
-        const browser = await chromium.launch({ 
-          headless: true,
-          args: ['--no-sandbox', '--disable-setuid-sandbox']
-        });
-        console.log('Browser launched successfully for test');
-        const context = await browser.newContext();
-        const page = await context.newPage();
-        console.log('Test page created, attempting to navigate to google.com...');
-        await page.goto('https://www.google.com', { timeout: 30000 });
-        console.log('Test navigation successful');
+        const browser = await chromium.launch({ headless: true });
         await browser.close();
-        console.log('Browser test completed successfully');
+        console.log('Browser launched successfully for test');
       } catch (testError) {
         console.error('Browser test failed:', testError);
         console.error('This indicates a problem with Playwright or the browser environment');
