@@ -1343,7 +1343,23 @@ async function startDirectCrawl(url: string, audit: SEOAudit) {
     // VERIFICATION CHECKS
     // 1. Check if we got HTML content (with flexible threshold)
     if (!rawHtml || rawHtml.length === 0) {
-      throw new Error(`Empty response: No HTML content received`);
+      console.error(`Warning: Empty HTML content received from crawler`);
+      
+      // Check if we have crawlerData with pages array instead
+      if (crawlerData && crawlerData.pages && Array.isArray(crawlerData.pages) && crawlerData.pages.length > 0) {
+        console.log(`Found ${crawlerData.pages.length} pages in crawler data, using first page HTML`);
+        
+        // Use the first page's HTML as our rawHtml
+        const firstPage = crawlerData.pages[0];
+        if (firstPage.html && firstPage.html.length > 0) {
+          rawHtml = firstPage.html;
+          console.log(`Using first page HTML (${rawHtml.length} bytes)`);
+        } else {
+          throw new Error(`Empty response: No HTML content received in any pages`);
+        }
+      } else {
+        throw new Error(`Empty response: No HTML content received`);
+      }
     }
     
     // Log warnings for suspiciously small content but don't fail

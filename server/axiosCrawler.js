@@ -234,6 +234,23 @@ async function crawlWebsite(targetUrl, options = {}) {
       crawledUrls: Array.from(crawledPages.keys())
     };
     
+    // Make sure we include the HTML content of the main page in the top level for backward compatibility
+    if (crawledPages.has(targetUrl)) {
+      const mainPageData = crawledPages.get(targetUrl);
+      if (mainPageData && mainPageData.html) {
+        seoReport.html = mainPageData.html;
+        console.log(`Added main page HTML to top level of report (${mainPageData.html.length} bytes)`);
+      }
+    } else if (crawledPages.size > 0) {
+      // If main page wasn't crawled but we have other pages, use the first one
+      const firstPageUrl = Array.from(crawledPages.keys())[0];
+      const firstPageData = crawledPages.get(firstPageUrl);
+      if (firstPageData && firstPageData.html) {
+        seoReport.html = firstPageData.html;
+        console.log(`Added first page HTML to top level of report (${firstPageData.html.length} bytes)`);
+      }
+    }
+    
     return seoReport;
   } catch (error) {
     console.error(`Fatal error during crawl:`, error);
