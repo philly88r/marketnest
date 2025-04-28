@@ -1572,9 +1572,10 @@ async function startDirectCrawl(url: string, audit: SEOAudit) {
           keywordGaps: []
         }
       },
-      recommendations: [] as SEORecommendation[],
-      pages: crawlerData.pages || []
+      recommendations: [] as SEORecommendation[]
     };
+    // Attach pages at the top level, outside of the main report object
+    (report as any).pages = crawlerData.pages || [];
     
     // Store the Gemini audit and raw data in the report
     const typedReport = report as SEOReport & {
