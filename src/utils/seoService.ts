@@ -1379,13 +1379,21 @@ async function startDirectCrawl(url: string, audit: SEOAudit) {
         const firstPage = crawlerData.pages[0];
         console.log('First page data keys:', Object.keys(firstPage));
         
-        // First try to get HTML directly from the response
-        if (firstPage.html && typeof firstPage.html === 'string' && firstPage.html.length > 0) {
-          rawHtml = firstPage.html;
-          console.log(`Using first page HTML from response (${rawHtml.length} bytes)`);
-        } 
+        // Try all possible HTML fields in the page object
+        const htmlFields = ['html', 'rawHtml', 'htmlContent'];
+        let foundHtml = false;
+        
+        for (const field of htmlFields) {
+          if (firstPage[field] && typeof firstPage[field] === 'string' && firstPage[field].length > 0) {
+            rawHtml = firstPage[field];
+            console.log(`Using ${field} from first page (${rawHtml.length} bytes)`);
+            foundHtml = true;
+            break;
+          }
+        }
+        
         // Then try to read HTML from disk using the file path
-        else if (firstPage.htmlFilePath) {
+        if (!foundHtml && firstPage.htmlFilePath) {
           console.log(`Trying to read HTML from file: ${firstPage.htmlFilePath}`);
           try {
             // Use the fs module to read the file
@@ -1393,6 +1401,7 @@ async function startDirectCrawl(url: string, audit: SEOAudit) {
             if (fs.existsSync(firstPage.htmlFilePath)) {
               rawHtml = fs.readFileSync(firstPage.htmlFilePath, 'utf8');
               console.log(`Successfully read HTML from file (${rawHtml.length} bytes)`);
+              foundHtml = true;
             } else {
               console.error(`HTML file does not exist: ${firstPage.htmlFilePath}`);
             }
@@ -1408,14 +1417,24 @@ async function startDirectCrawl(url: string, audit: SEOAudit) {
           
           for (let i = 0; i < crawlerData.pages.length; i++) {
             const page = crawlerData.pages[i];
-            // Try direct HTML first
-            if (page.html && typeof page.html === 'string' && page.html.length > 0) {
-              rawHtml = page.html;
-              console.log(`Found HTML in page ${i+1} (${rawHtml.length} bytes)`);
-              break;
+            
+            // Try all possible HTML fields in the page object
+            const htmlFields = ['html', 'rawHtml', 'htmlContent'];
+            let foundHtml = false;
+            
+            for (const field of htmlFields) {
+              if (page[field] && typeof page[field] === 'string' && page[field].length > 0) {
+                rawHtml = page[field];
+                console.log(`Found ${field} in page ${i+1} (${rawHtml.length} bytes)`);
+                foundHtml = true;
+                break;
+              }
             }
+            
+            if (foundHtml) break;
+            
             // Then try file path
-            else if (page.htmlFilePath) {
+            if (page.htmlFilePath) {
               try {
                 const fs = require('fs');
                 if (fs.existsSync(page.htmlFilePath)) {

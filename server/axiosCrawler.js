@@ -523,11 +523,18 @@ function extractPageData($, pageUrl, html) {
       });
     }
     
-    // Return the page data
+    // Save the HTML to disk first to ensure it's preserved
+    const htmlFilePath = saveHtmlToDisk(pageUrl, html);
+    console.log(`[EXTRACT] Saved HTML for ${pageUrl} to ${htmlFilePath}, size: ${html.length} bytes`);
+    
+    // Return the page data with HTML content explicitly included
     return {
       url: pageUrl,
       title,
       html: html, // Include the full HTML content
+      rawHtml: html, // Add a duplicate under a different key for redundancy
+      htmlContent: html, // Add another duplicate under a different key for redundancy
+      htmlFilePath, // Include the path to the saved HTML file
       timestamp: new Date().toISOString(),
       contentLength: html.length,
       metaTags: {
@@ -662,10 +669,39 @@ function compileReport(crawledPages, targetUrl) {
     const htmlFileExists = fs.existsSync(htmlFilePath);
     console.log(`HTML file for ${page.url}: ${htmlFilePath}, exists: ${htmlFileExists}`);
     
+    // Get HTML content from the page object or from the file
+    let htmlContent = '';
+    
+    // First try to get HTML from the page object
+    if (page.html && typeof page.html === 'string' && page.html.length > 0) {
+      htmlContent = page.html;
+      console.log(`Using HTML from page object for ${page.url} (${htmlContent.length} bytes)`);
+    }
+    // Then try rawHtml or htmlContent fields (our redundant fields)
+    else if (page.rawHtml && typeof page.rawHtml === 'string' && page.rawHtml.length > 0) {
+      htmlContent = page.rawHtml;
+      console.log(`Using rawHtml from page object for ${page.url} (${htmlContent.length} bytes)`);
+    }
+    else if (page.htmlContent && typeof page.htmlContent === 'string' && page.htmlContent.length > 0) {
+      htmlContent = page.htmlContent;
+      console.log(`Using htmlContent from page object for ${page.url} (${htmlContent.length} bytes)`);
+    }
+    // Then try to read from the file
+    else if (htmlFileExists) {
+      try {
+        htmlContent = fs.readFileSync(htmlFilePath, 'utf8');
+        console.log(`Read HTML from file for ${page.url} (${htmlContent.length} bytes)`);
+      } catch (error) {
+        console.error(`Error reading HTML file for ${page.url}: ${error.message}`);
+      }
+    }
+    
     return {
       url: page.url,
       title: page.title,
-      html: page.html, // Include the HTML content
+      html: htmlContent, // Use the HTML content we found
+      rawHtml: htmlContent, // Add a duplicate under a different key for redundancy
+      htmlContent: htmlContent, // Add another duplicate under a different key for redundancy
       htmlFilePath: htmlFileExists ? htmlFilePath : null, // Include the path to the HTML file
       score: page.score,
       issues: page.issues || [],
