@@ -241,8 +241,41 @@ Content Issues: ${crawlSummary.contentIssues}
       }
     );
     
-    // Get the text response from Gemini
-    let text = response.data?.candidates?.[0]?.content?.parts?.[0]?.text || '';
+    // Add robust error handling for the response
+    if (response.status !== 200) {
+      console.error(`Gemini API error: ${response.status} ${response.statusText}`);
+      throw new Error(`Gemini API error: ${response.status} ${response.statusText}`);
+    }
+    
+    // Get the text response from Gemini with robust error handling
+    let text = '';
+    
+    try {
+      // Check if we have a valid response structure
+      if (response.data && response.data.candidates && 
+          response.data.candidates[0] && 
+          response.data.candidates[0].content && 
+          response.data.candidates[0].content.parts && 
+          response.data.candidates[0].content.parts[0]) {
+        
+        text = response.data.candidates[0].content.parts[0].text || '';
+      } else {
+        // If response structure is unexpected, try to extract useful information
+        console.warn('Unexpected Gemini API response structure:', JSON.stringify(response.data).substring(0, 500));
+        
+        // Try to extract any text content we can find
+        if (typeof response.data === 'string') {
+          text = response.data;
+        } else if (typeof response.data === 'object') {
+          text = JSON.stringify(response.data);
+        } else {
+          throw new Error('Unable to extract text from Gemini response');
+        }
+      }
+    } catch (error) {
+      console.error('Error extracting text from Gemini response:', error);
+      throw error;
+    }
     console.log(`Gemini API call completed for ${siteUrl}. Response length: ${text.length} characters`);
     console.log(`First 100 characters of response: ${text.substring(0, 100)}...`);
     

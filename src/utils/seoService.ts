@@ -1293,9 +1293,47 @@ async function startDirectCrawl(url: string, audit: SEOAudit) {
       throw new Error(`Crawler failed: ${crawlerResponse.status} ${crawlerResponse.statusText}`);
     }
     
-    // Parse the crawler response
-    const crawlerData = await crawlerResponse.json();
-    const rawHtml = crawlerData.html || '';
+    // Parse the crawler response with robust error handling
+    let crawlerData;
+    let rawHtml = '';
+    
+    try {
+      // First check the content type of the response
+      const contentType = crawlerResponse.headers.get('content-type') || '';
+      
+      if (contentType.includes('application/json')) {
+        // It's JSON as expected
+        crawlerData = await crawlerResponse.json();
+        rawHtml = crawlerData.html || '';
+      } else {
+        // It's probably HTML or text - handle this case
+        console.log('Crawler returned non-JSON response, treating as raw HTML');
+        const responseText = await crawlerResponse.text();
+        
+        // If it looks like HTML, use it directly
+        if (responseText.trim().startsWith('<!doctype') || responseText.trim().startsWith('<html')) {
+          rawHtml = responseText;
+          crawlerData = { html: rawHtml };
+        } else {
+          // Try to parse as JSON anyway as a last resort
+          try {
+            crawlerData = JSON.parse(responseText);
+            rawHtml = crawlerData.html || '';
+          } catch (parseError) {
+            console.warn('Response is neither valid JSON nor HTML, using as raw text');
+            rawHtml = responseText;
+            crawlerData = { html: rawHtml };
+          }
+        }
+      }
+    } catch (parseError) {
+      console.error('Error parsing crawler response:', parseError);
+      // Get the raw text as fallback
+      const responseText = await crawlerResponse.text();
+      console.log('Using raw response text instead, first 100 chars:', responseText.substring(0, 100));
+      rawHtml = responseText;
+      crawlerData = { html: rawHtml };
+    }
     
     // VERIFICATION CHECKS
     // 1. Verify we got substantial HTML content
