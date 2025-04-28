@@ -17,8 +17,14 @@ const MAX_PAGES = 20;
 
 // Create a cache directory if it doesn't exist
 const CACHE_DIR = path.join(__dirname, '..', '.crawler-cache');
-if (!fs.existsSync(CACHE_DIR)) {
-  fs.mkdirSync(CACHE_DIR, { recursive: true });
+try {
+  if (!fs.existsSync(CACHE_DIR)) {
+    fs.mkdirSync(CACHE_DIR, { recursive: true });
+    console.log(`Created cache directory: ${CACHE_DIR}`);
+  }
+} catch (error) {
+  console.warn(`Warning: Could not create cache directory: ${error.message}`);
+  // Continue without cache directory
 }
 
 /**
@@ -65,11 +71,13 @@ async function crawlWebsite(targetUrl, options = {}) {
     maxPages = MAX_PAGES
   } = options;
   
-  console.log(`Crawl options: verifyData=${verifyData}, multiPage=${multiPage}, maxPages=${maxPages}`);
+  console.log(`[CRAWLER] Crawl options: verifyData=${verifyData}, multiPage=${multiPage}, maxPages=${maxPages}`);
+  console.log(`[CRAWLER] Node.js version: ${process.version}`);
+  console.log(`[CRAWLER] Axios version: ${axios.VERSION || 'unknown'}`);
   
   // Use global.MAX_PAGES if it's been set, otherwise use the constant
   const effectiveMaxPages = global.MAX_PAGES || maxPages;
-  console.log(`Starting SEO crawl of ${targetUrl} using Axios+Cheerio`);
+  console.log(`[CRAWLER] Starting SEO crawl of ${targetUrl} using Axios+Cheerio`);
   
   // Create axios instance
   const client = createAxiosInstance();
@@ -109,16 +117,34 @@ async function crawlWebsite(targetUrl, options = {}) {
       
       try {
         // Make the HTTP request with proper error handling
-        console.log(`Fetching ${currentUrl}...`);
+        console.log(`[CRAWLER] Fetching ${currentUrl}...`);
+        
+        // Add detailed request logging
+        const startTime = Date.now();
+        console.log(`[CRAWLER] Request started at: ${new Date().toISOString()}`);
+        
         const response = await client.get(currentUrl, {
           responseType: 'text',
           maxRedirects: 5
+        }).catch(error => {
+          // Detailed error logging
+          console.error(`[CRAWLER] Request failed for ${currentUrl}:`, error.message);
+          if (error.response) {
+            console.error(`[CRAWLER] Response status: ${error.response.status}`);
+            console.error(`[CRAWLER] Response headers:`, JSON.stringify(error.response.headers));
+          } else if (error.request) {
+            console.error(`[CRAWLER] No response received. Request details:`, error.request._currentUrl || error.request.path);
+          }
+          throw error; // Re-throw to be caught by the outer catch
         });
         
+        const endTime = Date.now();
+        console.log(`[CRAWLER] Request completed in ${endTime - startTime}ms`);
+        
         // Log response details
-        console.log(`Response status: ${response.status} ${response.statusText}`);
-        console.log(`Content type: ${response.headers['content-type']}`);
-        console.log(`Content length: ${response.data.length} bytes`);
+        console.log(`[CRAWLER] Response status: ${response.status} ${response.statusText}`);
+        console.log(`[CRAWLER] Content type: ${response.headers['content-type']}`);
+        console.log(`[CRAWLER] Content length: ${response.data.length} bytes`);
         
         // Store the HTML content
         const html = response.data;
@@ -659,9 +685,14 @@ function calculateTechnicalScore(issues) {
  */
 async function crawlWebsiteHandler(req, res) {
   try {
+    console.log(`[CRAWLER-HANDLER] Received SEO crawl request at ${new Date().toISOString()}`);
+    console.log(`[CRAWLER-HANDLER] Request headers:`, JSON.stringify(req.headers));
+    console.log(`[CRAWLER-HANDLER] Request query params:`, JSON.stringify(req.query));
+    
     const { url, includeScreenshot, verifyData, multiPage, maxPages } = req.query;
     
     if (!url) {
+      console.error(`[CRAWLER-HANDLER] Missing URL parameter`);
       return res.status(400).json({ error: 'URL parameter is required' });
     }
     
