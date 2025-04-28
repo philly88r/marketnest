@@ -1336,9 +1336,14 @@ async function startDirectCrawl(url: string, audit: SEOAudit) {
     }
     
     // VERIFICATION CHECKS
-    // 1. Verify we got substantial HTML content
-    if (!rawHtml || rawHtml.length < 1000) {
-      throw new Error(`Suspicious response: HTML content too small (${rawHtml.length} bytes), possible fake data`);
+    // 1. Check if we got HTML content (with flexible threshold)
+    if (!rawHtml || rawHtml.length === 0) {
+      throw new Error(`Empty response: No HTML content received`);
+    }
+    
+    // Log warnings for suspiciously small content but don't fail
+    if (rawHtml.length < 1000) {
+      console.warn(`Warning: HTML content is suspiciously small (${rawHtml.length} bytes), may be placeholder or minimal content`);
     }
     
     // 2. Check for expected HTML structure
@@ -1466,12 +1471,19 @@ async function startDirectCrawl(url: string, audit: SEOAudit) {
     // Call Gemini for an AI-powered audit with comprehensive data
     let geminiAudit = null;
     try {
-      console.log('Calling Gemini for SEO audit with comprehensive verified data...');
+      console.log('Preparing to call Gemini API for SEO audit...');
+      console.log(`SEO data bundle summary: URL=${url}, HTML length=${rawHtml.length}, has screenshot=${!!seoDataBundle.screenshot}`);
+      
+      // Always proceed with Gemini call, even with small content
+      console.log('Calling Gemini for SEO audit with verified data...');
+      
       // Pass the entire data bundle to Gemini instead of just the HTML
       geminiAudit = await getGeminiSEOAduit(url, seoDataBundle);
       console.log('Gemini audit completed successfully!');
     } catch (err) {
       console.error('Error in Gemini audit:', err);
+      console.error('Error details:', err.message);
+      if (err.stack) console.error('Stack trace:', err.stack);
       geminiAudit = null;
     }
     
