@@ -1305,11 +1305,37 @@ async function startDirectCrawl(url: string, audit: SEOAudit) {
     try {
       // First check the content type of the response
       const contentType = crawlerResponse.headers.get('content-type') || '';
+      console.log(`Response content type: ${contentType}`);
+      
+      // Clone the response so we can log the raw text and still parse as JSON
+      const responseClone = crawlerResponse.clone();
+      const rawResponseText = await responseClone.text();
+      console.log(`Raw response (first 500 chars): ${rawResponseText.substring(0, 500)}`);
       
       if (contentType.includes('application/json')) {
         // It's JSON as expected
-        crawlerData = await crawlerResponse.json();
-        rawHtml = crawlerData.html || '';
+        console.log('Parsing response as JSON...');
+        try {
+          crawlerData = JSON.parse(rawResponseText);
+          console.log('JSON parsed successfully');
+          console.log('crawlerData structure:', Object.keys(crawlerData));
+          
+          if (crawlerData.html) {
+            console.log(`Found HTML in top level, length: ${crawlerData.html.length}`);
+            rawHtml = crawlerData.html || '';
+          } else if (crawlerData.pages && Array.isArray(crawlerData.pages) && crawlerData.pages.length > 0) {
+            console.log(`No top-level HTML, but found ${crawlerData.pages.length} pages`);
+            const firstPage = crawlerData.pages[0];
+            if (firstPage.html) {
+              console.log(`Using first page HTML, length: ${firstPage.html.length}`);
+              rawHtml = firstPage.html;
+            }
+          }
+        } catch (jsonError) {
+          console.error('Error parsing JSON:', jsonError);
+          // Try to get the raw text as fallback
+          rawHtml = rawResponseText;
+        }
       } else {
         // It's probably HTML or text - handle this case
         console.log('Crawler returned non-JSON response, treating as raw HTML');
