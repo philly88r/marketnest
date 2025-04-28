@@ -15,15 +15,20 @@ const https = require('https');
 // Maximum number of pages to crawl per website
 const MAX_PAGES = 20;
 
-// Create a cache directory if it doesn't exist
+// Create cache directories if they don't exist
 const CACHE_DIR = path.join(__dirname, '..', '.crawler-cache');
+const HTML_CACHE_DIR = path.join(__dirname, '..', '.crawler-cache', 'html');
 try {
   if (!fs.existsSync(CACHE_DIR)) {
     fs.mkdirSync(CACHE_DIR, { recursive: true });
     console.log(`Created cache directory: ${CACHE_DIR}`);
   }
+  if (!fs.existsSync(HTML_CACHE_DIR)) {
+    fs.mkdirSync(HTML_CACHE_DIR, { recursive: true });
+    console.log(`Created HTML cache directory: ${HTML_CACHE_DIR}`);
+  }
 } catch (error) {
-  console.warn(`Warning: Could not create cache directory: ${error.message}`);
+  console.warn(`Warning: Could not create cache directories: ${error.message}`);
   // Continue without cache directory
 }
 
@@ -51,6 +56,62 @@ function createAxiosInstance() {
     httpsAgent,
     validateStatus: status => status < 500 // Accept any status code less than 500
   });
+}
+
+/**
+ * Generate a unique ID for a URL
+ * @param {string} url - The URL to generate an ID for
+ * @returns {string} - A URL-safe unique ID
+ */
+function generateUrlId(url) {
+  // Create a hash of the URL
+  const crypto = require('crypto');
+  const hash = crypto.createHash('md5').update(url).digest('hex');
+  return hash.substring(0, 10);
+}
+
+/**
+ * Save HTML content to disk
+ * @param {string} url - The URL of the page
+ * @param {string} html - The HTML content to save
+ * @returns {string} - The path to the saved file
+ */
+function saveHtmlToDisk(url, html) {
+  try {
+    const urlId = generateUrlId(url);
+    const filePath = path.join(HTML_CACHE_DIR, `${urlId}.html`);
+    
+    fs.writeFileSync(filePath, html);
+    console.log(`[CRAWLER] Saved HTML for ${url} to ${filePath} (${html.length} bytes)`);
+    
+    return filePath;
+  } catch (error) {
+    console.error(`[CRAWLER] Error saving HTML to disk: ${error.message}`);
+    return null;
+  }
+}
+
+/**
+ * Read HTML content from disk
+ * @param {string} url - The URL of the page
+ * @returns {string|null} - The HTML content or null if not found
+ */
+function readHtmlFromDisk(url) {
+  try {
+    const urlId = generateUrlId(url);
+    const filePath = path.join(HTML_CACHE_DIR, `${urlId}.html`);
+    
+    if (fs.existsSync(filePath)) {
+      const html = fs.readFileSync(filePath, 'utf8');
+      console.log(`[CRAWLER] Read HTML for ${url} from ${filePath} (${html.length} bytes)`);
+      return html;
+    }
+    
+    return null;
+  } catch (error) {
+    console.error(`[CRAWLER] Error reading HTML from disk: ${error.message}`);
+    return null;
+  }
 }
 
 /**
@@ -163,6 +224,12 @@ async function crawlWebsite(targetUrl, options = {}) {
         // Store the HTML content
         const html = response.data;
         verificationData.totalBytes += html.length;
+        
+        // Save HTML content to disk
+        const htmlFilePath = saveHtmlToDisk(currentUrl, html);
+        if (htmlFilePath) {
+          console.log(`[CRAWLER] HTML content saved to ${htmlFilePath}`);
+        }
         
         // Check for React error pages to avoid analyzing them as real content
         const isReactErrorPage = html.includes('React.createElement') && 
@@ -587,10 +654,19 @@ function compileReport(crawledPages, targetUrl) {
     // Log the page data structure for debugging
     console.log(`Processing page ${page.url}, has HTML: ${Boolean(page.html)}, HTML length: ${page.html ? page.html.length : 0}`);
     
+    // Generate the HTML file path for this page
+    const urlId = generateUrlId(page.url);
+    const htmlFilePath = path.join(HTML_CACHE_DIR, `${urlId}.html`);
+    
+    // Check if the HTML file exists
+    const htmlFileExists = fs.existsSync(htmlFilePath);
+    console.log(`HTML file for ${page.url}: ${htmlFilePath}, exists: ${htmlFileExists}`);
+    
     return {
       url: page.url,
       title: page.title,
       html: page.html, // Include the HTML content
+      htmlFilePath: htmlFileExists ? htmlFilePath : null, // Include the path to the HTML file
       score: page.score,
       issues: page.issues || [],
       metaTags: page.metaTags,

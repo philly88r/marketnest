@@ -1379,24 +1379,58 @@ async function startDirectCrawl(url: string, audit: SEOAudit) {
         const firstPage = crawlerData.pages[0];
         console.log('First page data keys:', Object.keys(firstPage));
         
+        // First try to get HTML directly from the response
         if (firstPage.html && typeof firstPage.html === 'string' && firstPage.html.length > 0) {
           rawHtml = firstPage.html;
-          console.log(`Using first page HTML (${rawHtml.length} bytes)`);
-        } else {
+          console.log(`Using first page HTML from response (${rawHtml.length} bytes)`);
+        } 
+        // Then try to read HTML from disk using the file path
+        else if (firstPage.htmlFilePath) {
+          console.log(`Trying to read HTML from file: ${firstPage.htmlFilePath}`);
+          try {
+            // Use the fs module to read the file
+            const fs = require('fs');
+            if (fs.existsSync(firstPage.htmlFilePath)) {
+              rawHtml = fs.readFileSync(firstPage.htmlFilePath, 'utf8');
+              console.log(`Successfully read HTML from file (${rawHtml.length} bytes)`);
+            } else {
+              console.error(`HTML file does not exist: ${firstPage.htmlFilePath}`);
+            }
+          } catch (fsError) {
+            console.error(`Error reading HTML file: ${fsError.message}`);
+          }
+        }
+        
+        // If still no HTML, try other pages
+        if (!rawHtml || rawHtml.length === 0) {
           // Try to find any page with HTML content
           console.log('First page HTML missing or empty, searching other pages...');
           
           for (let i = 0; i < crawlerData.pages.length; i++) {
             const page = crawlerData.pages[i];
+            // Try direct HTML first
             if (page.html && typeof page.html === 'string' && page.html.length > 0) {
               rawHtml = page.html;
               console.log(`Found HTML in page ${i+1} (${rawHtml.length} bytes)`);
               break;
             }
+            // Then try file path
+            else if (page.htmlFilePath) {
+              try {
+                const fs = require('fs');
+                if (fs.existsSync(page.htmlFilePath)) {
+                  rawHtml = fs.readFileSync(page.htmlFilePath, 'utf8');
+                  console.log(`Read HTML from file for page ${i+1} (${rawHtml.length} bytes)`);
+                  break;
+                }
+              } catch (fsError) {
+                console.error(`Error reading HTML file for page ${i+1}: ${fsError.message}`);
+              }
+            }
           }
           
           if (!rawHtml || rawHtml.length === 0) {
-            throw new Error(`Empty response: No HTML content received in any pages`);
+            throw new Error(`Empty response: No HTML content received in any pages or files`);
           }
         }
       } else {
