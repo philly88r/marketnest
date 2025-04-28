@@ -1279,7 +1279,9 @@ async function startDirectCrawl(url: string, audit: SEOAudit) {
     console.log(`Using Axios+Cheerio to fetch and verify website data from ${url}`);
     
     // Request multi-page crawling with verification data
-    const crawlerEndpoint = `/api/seo/crawl?url=${encodeURIComponent(verifiedUrl)}&verifyData=true&multiPage=true&maxPages=20`;
+    // Make sure to use port 3001 where the server is running
+    const serverUrl = process.env.NODE_ENV === 'production' ? '' : 'http://localhost:3001';
+    const crawlerEndpoint = `${serverUrl}/api/seo/crawl?url=${encodeURIComponent(verifiedUrl)}&verifyData=true&multiPage=true&maxPages=20`;
     console.log(`Calling crawler endpoint for multi-page crawling: ${crawlerEndpoint}`);
     
     const crawlerResponse = await fetch(crawlerEndpoint, {

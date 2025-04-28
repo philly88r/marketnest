@@ -75,6 +75,20 @@ async function crawlWebsite(targetUrl, options = {}) {
   console.log(`[CRAWLER] Node.js version: ${process.version}`);
   console.log(`[CRAWLER] Axios version: ${axios.VERSION || 'unknown'}`);
   
+  // Validate the URL before proceeding
+  try {
+    const urlObj = new URL(targetUrl);
+    console.log(`[CRAWLER] Validated URL: ${urlObj.href}`);
+    
+    // Check for common URL issues
+    if (!['http:', 'https:'].includes(urlObj.protocol)) {
+      throw new Error(`Unsupported protocol: ${urlObj.protocol}`);
+    }
+  } catch (urlError) {
+    console.error(`[CRAWLER] Invalid URL: ${targetUrl}`, urlError);
+    throw new Error(`Invalid URL: ${urlError.message}`);
+  }
+  
   // Use global.MAX_PAGES if it's been set, otherwise use the constant
   const effectiveMaxPages = global.MAX_PAGES || maxPages;
   console.log(`[CRAWLER] Starting SEO crawl of ${targetUrl} using Axios+Cheerio`);
@@ -769,8 +783,40 @@ async function crawlWebsiteHandler(req, res) {
         maxPages: pagesToCrawl
       };
       
-      const seoData = await crawlWebsite(url, crawlOptions);
-      console.log(`Crawl of ${url} completed successfully with ${seoData.pages?.length || 0} pages`);
+      let seoData;
+      try {
+        seoData = await crawlWebsite(url, crawlOptions);
+        console.log(`[CRAWLER-HANDLER] Crawl of ${url} completed successfully with ${seoData.pages?.length || 0} pages`);
+      } catch (innerError) {
+        console.error(`[CRAWLER-HANDLER] Error during crawl: ${innerError.message}`);
+        
+        // Create a minimal fallback response instead of failing
+        seoData = {
+          url: url,
+          crawlVerification: {
+            startTime: new Date().toISOString(),
+            endTime: new Date().toISOString(),
+            pagesAttempted: 1,
+            pagesSuccessful: 0,
+            pagesFailed: 1,
+            totalBytes: 0,
+            error: innerError.message,
+            crawledUrls: [url]
+          },
+          error: true,
+          errorMessage: innerError.message,
+          pages: [],
+          technicalIssues: [{
+            title: 'Crawl Error',
+            description: `Failed to crawl website: ${innerError.message}`,
+            severity: 'high',
+            impact: 'Unable to analyze website content',
+            recommendation: 'Please check if the website is accessible and not blocking crawlers.'
+          }]
+        };
+      }
+      
+      // Always return a response, even if there was an error
       return res.json(seoData);
     } catch (crawlError) {
       console.error('Detailed crawl error:', crawlError);
