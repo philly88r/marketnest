@@ -1377,11 +1377,27 @@ async function startDirectCrawl(url: string, audit: SEOAudit) {
         
         // Use the first page's HTML as our rawHtml
         const firstPage = crawlerData.pages[0];
-        if (firstPage.html && firstPage.html.length > 0) {
+        console.log('First page data keys:', Object.keys(firstPage));
+        
+        if (firstPage.html && typeof firstPage.html === 'string' && firstPage.html.length > 0) {
           rawHtml = firstPage.html;
           console.log(`Using first page HTML (${rawHtml.length} bytes)`);
         } else {
-          throw new Error(`Empty response: No HTML content received in any pages`);
+          // Try to find any page with HTML content
+          console.log('First page HTML missing or empty, searching other pages...');
+          
+          for (let i = 0; i < crawlerData.pages.length; i++) {
+            const page = crawlerData.pages[i];
+            if (page.html && typeof page.html === 'string' && page.html.length > 0) {
+              rawHtml = page.html;
+              console.log(`Found HTML in page ${i+1} (${rawHtml.length} bytes)`);
+              break;
+            }
+          }
+          
+          if (!rawHtml || rawHtml.length === 0) {
+            throw new Error(`Empty response: No HTML content received in any pages`);
+          }
         }
       } else {
         throw new Error(`Empty response: No HTML content received`);

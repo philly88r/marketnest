@@ -191,6 +191,13 @@ async function crawlWebsite(targetUrl, options = {}) {
         
         // Extract page data
         const pageData = extractPageData($, currentUrl, html);
+        
+        // Double-check that HTML is included in the page data
+        if (!pageData.html || pageData.html.length === 0) {
+          console.log(`[CRAWLER] Warning: HTML missing from page data for ${currentUrl}, adding it explicitly`);
+          pageData.html = html;
+        }
+        
         crawledPages.set(currentUrl, pageData);
         verificationData.pagesSuccessful++;
         
