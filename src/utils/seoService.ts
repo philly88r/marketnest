@@ -1570,10 +1570,10 @@ async function startDirectCrawl(url: string, audit: SEOAudit) {
         competitorAnalysis: {
           competitorKeywords: [],
           keywordGaps: []
-        },
+        }
       },
-      pages: crawlerData.pages || [],
-      recommendations: [] as SEORecommendation[]
+      recommendations: [] as SEORecommendation[],
+      pages: crawlerData.pages || []
     };
     
     // Store the Gemini audit and raw data in the report
