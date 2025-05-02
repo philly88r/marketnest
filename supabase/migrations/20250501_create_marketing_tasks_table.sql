@@ -12,32 +12,22 @@ CREATE TABLE IF NOT EXISTS public.marketing_tasks (
     updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
 );
 
--- Enable Row Level Security
+-- Enable Row Level Security but with permissive policies for dashboard editing
 ALTER TABLE public.marketing_tasks ENABLE ROW LEVEL SECURITY;
 
--- Create policies for marketing_tasks table
--- Allow authenticated users to view marketing tasks
-CREATE POLICY marketing_tasks_select_policy ON public.marketing_tasks
-FOR SELECT
-USING (true);
+-- Create a policy that allows all operations (select, insert, update, delete)
+-- This makes the table fully editable in the Supabase dashboard
+CREATE POLICY "Allow full access to marketing_tasks" 
+ON public.marketing_tasks
+FOR ALL
+USING (true)
+WITH CHECK (true);
 
--- Allow all authenticated users to insert marketing tasks for now
--- This can be restricted later when you implement a proper role system
-CREATE POLICY marketing_tasks_insert_policy ON public.marketing_tasks
-FOR INSERT
-WITH CHECK (auth.role() = 'authenticated');
-
--- Allow all authenticated users to update marketing tasks for now
--- This can be restricted later when you implement a proper role system
-CREATE POLICY marketing_tasks_update_policy ON public.marketing_tasks
-FOR UPDATE
-USING (auth.role() = 'authenticated');
-
--- Allow all authenticated users to delete marketing tasks for now
--- This can be restricted later when you implement a proper role system
-CREATE POLICY marketing_tasks_delete_policy ON public.marketing_tasks
-FOR DELETE
-USING (auth.role() = 'authenticated');
+-- The policy above is equivalent to the following individual policies:
+-- CREATE POLICY marketing_tasks_select_policy ON public.marketing_tasks FOR SELECT USING (true);
+-- CREATE POLICY marketing_tasks_insert_policy ON public.marketing_tasks FOR INSERT WITH CHECK (true);
+-- CREATE POLICY marketing_tasks_update_policy ON public.marketing_tasks FOR UPDATE USING (true);
+-- CREATE POLICY marketing_tasks_delete_policy ON public.marketing_tasks FOR DELETE USING (true);
 
 -- Insert marketing tasks for May 2025
 
