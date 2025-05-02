@@ -77,13 +77,13 @@ const Context7Explorer: React.FC<Context7ExplorerProps> = ({ clientId }) => {
 
       <TabContainer>
         <Tab 
-          active={activeTab === 'docs'} 
+          $active={activeTab === 'docs'} 
           onClick={() => setActiveTab('docs')}
         >
           <FiBook /> Documentation
         </Tab>
         <Tab 
-          active={activeTab === 'code'} 
+          $active={activeTab === 'code'} 
           onClick={() => setActiveTab('code')}
         >
           <FiCode /> Code Examples
@@ -230,15 +230,15 @@ const TabContainer = styled.div`
   border-bottom: 1px solid #eee;
 `;
 
-const Tab = styled.button<{ active: boolean }>`
+const Tab = styled.button<{ $active: boolean }>`
   padding: 1rem 2rem;
   background: none;
   border: none;
   font-size: 1rem;
-  font-weight: ${props => props.active ? '600' : '400'};
-  color: ${props => props.active ? '#0d233f' : '#666'};
+  font-weight: ${props => props.$active ? '600' : '400'};
+  color: ${props => props.$active ? '#0d233f' : '#666'};
   cursor: pointer;
-  border-bottom: 2px solid ${props => props.active ? '#0d233f' : 'transparent'};
+  border-bottom: 2px solid ${props => props.$active ? '#0d233f' : 'transparent'};
   transition: all 0.3s ease;
   display: flex;
   align-items: center;

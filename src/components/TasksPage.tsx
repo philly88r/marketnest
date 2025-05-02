@@ -1,8 +1,9 @@
 import React, { useState, useEffect } from 'react';
 import styled from 'styled-components';
-import { FiPlus, FiEdit2, FiTrash2, FiCalendar, FiUser, FiCheckCircle, FiClock, FiCircle } from 'react-icons/fi';
+import { FiPlus, FiEdit2, FiTrash2, FiCalendar, FiUser, FiCheckCircle, FiClock, FiCircle, FiTarget, FiBarChart2 } from 'react-icons/fi';
 import { Task, getTasksByProjectId, createTask, updateTask, deleteTask } from '../utils/projectService';
 import { getProjectsByClientId } from '../utils/projectService';
+import { MarketingTask, getMarketingTasksForClient, updateMarketingTaskStatus } from '../utils/marketingTaskService';
 import { supabase } from '../utils/supabaseClient';
 
 // Styled components
@@ -216,8 +217,10 @@ interface TasksPageProps {
 
 const TasksPage: React.FC<TasksPageProps> = ({ clientId }) => {
   const [tasks, setTasks] = useState<Task[]>([]);
+  const [marketingTasks, setMarketingTasks] = useState<MarketingTask[]>([]);
   const [projects, setProjects] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
+  const [marketingLoading, setMarketingLoading] = useState(true);
   const [showModal, setShowModal] = useState(false);
   const [editingTask, setEditingTask] = useState<Task | null>(null);
   const [formData, setFormData] = useState<Partial<Task>>({
@@ -229,6 +232,7 @@ const TasksPage: React.FC<TasksPageProps> = ({ clientId }) => {
     due_date: ''
   });
   const [error, setError] = useState<string | null>(null);
+  const [marketingError, setMarketingError] = useState<string | null>(null);
 
   useEffect(() => {
     fetchData();
@@ -236,7 +240,11 @@ const TasksPage: React.FC<TasksPageProps> = ({ clientId }) => {
 
   const fetchData = async () => {
     setLoading(true);
+    setMarketingLoading(true);
     setError(null);
+    setMarketingError(null);
+    
+    // Fetch project tasks
     try {
       // First fetch all projects for this client
       const clientProjects = await getProjectsByClientId(clientId);
@@ -245,15 +253,52 @@ const TasksPage: React.FC<TasksPageProps> = ({ clientId }) => {
       // Then fetch all tasks for all projects
       const allTasks: Task[] = [];
       for (const project of clientProjects) {
-        const projectTasks = await getTasksByProjectId(project.id);
-        allTasks.push(...projectTasks);
+        try {
+          const projectTasks = await getTasksByProjectId(project.id);
+          if (projectTasks && Array.isArray(projectTasks)) {
+            allTasks.push(...projectTasks.filter(task => task !== null));
+          }
+        } catch (taskErr) {
+          console.error(`Error fetching tasks for project ${project.id}:`, taskErr);
+          // Continue with other projects even if one fails
+        }
       }
       setTasks(allTasks);
     } catch (err) {
       console.error('Error fetching tasks:', err);
-      setError('Failed to load tasks. Please try again later.');
+      setError(`Failed to load tasks: ${err instanceof Error ? err.message : 'Please try again later.'}`);
     } finally {
       setLoading(false);
+    }
+    
+    // Fetch marketing tasks if this is Liberty Beans
+    try {
+      // Get client name from client ID
+      let clientName = "";
+      if (clientId === 'client-liberty-beans') {
+        clientName = "Liberty Beans";
+      } else {
+        // Try to get the client name from the database
+        const { data: clientData } = await supabase
+          .from('clients')
+          .select('name')
+          .eq('id', clientId)
+          .single();
+          
+        if (clientData) {
+          clientName = clientData.name;
+        }
+      }
+      
+      if (clientName) {
+        const marketingTasksData = await getMarketingTasksForClient(clientName);
+        setMarketingTasks(marketingTasksData);
+      }
+    } catch (err) {
+      console.error('Error fetching marketing tasks:', err);
+      setMarketingError(`Failed to load marketing tasks: ${err instanceof Error ? err.message : 'Please try again later.'}`);
+    } finally {
+      setMarketingLoading(false);
     }
   };
 
@@ -327,9 +372,12 @@ const TasksPage: React.FC<TasksPageProps> = ({ clientId }) => {
         setTasks([...tasks, newTask]);
       }
       setShowModal(false);
+      // Refresh data to ensure we have the latest from the server
+      fetchData();
     } catch (err) {
       console.error('Error saving task:', err);
-      alert('Failed to save task. Please try again.');
+      const errorMessage = err instanceof Error ? err.message : 'Unknown error occurred';
+      alert(`Failed to save task: ${errorMessage}. Please check your permissions or try again later.`);
     }
   };
 
@@ -344,13 +392,38 @@ const TasksPage: React.FC<TasksPageProps> = ({ clientId }) => {
     return <FiCircle size={14} />;
   };
 
+  const handleUpdateMarketingTaskStatus = async (taskId: number, currentStatus: string) => {
+    // Define the status progression
+    const statusProgression = {
+      'Planned': 'In Progress',
+      'In Progress': 'Completed',
+      'Completed': 'Planned'
+    };
+    
+    // Get the next status
+    const nextStatus = statusProgression[currentStatus as keyof typeof statusProgression] || 'Planned';
+    
+    try {
+      const updatedTask = await updateMarketingTaskStatus(taskId, nextStatus);
+      if (updatedTask) {
+        // Update the task in the local state
+        setMarketingTasks(prev => 
+          prev.map(task => task.id === taskId ? {...task, status: nextStatus} : task)
+        );
+      }
+    } catch (err) {
+      console.error('Error updating marketing task status:', err);
+      alert('Failed to update task status. Please try again.');
+    }
+  };
+
   if (loading) return <div>Loading tasks...</div>;
   if (error) return <div style={{ color: 'red' }}>{error}</div>;
 
   return (
     <TasksContainer>
       <TasksHeader>
-        <TasksTitle>Tasks</TasksTitle>
+        <TasksTitle>Project Tasks</TasksTitle>
         <Button onClick={handleAddTask}>
           <FiPlus size={16} /> Add New Task
         </Button>
@@ -358,7 +431,7 @@ const TasksPage: React.FC<TasksPageProps> = ({ clientId }) => {
 
       {tasks.length === 0 ? (
         <EmptyState>
-          <p>No tasks found for this client.</p>
+          <p>No project tasks found for this client.</p>
           <Button onClick={handleAddTask} style={{ margin: '10px auto', display: 'flex' }}>
             <FiPlus size={16} /> Create Your First Task
           </Button>
@@ -376,24 +449,98 @@ const TasksPage: React.FC<TasksPageProps> = ({ clientId }) => {
             </tr>
           </thead>
           <tbody>
-            {tasks.map(task => (
+            {tasks.filter(task => task !== null).map(task => (
               <tr key={task.id}>
                 <td>{task.name}</td>
                 <td>{getProjectName(task.project_id)}</td>
                 <td>
-                  <StatusBadge $status={task.status}>
-                    {renderStatusIcon(task.status)} {task.status.replace('-', ' ')}
+                  <StatusBadge $status={task.status || 'not-started'}>
+                    {renderStatusIcon(task.status || 'not-started')} {(task.status || 'not-started').replace('-', ' ')}
                   </StatusBadge>
                 </td>
-                <td>{task.assignee}</td>
+                <td>{task.assignee || 'Unassigned'}</td>
                 <td>{task.due_date ? new Date(task.due_date).toLocaleDateString() : '-'}</td>
                 <td>
                   <div style={{ display: 'flex' }}>
-                    <ActionButton onClick={() => handleEditTask(task)} title="Edit Task">
-                      <FiEdit2 size={16} />
+                    <ActionButton onClick={() => handleEditTask(task)} title="Edit task">
+                      <FiEdit2 size={14} />
                     </ActionButton>
-                    <ActionButton onClick={() => handleDeleteTask(task.id)} title="Delete Task">
-                      <FiTrash2 size={16} />
+                    <ActionButton onClick={() => handleDeleteTask(task.id)} title="Delete task">
+                      <FiTrash2 size={14} />
+                    </ActionButton>
+                  </div>
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </TasksTable>
+      )}
+
+      {/* Marketing Tasks Section */}
+      <TasksHeader style={{ marginTop: '40px' }}>
+        <TasksTitle>Marketing Campaign Tasks</TasksTitle>
+      </TasksHeader>
+      
+      {marketingLoading ? (
+        <div>Loading marketing tasks...</div>
+      ) : marketingError ? (
+        <div style={{ color: 'red' }}>{marketingError}</div>
+      ) : marketingTasks.length === 0 ? (
+        <EmptyState>
+          <p>No marketing tasks found for this client.</p>
+        </EmptyState>
+      ) : (
+        <TasksTable>
+          <thead>
+            <tr>
+              <th>Task Name</th>
+              <th>Description</th>
+              <th>Status</th>
+              <th>Assigned To</th>
+              <th>Timeline</th>
+              <th>KPIs</th>
+              <th>Actions</th>
+            </tr>
+          </thead>
+          <tbody>
+            {marketingTasks.map(task => (
+              <tr key={task.id}>
+                <td><strong>{task.task_name}</strong></td>
+                <td style={{ maxWidth: '250px', whiteSpace: 'normal' }}>{task.description}</td>
+                <td>
+                  <StatusBadge 
+                    $status={task.status.toLowerCase() === 'planned' ? 'not-started' : 
+                             task.status.toLowerCase() === 'in progress' ? 'in-progress' : 
+                             'completed'}
+                    onClick={() => handleUpdateMarketingTaskStatus(task.id, task.status)}
+                    style={{ cursor: 'pointer' }}
+                    title="Click to change status"
+                  >
+                    {task.status.toLowerCase() === 'planned' ? <FiCircle size={14} /> : 
+                     task.status.toLowerCase() === 'in progress' ? <FiClock size={14} /> : 
+                     <FiCheckCircle size={14} />} {task.status}
+                  </StatusBadge>
+                </td>
+                <td>{task.assigned_to}</td>
+                <td>
+                  <div style={{ fontSize: '13px' }}>
+                    <div><FiCalendar size={12} /> Start: {new Date(task.start_date).toLocaleDateString()}</div>
+                    <div><FiCalendar size={12} /> End: {new Date(task.end_date).toLocaleDateString()}</div>
+                  </div>
+                </td>
+                <td style={{ maxWidth: '200px', whiteSpace: 'normal' }}>
+                  <div style={{ display: 'flex', alignItems: 'flex-start', gap: '5px' }}>
+                    <FiTarget size={14} style={{ marginTop: '3px' }} />
+                    <span style={{ fontSize: '13px' }}>{task.kpi}</span>
+                  </div>
+                </td>
+                <td>
+                  <div style={{ display: 'flex' }}>
+                    <ActionButton 
+                      onClick={() => handleUpdateMarketingTaskStatus(task.id, task.status)} 
+                      title="Change status"
+                    >
+                      <FiBarChart2 size={14} />
                     </ActionButton>
                   </div>
                 </td>

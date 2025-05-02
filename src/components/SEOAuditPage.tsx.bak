@@ -1,0 +1,4041 @@
+import React, { useState, useEffect } from 'react';
+import styled from 'styled-components';
+import { FiPlus, FiTrash2, FiDownload, FiCheckCircle, FiAlertCircle, FiAlertTriangle, FiInfo, FiRefreshCw, FiSearch, FiFileText, FiExternalLink } from 'react-icons/fi';
+import { 
+  generateSEOAudit, 
+  getSEOAuditsByClientId, 
+  deleteSEOAudit,
+  SEOAudit,
+  SEOReport,
+  SEOIssue,
+  PageAnalysis
+} from '../utils/seoService';
+import { getCurrentUser } from '../utils/authService';
+import SEOTechnicalSection from './SEOTechnicalSection';
+import { downloadAsHtml, convertToGoogleDocsFormat } from '../utils/reportExporter';
+import { exportToGoogleDocs as enhancedExport } from '../utils/enhancedReportExporter';
+import { simpleExportToGoogleDocs } from '../utils/simpleReportExporter';
+import { convertToHtmlReport } from '../utils/seoReportConverter';
+
+// Utility functions
+// Get status badge color
+const getStatusColor = (status: string) => {
+  switch (status) {
+    case 'completed':
+      return '#34c759';
+    case 'in-progress':
+      return '#007aff';
+    case 'pending':
+      return '#ff9500';
+    case 'failed':
+      return '#ff3b30';
+    default:
+      return '#8e8e93';
+  }
+};
+
+// Get score color based on value
+const getScoreColor = (score: number) => {
+  if (score >= 80) return '#34c759';
+  if (score >= 60) return '#ff9500';
+  return '#ff3b30';
+};
+
+// Function to format a date
+const formatDate = (dateString: string) => {
+  const date = new Date(dateString);
+  return date.toLocaleDateString('en-US', {
+    year: 'numeric',
+    month: 'long',
+    day: 'numeric',
+    hour: '2-digit',
+    minute: '2-digit'
+  });
+};
+
+// Function to render the Gemini analysis in a structured way
+const renderGeminiAnalysis = (geminiAudit: any) => {
+  console.log('renderGeminiAnalysis called with:', geminiAudit);
+  console.log('geminiAudit type:', typeof geminiAudit);
+  
+  // If geminiAudit is null or undefined, show a message
+  if (!geminiAudit) {
+    console.log('geminiAudit is null or undefined');
+    return (
+      <div>
+        <h2>No AI Analysis Available</h2>
+        <p>The AI analysis data is missing or not yet generated.</p>
+      </div>
+    );
+  }
+  
+  // If there's an error in the Gemini audit
+  if (geminiAudit?.error) {
+    console.log('geminiAudit contains an error:', geminiAudit.error);
+    return (
+      <div>
+        <h2>Analysis Error</h2>
+        <p>{geminiAudit.error}</p>
+        {geminiAudit.errorDetails && <p>Details: {geminiAudit.errorDetails}</p>}
+        {geminiAudit.rawTextPreview && (
+          <div>
+            <h3>Raw Response Preview</h3>
+            <pre style={{ fontSize: '12px', whiteSpace: 'pre-wrap' }}>
+              {geminiAudit.rawTextPreview}
+            </pre>
+          </div>
+        )}
+      </div>
+    );
+  }
+
+  // Check if we have HTML content from the AI
+  if (geminiAudit.htmlContent) {
+    console.log('Rendering HTML content from Gemini');
+    
+    // Create a styled container for the HTML content
+    return (
+      <div className="seo-audit-container">
+        <div 
+          className="seo-audit-content"
+          dangerouslySetInnerHTML={{ __html: geminiAudit.htmlContent }}
+          style={{
+            fontSize: '14px',
+            lineHeight: '1.6',
+            color: '#ffffff',
+            padding: '20px',
+            backgroundColor: '#262626',
+            borderRadius: '8px',
+            width: '100%',
+            maxWidth: '100%',
+            overflow: 'auto',
+            margin: '0 auto'
+          }}
+        />
+        {geminiAudit.timestamp && (
+          <div style={{ fontSize: '12px', color: '#999', marginTop: '16px', textAlign: 'right' }}>
+            Analysis generated on {new Date(geminiAudit.timestamp).toLocaleString()}
+          </div>
+        )}
+      </div>
+    );
+  }
+  
+  // Log the structure of the Gemini audit
+  console.log('Gemini audit structure:', JSON.stringify(geminiAudit).substring(0, 500) + '...');
+  
+  // If the Gemini audit is still a raw JSON object, display it in a structured way
+  if (typeof geminiAudit === 'object') {
+    return (
+      <div>
+        <h2>SEO Analysis Summary</h2>
+        
+        {/* Overall Score */}
+        {geminiAudit.overall && (
+          <div>
+            <h3>Overall Score: <span className={`score-${getScoreClass(geminiAudit.overall.score)}`}>
+              {geminiAudit.overall.score}/100
+            </span></h3>
+            <p>{geminiAudit.overall.summary}</p>
+          </div>
+        )}
+        
+        {/* Technical SEO */}
+        {geminiAudit.technical && (
+          <div>
+            <h2>Technical SEO</h2>
+            <h3>Score: <span className={`score-${getScoreClass(geminiAudit.technical.score)}`}>
+              {geminiAudit.technical.score}/100
+            </span></h3>
+            <p>{geminiAudit.technical.summary}</p>
+            
+            {geminiAudit.technical.issues && geminiAudit.technical.issues.length > 0 && (
+              <div>
+                <h3>Issues</h3>
+                <ul>
+                  {geminiAudit.technical.issues.map((issue: any, index: number) => (
+                    <li key={index}>{issue.title || issue}</li>
+                  ))}
+                </ul>
+              </div>
+            )}
+          </div>
+        )}
+        
+        {/* Content */}
+        {geminiAudit.content && (
+          <div>
+            <h2>Content Analysis</h2>
+            <h3>Score: <span className={`score-${getScoreClass(geminiAudit.content.score)}`}>
+              {geminiAudit.content.score}/100
+            </span></h3>
+            <p>{geminiAudit.content.summary}</p>
+            
+            {geminiAudit.content.issues && geminiAudit.content.issues.length > 0 && (
+              <div>
+                <h3>Issues</h3>
+                <ul>
+                  {geminiAudit.content.issues.map((issue: any, index: number) => (
+                    <li key={index}>{issue.title || issue}</li>
+                  ))}
+                </ul>
+              </div>
+            )}
+          </div>
+        )}
+        
+        {/* On-Page SEO */}
+        {geminiAudit.onPage && (
+          <div>
+            <h2>On-Page SEO</h2>
+            <h3>Score: <span className={`score-${getScoreClass(geminiAudit.onPage.score)}`}>
+              {geminiAudit.onPage.score}/100
+            </span></h3>
+            <p>{geminiAudit.onPage.summary}</p>
+            
+            {geminiAudit.onPage.issues && geminiAudit.onPage.issues.length > 0 && (
+              <div>
+                <h3>Issues</h3>
+                <ul>
+                  {geminiAudit.onPage.issues.map((issue: any, index: number) => (
+                    <li key={index}>{issue.title || issue}</li>
+                  ))}
+                </ul>
+              </div>
+            )}
+          </div>
+        )}
+        
+        {/* Performance */}
+        {geminiAudit.performance && (
+          <div>
+            <h2>Performance</h2>
+            <h3>Score: <span className={`score-${getScoreClass(geminiAudit.performance.score)}`}>
+              {geminiAudit.performance.score}/100
+            </span></h3>
+            <p>{geminiAudit.performance.summary}</p>
+            
+            {geminiAudit.performance.issues && geminiAudit.performance.issues.length > 0 && (
+              <div>
+                <h3>Issues</h3>
+                <ul>
+                  {geminiAudit.performance.issues.map((issue: any, index: number) => (
+                    <li key={index}>{issue.title || issue}</li>
+                  ))}
+                </ul>
+              </div>
+            )}
+          </div>
+        )}
+        
+        {/* Mobile */}
+        {geminiAudit.mobile && (
+          <div>
+            <h2>Mobile Optimization</h2>
+            <h3>Score: <span className={`score-${getScoreClass(geminiAudit.mobile.score)}`}>
+              {geminiAudit.mobile.score}/100
+            </span></h3>
+            <p>{geminiAudit.mobile.summary}</p>
+            
+            {geminiAudit.mobile.issues && geminiAudit.mobile.issues.length > 0 && (
+              <div>
+                <h3>Issues</h3>
+                <ul>
+                  {geminiAudit.mobile.issues.map((issue: any, index: number) => (
+                    <li key={index}>{issue.title || issue}</li>
+                  ))}
+                </ul>
+              </div>
+            )}
+          </div>
+        )}
+        
+        {/* Backlinks */}
+        {geminiAudit.backlinks && (
+          <div>
+            <h2>Backlink Analysis</h2>
+            <h3>Score: <span className={`score-${getScoreClass(geminiAudit.backlinks.score)}`}>
+              {geminiAudit.backlinks.score}/100
+            </span></h3>
+            <p>{geminiAudit.backlinks.summary}</p>
+            
+            {geminiAudit.backlinks.issues && geminiAudit.backlinks.issues.length > 0 && (
+              <div>
+                <h3>Issues</h3>
+                <ul>
+                  {geminiAudit.backlinks.issues.map((issue: any, index: number) => (
+                    <li key={index}>{issue.title || issue}</li>
+                  ))}
+                </ul>
+              </div>
+            )}
+          </div>
+        )}
+        
+        {/* Keywords */}
+        {geminiAudit.keywords && (
+          <div>
+            <h2>Keyword Analysis</h2>
+            <h3>Score: <span className={`score-${getScoreClass(geminiAudit.keywords.score)}`}>
+              {geminiAudit.keywords.score}/100
+            </span></h3>
+            <p>{geminiAudit.keywords.summary}</p>
+            
+            {geminiAudit.keywords.issues && geminiAudit.keywords.issues.length > 0 && (
+              <div>
+                <h3>Issues</h3>
+                <ul>
+                  {geminiAudit.keywords.issues.map((issue: any, index: number) => (
+                    <li key={index}>{issue.title || issue}</li>
+                  ))}
+                </ul>
+              </div>
+            )}
+          </div>
+        )}
+      </div>
+    );
+  }
+  
+  // Fallback for any other format
+  return (
+    <div>
+      <h2>SEO Analysis</h2>
+      <pre style={{ fontSize: '12px', whiteSpace: 'pre-wrap' }}>
+        {typeof geminiAudit === 'string' ? geminiAudit : JSON.stringify(geminiAudit, null, 2)}
+      </pre>
+    </div>
+  );
+};
+
+// Helper function to determine score class
+const getScoreClass = (score: number): string => {
+  if (score >= 80) return 'high';
+  if (score >= 50) return 'medium';
+  return 'low';
+};
+
+// Function to extract and render all issues from the report
+const renderAllIssues = (report: any) => {
+  // Array to store all issues
+  const allIssues: Array<{
+    title: string;
+    description?: string;
+    category: string;
+    severity: string;
+    priority?: number;
+    impact?: string;
+    recommendation?: string;
+  }> = [];
+  
+  // Extract issues from technical SEO
+  if (report.technical?.issues && Array.isArray(report.technical.issues)) {
+    report.technical.issues.forEach((issue: any) => {
+      allIssues.push({
+        title: typeof issue === 'string' ? issue : issue.title || 'Technical Issue',
+        description: issue.description,
+        category: 'Technical SEO',
+        severity: issue.severity || 'medium',
+        priority: issue.priority,
+        impact: issue.impact,
+        recommendation: issue.recommendation
+      });
+    });
+  }
+  
+  // Extract issues from content
+  if (report.content?.issues && Array.isArray(report.content.issues)) {
+    report.content.issues.forEach((issue: any) => {
+      allIssues.push({
+        title: typeof issue === 'string' ? issue : issue.title || 'Content Issue',
+        description: issue.description,
+        category: 'Content',
+        severity: issue.severity || 'medium',
+        priority: issue.priority,
+        impact: issue.impact,
+        recommendation: issue.recommendation
+      });
+    });
+  }
+  
+  // Extract issues from on-page SEO
+  if (report.onPage?.issues && Array.isArray(report.onPage.issues)) {
+    report.onPage.issues.forEach((issue: any) => {
+      allIssues.push({
+        title: typeof issue === 'string' ? issue : issue.title || 'On-Page SEO Issue',
+        description: issue.description,
+        category: 'On-Page SEO',
+        severity: issue.severity || 'medium',
+        priority: issue.priority,
+        impact: issue.impact,
+        recommendation: issue.recommendation
+      });
+    });
+  }
+  
+  // Extract issues from performance
+  if (report.performance?.issues && Array.isArray(report.performance.issues)) {
+    report.performance.issues.forEach((issue: any) => {
+      allIssues.push({
+        title: typeof issue === 'string' ? issue : issue.title || 'Performance Issue',
+        description: issue.description,
+        category: 'Performance',
+        severity: issue.severity || 'medium',
+        priority: issue.priority,
+        impact: issue.impact,
+        recommendation: issue.recommendation
+      });
+    });
+  }
+  
+  // Extract issues from mobile
+  if (report.mobile?.issues && Array.isArray(report.mobile.issues)) {
+    report.mobile.issues.forEach((issue: any) => {
+      allIssues.push({
+        title: typeof issue === 'string' ? issue : issue.title || 'Mobile Issue',
+        description: issue.description,
+        category: 'Mobile',
+        severity: issue.severity || 'medium',
+        priority: issue.priority,
+        impact: issue.impact,
+        recommendation: issue.recommendation
+      });
+    });
+  }
+  
+  // Extract issues from backlinks
+  if (report.backlinks?.issues && Array.isArray(report.backlinks.issues)) {
+    report.backlinks.issues.forEach((issue: any) => {
+      allIssues.push({
+        title: typeof issue === 'string' ? issue : issue.title || 'Backlink Issue',
+        description: issue.description,
+        category: 'Backlinks',
+        severity: issue.severity || 'medium',
+        priority: issue.priority,
+        impact: issue.impact,
+        recommendation: issue.recommendation
+      });
+    });
+  }
+  
+  // Extract issues from keywords
+  if (report.keywords?.issues && Array.isArray(report.keywords.issues)) {
+    report.keywords.issues.forEach((issue: any) => {
+      allIssues.push({
+        title: typeof issue === 'string' ? issue : issue.title || 'Keyword Issue',
+        description: issue.description,
+        category: 'Keywords',
+        severity: issue.severity || 'medium',
+        priority: issue.priority,
+        impact: issue.impact,
+        recommendation: issue.recommendation
+      });
+    });
+  }
+  
+  // Extract issues from Gemini analysis if available
+  if ((report as any)?.geminiAudit) {
+    const geminiAudit = (report as any).geminiAudit;
+    
+    // Try to extract issues from various sections of the Gemini audit
+    const extractGeminiIssues = (section: any, category: string) => {
+      if (section?.issues && Array.isArray(section.issues)) {
+        section.issues.forEach((issue: any) => {
+          allIssues.push({
+            title: typeof issue === 'string' ? issue : issue.title || `${category} Issue`,
+            description: issue.description,
+            category: `${category} (AI)`,
+            severity: issue.severity || 'medium',
+            priority: issue.priority,
+            impact: issue.impact,
+            recommendation: issue.recommendation
+          });
+        });
+      }
+    };
+    
+    // Extract issues from different sections of the Gemini audit
+    if (geminiAudit.technical) extractGeminiIssues(geminiAudit.technical, 'Technical SEO');
+    if (geminiAudit.content) extractGeminiIssues(geminiAudit.content, 'Content');
+    if (geminiAudit.onPage) extractGeminiIssues(geminiAudit.onPage, 'On-Page SEO');
+    if (geminiAudit.performance) extractGeminiIssues(geminiAudit.performance, 'Performance');
+    if (geminiAudit.mobile) extractGeminiIssues(geminiAudit.mobile, 'Mobile');
+    if (geminiAudit.backlinks) extractGeminiIssues(geminiAudit.backlinks, 'Backlinks');
+    if (geminiAudit.keywords) extractGeminiIssues(geminiAudit.keywords, 'Keywords');
+  }
+  
+  // Sort issues by severity (high to low)
+  const severityOrder = { 'high': 0, 'medium': 1, 'low': 2 };
+  allIssues.sort((a, b) => {
+    const severityA = (a.severity?.toLowerCase() || 'medium') as 'high' | 'medium' | 'low';
+    const severityB = (b.severity?.toLowerCase() || 'medium') as 'high' | 'medium' | 'low';
+    return severityOrder[severityA] - severityOrder[severityB];
+  });
+  
+  // If no issues found
+  if (allIssues.length === 0) {
+    return (
+      <div style={{ padding: '20px', textAlign: 'center' }}>
+        <p>No issues found. Your website is performing well!</p>
+      </div>
+    );
+  }
+  
+  // Render all issues
+  return (
+    <div>
+      <IssuesTable>
+        <thead>
+          <tr>
+            <th>Severity</th>
+            <th>Issue</th>
+            <th>Category</th>
+            <th>Recommendation</th>
+          </tr>
+        </thead>
+        <tbody>
+          {allIssues.map((issue, index) => (
+            <tr key={index}>
+              <td>
+                <SeverityBadge $severity={issue.severity || 'medium'}>
+                  {issue.severity?.toUpperCase() || 'MEDIUM'}
+                </SeverityBadge>
+              </td>
+              <td>
+                <strong>{issue.title}</strong>
+                {issue.description && <p>{issue.description}</p>}
+                {issue.impact && <p><strong>Impact:</strong> {issue.impact}</p>}
+              </td>
+              <td>{issue.category}</td>
+              <td>{issue.recommendation || 'Fix the issue to improve SEO performance.'}</td>
+            </tr>
+          ))}
+        </tbody>
+      </IssuesTable>
+    </div>
+  );
+};
+
+interface SEOAuditPageProps {
+  clientId: string;
+}
+
+// Helper function to get critical issues from the report
+const getCriticalIssues = (report: SEOReport | null): SEOIssue[] => {
+  if (!report) return [];
+
+  const allIssues: SEOIssue[] = [];
+  
+  // Collect issues from all sections
+  if (report.technical?.issues) allIssues.push(...report.technical.issues);
+  if (report.content?.issues) allIssues.push(...report.content.issues);
+  if (report.onPage?.issues) allIssues.push(...report.onPage.issues);
+  if (report.performance?.issues) allIssues.push(...report.performance.issues);
+  if (report.mobile?.issues) allIssues.push(...report.mobile.issues);
+  if (report.backlinks?.issues) allIssues.push(...report.backlinks.issues);
+  if (report.keywords?.issues) allIssues.push(...report.keywords.issues);
+  
+  // Collect issues from pages
+  if (report.pages) {
+    report.pages.forEach(page => {
+      if (page.issues) allIssues.push(...page.issues);
+    });
+  }
+  
+  // Return the top 5 most critical issues (high severity, high priority)
+  return allIssues
+    .filter(issue => issue.severity === 'high')
+    .sort((a, b) => (b.priority || 0) - (a.priority || 0))
+    .slice(0, 5);
+};
+
+// Format Gemini output for display
+const formatGeminiOutput = (geminiAudit: any): string => {
+  if (!geminiAudit) return '';
+  
+  // If it's already a string, return it
+  if (typeof geminiAudit === 'string') {
+    // Try to parse it as JSON if it looks like JSON
+    if (geminiAudit.trim().startsWith('{') && geminiAudit.trim().endsWith('}')) {
+      try {
+        const parsedJson = JSON.parse(geminiAudit);
+        return JSON.stringify(parsedJson, null, 2);
+      } catch (e) {
+        // If parsing fails, return the original string
+        return geminiAudit;
+      }
+    }
+    return geminiAudit;
+  }
+  
+  // If it's an object, stringify it with pretty formatting
+  return JSON.stringify(geminiAudit, null, 2);
+};
+
+const SEOAuditPage: React.FC<SEOAuditPageProps> = ({ clientId }) => {
+  const [audits, setAudits] = useState<SEOAudit[]>([]);
+  const [selectedAudit, setSelectedAudit] = useState<SEOAudit | null>(null);
+  const [isLoading, setIsLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [url, setUrl] = useState('');
+  const [showNewAuditForm, setShowNewAuditForm] = useState(false);
+  const [activeTab, setActiveTab] = useState<'summary' | 'technical' | 'content' | 'onpage' | 'performance' | 'keywords' | 'recommendations' | 'aianalysis'>('summary');
+
+  // State for keyword map tab
+  const [keywords, setKeywords] = useState<string[]>([]);
+  const [newKeyword, setNewKeyword] = useState('');
+  const [longTailKeywords, setLongTailKeywords] = useState<{[key: string]: string[]}>({});
+  
+  // Function to generate long-tail keyword suggestions
+  const generateLongTailKeywords = (keyword: string, websiteUrl: string): string[] => {
+    // This is a simplified version - in a real implementation, this would call an API
+    // or use a more sophisticated algorithm to generate relevant long-tail keywords
+    const industry = websiteUrl.includes('coffee') ? 'coffee' : 
+                    websiteUrl.includes('food') ? 'food' : 
+                    websiteUrl.includes('tech') ? 'technology' : 'general';
+    
+    const commonPrefixes = ['best', 'how to', 'where to buy', 'affordable', 'top', 'cheap', 'premium'];
+    const commonSuffixes = ['near me', 'online', 'review', 'comparison', 'guide', 'tips', 'for beginners'];
+    
+    // Industry-specific terms
+    const industryTerms: {[key: string]: string[]} = {
+      coffee: ['organic', 'fair trade', 'arabica', 'espresso', 'roast', 'brew'],
+      food: ['organic', 'healthy', 'recipe', 'homemade', 'restaurant', 'delivery'],
+      technology: ['latest', 'review', 'vs', 'best', 'how to use', 'troubleshooting'],
+      general: ['best', 'top', 'guide', 'how to', 'review']
+    };
+    
+    const results: string[] = [];
+    
+    // Generate 5-7 long-tail variations
+    for (const prefix of commonPrefixes.slice(0, 3)) {
+      results.push(`${prefix} ${keyword}`);
+    }
+    
+    for (const suffix of commonSuffixes.slice(0, 3)) {
+      results.push(`${keyword} ${suffix}`);
+    }
+    
+    // Add industry-specific variations
+    for (const term of industryTerms[industry].slice(0, 3)) {
+      results.push(`${keyword} ${term}`);
+      results.push(`${term} ${keyword}`);
+    }
+    
+    // Add some specific long-tail combinations
+    results.push(`best ${keyword} for ${industryTerms[industry][0]}`);
+    results.push(`how to choose ${keyword} ${industryTerms[industry][1]}`);
+    results.push(`${keyword} vs ${industryTerms[industry][2]} comparison`);
+    
+    // Remove duplicates and limit to 10 suggestions
+    return Array.from(new Set(results)).slice(0, 10);
+  };
+
+  // Load audits when the component mounts
+  useEffect(() => {
+    const loadAudits = async () => {
+      setIsLoading(true);
+      setError(null);
+      
+      try {
+        // Use a default client ID if not available (for testing without Supabase setup)
+        const effectiveClientId = clientId === 'anonymous' ? '00000000-0000-0000-0000-000000000000' : clientId;
+        console.log('Loading audits for client ID:', effectiveClientId);
+        
+        const auditData = await getSEOAuditsByClientId(effectiveClientId);
+        setAudits(auditData);
+        
+        // Select the most recent audit if available
+        if (auditData && auditData.length > 0) {
+          // Sort by created date (newest first) and select the first one
+          const sortedAudits = [...auditData].sort((a, b) => {
+            // If an audit is in progress or processing, prioritize it
+            if (a.status === 'in-progress' || a.status === 'processing') return -1;
+            if (b.status === 'in-progress' || b.status === 'processing') return 1;
+            
+            // Otherwise sort by created date
+            return new Date(b.id).getTime() - new Date(a.id).getTime();
+          });
+          
+          setSelectedAudit(sortedAudits[0]);
+        }
+      } catch (err) {
+        console.error('Error loading SEO audits:', err);
+        setError('Failed to load SEO audits. Please try again.');
+      } finally {
+        setIsLoading(false);
+      }
+    };
+    
+    loadAudits();
+  }, [clientId]);
+
+  // Handle polling for audit updates
+  useEffect(() => {
+    // Only set up polling if we have a selected audit in progress
+    if (!selectedAudit || selectedAudit.status === 'completed' || selectedAudit.status === 'failed') {
+      return;
+    }
+    
+    console.log('Setting up polling for audit:', selectedAudit.id);
+    
+    // Start polling for updates - with in-memory storage, we need to force UI refreshes
+    const pollInterval = setInterval(() => {
+      try {
+        // With in-memory storage, we need to directly access the current audits array
+        // and force a refresh of the UI by creating new references
+        
+        // Get the latest audits from memory (this will have the updated report)
+        const latestAudits = [...audits]; // Create a copy to force React to see changes
+        
+        // Find the current audit in the list
+        const updatedAudit = latestAudits.find(audit => audit && audit.id === selectedAudit?.id);
+        
+        // If we found the audit and it has a status, update the UI
+        if (updatedAudit) {
+          // Force React to see this as a new object by creating a shallow copy
+          const refreshedAudit = {...updatedAudit};
+          
+          // Update the selected audit to trigger a re-render
+          setSelectedAudit(refreshedAudit);
+          
+          console.log('Polling: Audit status =', refreshedAudit.status, 'Has report =', !!refreshedAudit.report);
+          
+          // Debug the report data
+          if (refreshedAudit.report) {
+            console.log('REPORT DATA:', JSON.stringify(refreshedAudit.report, null, 2).substring(0, 500) + '...');
+          }
+          
+          // If the audit is completed or failed, stop polling
+          if (refreshedAudit.status === 'completed' || refreshedAudit.status === 'failed') {
+            console.log('Audit completed or failed, stopping polling');
+            clearInterval(pollInterval);
+          }
+        }
+      } catch (pollError) {
+        console.error('Error polling for audit updates:', pollError);
+        clearInterval(pollInterval);
+      }
+    }, 5000); // Poll every 5 seconds
+    
+    // Clean up the interval when the component unmounts or selectedAudit changes
+    return () => {
+      console.log('Cleaning up polling interval');
+      clearInterval(pollInterval);
+    };
+  }, [selectedAudit?.id, clientId]);
+
+  // Handle creating a new SEO audit
+  const handleCreateAudit = async () => {
+    if (!url) {
+      setError('Please enter a URL to audit');
+      return;
+    }
+    
+    setIsLoading(true);
+    setError(null);
+    
+    try {
+      console.log('Creating new SEO audit for URL:', url);
+      
+      // Get the current user to use their real UUID
+      const user = getCurrentUser();
+      const userId = user?.id || 'anonymous';
+      
+      // Use the real user ID instead of client ID to ensure real audits
+      // Only fall back to anonymous if no user is logged in
+      const userUuid = userId !== 'anonymous' ? userId : '00000000-0000-0000-0000-000000000000';
+      console.log('Using user ID:', userUuid);
+      
+      // Generate a new UUID for each audit - don't reuse existing IDs
+      // Create an initial audit with 'in-progress' status
+      const newAudit = await generateSEOAudit(url, userUuid);
+      
+      console.log('Received new audit:', newAudit);
+      
+      // Verify we have a valid audit object with an ID
+      if (!newAudit || !newAudit.id) {
+        console.error('Invalid audit response:', newAudit);
+        throw new Error('Failed to create audit - invalid response');
+      }
+      
+      // Add the new audit to the list and select it, ensuring no duplicates
+      setAudits(prevAudits => {
+        // Check if this audit ID already exists in the array
+        const exists = prevAudits.some(audit => audit.id === newAudit.id);
+        if (exists) {
+          // If it exists, replace it instead of adding a duplicate
+          return prevAudits.map(audit => 
+            audit.id === newAudit.id ? newAudit : audit
+          );
+        } else {
+          // If it's new, add it to the beginning of the array
+          return [newAudit, ...prevAudits];
+        }
+      });
+      setSelectedAudit(newAudit);
+      setUrl('');
+      setShowNewAuditForm(false);
+      
+      // Refresh the audit list after a short delay to get updated status
+      setTimeout(async () => {
+        try {
+          const refreshedAudits = await getSEOAuditsByClientId(clientId);
+          if (refreshedAudits && Array.isArray(refreshedAudits)) {
+            setAudits(refreshedAudits);
+            
+            // Find and select the newly created audit
+            const createdAudit = refreshedAudits.find(audit => audit.id === newAudit.id);
+            if (createdAudit) {
+              setSelectedAudit(createdAudit);
+            }
+          } else {
+            console.warn('Refreshed audits returned invalid data:', refreshedAudits);
+          }
+        } catch (refreshError) {
+          console.error('Error refreshing audits:', refreshError);
+        }
+      }, 2000);
+    } catch (err: any) {
+      console.error('Error creating SEO audit:', err);
+      setError(`Failed to create SEO audit: ${err.message || 'Unknown error'}`);
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  // Handle deleting an SEO audit
+  const handleDeleteAudit = async (auditId: string) => {
+    if (!window.confirm('Are you sure you want to delete this SEO audit?')) {
+      return;
+    }
+    
+    setIsLoading(true);
+    setError(null);
+    
+    try {
+      await deleteSEOAudit(auditId);
+      
+      // Remove the deleted audit from the list
+      setAudits(prevAudits => prevAudits.filter(audit => audit.id !== auditId));
+      
+      // If the deleted audit was selected, clear the selection
+      if (selectedAudit && selectedAudit.id === auditId) {
+        setSelectedAudit(null);
+      }
+    } catch (err) {
+      console.error('Error deleting SEO audit:', err);
+      setError('Failed to delete SEO audit. Please try again.');
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  // Direct converter function based on seo-report-converter.js
+  const convertSEOReport = (auditResult: any) => {
+    // Get the raw Gemini output
+    const rawOutput = auditResult.geminiAudit?.rawOutput || '';
+    
+    // Try to parse JSON from the raw output
+    let data: any = null;
+    try {
+      // Look for JSON in the raw output
+      const jsonMatch = rawOutput.match(/```json\s*([\s\S]*?)\s*```/) || 
+                        rawOutput.match(/```\s*([\s\S]*?)\s*```/) ||
+                        [null, rawOutput];
+      
+      if (jsonMatch && jsonMatch[1]) {
+        data = JSON.parse(jsonMatch[1].trim());
+      }
+    } catch (error) {
+      console.warn('Could not parse JSON from raw output:', error);
+      // Continue with text-based approach
+    }
+    
+    // If no valid JSON, extract structured data from text
+    if (!data || typeof data !== 'object') {
+      data = extractDataFromText(rawOutput, auditResult.url);
+    }
+    
+    // Generate HTML from the data
+    return generateSEOReportHtml(data);
+  };
+  
+  // Extract structured data from raw text
+  const extractDataFromText = (text: string, url: string) => {
+    // Initialize data structure
+    const data: any = {
+      overall: {
+        summary: '',
+        score: 0,
+        keyFindings: [],
+        quickWins: []
+      },
+      pages: []
+    };
+    
+    // Split text into sections
+    const lines = text.split('\n');
+    let currentSection = '';
+    
+    // Extract domain from URL
+    const domain = url ? new URL(url).hostname : '';
+    
+    // Process each line
+    for (let i = 0; i < lines.length; i++) {
+      const line = lines[i].trim();
+      
+      // Skip empty lines
+      if (!line) continue;
+      
+      // Extract overall summary
+      if (line.includes('SEO Analysis for') || line.includes('Overall Assessment')) {
+        currentSection = 'summary';
+        // Get the next non-empty line as summary
+        let summaryText = '';
+        for (let j = i + 1; j < lines.length; j++) {
+          const nextLine = lines[j].trim();
+          if (nextLine && !nextLine.startsWith('Score:')) {
+            summaryText += nextLine + ' ';
+          }
+          if (nextLine.startsWith('Score:') || nextLine.startsWith('#') || 
+              nextLine.startsWith('Technical SEO') || nextLine.startsWith('Content Analysis') ||
+              nextLine.startsWith('On-Page SEO') || nextLine.startsWith('Performance')) {
+            break;
+          }
+        }
+        data.overall.summary = summaryText.trim();
+      }
+      
+      // Extract score
+      if (line.startsWith('Score:')) {
+        const scoreMatch = line.match(/Score:\s*(\d+)\/100/);
+        if (scoreMatch && scoreMatch[1]) {
+          data.overall.score = parseInt(scoreMatch[1]);
+        }
+      }
+      
+      // Extract key findings
+      if (line.includes('Critical Issues') || line.includes('Key Findings')) {
+        currentSection = 'keyFindings';
+        continue;
+      }
+      
+      // Extract technical issues
+      if (line.includes('Technical SEO')) {
+        currentSection = 'technical';
+        continue;
+      }
+      
+      // Extract content issues
+      if (line.includes('Content Analysis')) {
+        currentSection = 'content';
+        continue;
+      }
+      
+      // Extract on-page issues
+      if (line.includes('On-Page SEO')) {
+        currentSection = 'onPage';
+        continue;
+      }
+      
+      // Extract performance issues
+      if (line.includes('Performance')) {
+        currentSection = 'performance';
+        continue;
+      }
+      
+      // Process list items
+      if (line.startsWith('- ') || line.startsWith('* ')) {
+        const item = line.substring(2).trim();
+        
+        if (currentSection === 'keyFindings') {
+          data.overall.keyFindings.push(item);
+        } else if (currentSection === 'technical' || currentSection === 'content' || 
+                   currentSection === 'onPage' || currentSection === 'performance') {
+          // Add as a quick win if it sounds like an actionable item
+          if (item.toLowerCase().includes('improve') || 
+              item.toLowerCase().includes('fix') || 
+              item.toLowerCase().includes('optimize') ||
+              item.toLowerCase().includes('add') ||
+              item.toLowerCase().includes('remove') ||
+              item.toLowerCase().includes('update')) {
+            data.overall.quickWins.push(item);
+          }
+          
+          // Add as a page issue
+          if (!data.pages[0]) {
+            data.pages[0] = {
+              title: domain,
+              url: url,
+              score: data.overall.score,
+              issues: []
+            };
+          }
+          
+          data.pages[0].issues.push({
+            title: `${currentSection.charAt(0).toUpperCase() + currentSection.slice(1)} Issue`,
+            severity: getSeverityFromText(item),
+            description: item,
+            impact: 'May affect search rankings and user experience',
+            recommendation: getRecommendationFromIssue(item)
+          });
+        }
+      }
+    }
+    
+    return data;
+  };
+  
+  // Helper function to get severity from text
+  const getSeverityFromText = (text: string) => {
+    const lowerText = text.toLowerCase();
+    
+    // Check for critical/high severity indicators
+    if (lowerText.includes('critical') || 
+        lowerText.includes('severe') || 
+        lowerText.includes('broken') ||
+        lowerText.includes('missing') ||
+        lowerText.includes('urgent') ||
+        lowerText.includes('error')) {
+      return 'high';
+    }
+    
+    // Check for low severity indicators
+    if (lowerText.includes('minor') || 
+        lowerText.includes('consider') || 
+        lowerText.includes('could') ||
+        lowerText.includes('might') ||
+        lowerText.includes('suggestion')) {
+      return 'low';
+    }
+    
+    // Default to medium
+    return 'medium';
+  };
+  
+  // Generate HTML from structured data
+  const generateSEOReportHtml = (data: any) => {
+    // Extract overall data
+    const overall = data.overall;
+    
+    // Get score class
+    const getScoreClass = (score: number) => {
+      if (!score) return 'score-medium';
+      if (score >= 80) return 'score-high';
+      if (score >= 60) return 'score-medium';
+      return 'score-low';
+    };
+    
+    // Get domain from summary
+    const getDomainFromSummary = (summary: string) => {
+      if (!summary) return 'Website';
+      const match = summary.match(/([a-zA-Z0-9-]+\.[a-zA-Z0-9-.]+)/);
+      return match ? match[1] : 'Website';
+    };
+    
+    // Capitalize first letter
+    const capitalizeFirstLetter = (string: string) => {
+      if (!string) return '';
+      return string.charAt(0).toUpperCase() + string.slice(1);
+    };
+    
+    // Begin HTML document
+    let html = `<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>${data.overall ? 'SEO Audit: ' + getDomainFromSummary(data.overall.summary) : 'SEO Audit Report'}</title>
+    <style>
+        :root {
+            --primary: #8B4513;
+            --secondary: #D2B48C;
+            --light: #F5F5DC;
+            --dark: #3E2723;
+            --accent: #FF6F00;
+            --white: #FFFFFF;
+            --gray: #E0E0E0;
+            --gray-dark: #707070;
+            --success: #4CAF50;
+            --warning: #FF9800;
+            --danger: #F44336;
+            --info: #2196F3;
+        }
+        
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
+        
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            line-height: 1.6;
+            color: #333;
+            background-color: var(--light);
+            padding: 20px;
+        }
+        
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            background-color: var(--white);
+            border-radius: 8px;
+            box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+            overflow: hidden;
+        }
+        
+        header {
+            background-color: var(--primary);
+            color: var(--white);
+            padding: 30px;
+            text-align: center;
+        }
+        
+        header h1 {
+            font-size: 2.5rem;
+            margin-bottom: 10px;
+        }
+        
+        header p {
+            font-size: 1.2rem;
+            opacity: 0.9;
+        }
+        
+        .date {
+            background-color: var(--secondary);
+            color: var(--dark);
+            text-align: right;
+            padding: 10px 30px;
+            font-weight: 500;
+        }
+        
+        .section {
+            padding: 30px;
+            border-bottom: 1px solid var(--gray);
+        }
+        
+        .section h2 {
+            color: var(--primary);
+            margin-bottom: 20px;
+            border-bottom: 2px solid var(--secondary);
+            padding-bottom: 10px;
+        }
+        
+        .score-container {
+            display: flex;
+            gap: 20px;
+            margin-bottom: 20px;
+            flex-wrap: wrap;
+        }
+        
+        .score-box {
+            background-color: var(--light);
+            border-radius: 8px;
+            padding: 20px;
+            flex: 1;
+            min-width: 300px;
+            display: flex;
+            align-items: center;
+        }
+        
+        .score {
+            font-size: 3.5rem;
+            font-weight: bold;
+            width: 100px;
+            height: 100px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            margin-right: 20px;
+            box-shadow: 0 2px 5px rgba(0, 0, 0, 0.1);
+        }
+        
+        .score-high {
+            background-color: #E8F5E9;
+            color: #2E7D32;
+        }
+        
+        .score-medium {
+            background-color: #FFF8E1;
+            color: #FF8F00;
+        }
+        
+        .score-low {
+            background-color: #FFEBEE;
+            color: #C62828;
+        }
+        
+        .score-details {
+            flex: 1;
+        }
+        
+        .score-details h3 {
+            color: var(--dark);
+            margin-bottom: 10px;
+        }
+        
+        .summary {
+            background-color: var(--white);
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+            margin-bottom: 20px;
+        }
+        
+        .meta-info {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+            gap: 20px;
+            margin-bottom: 30px;
+        }
+        
+        .meta-box {
+            background-color: var(--light);
+            padding: 15px;
+            border-radius: 8px;
+        }
+        
+        .meta-box h4 {
+            color: var(--primary);
+            margin-bottom: 10px;
+            border-bottom: 1px solid var(--secondary);
+            padding-bottom: 5px;
+        }
+        
+        .findings-section h3 {
+            color: var(--primary);
+            margin: 20px 0 15px;
+        }
+        
+        .findings-list {
+            list-style-type: none;
+        }
+        
+        .findings-list li {
+            background-color: var(--light);
+            margin-bottom: 10px;
+            padding: 15px;
+            border-radius: 5px;
+            border-left: 5px solid var(--secondary);
+        }
+        
+        .quick-wins-list {
+            list-style-type: none;
+        }
+        
+        .quick-wins-list li {
+            background-color: #E8F5E9;
+            margin-bottom: 10px;
+            padding: 15px;
+            border-radius: 5px;
+            border-left: 5px solid #81C784;
+        }
+        
+        .page-card {
+            background-color: var(--white);
+            margin-bottom: 20px;
+            border-radius: 8px;
+            box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+            overflow: hidden;
+        }
+        
+        .page-header {
+            background-color: var(--secondary);
+            padding: 15px 20px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        
+        .page-title {
+            flex: 1;
+        }
+        
+        .page-title h3 {
+            color: var(--dark);
+            margin-bottom: 5px;
+        }
+        
+        .page-title p {
+            color: var(--dark);
+            opacity: 0.8;
+            font-size: 0.9rem;
+        }
+        
+        .page-score {
+            font-size: 1.8rem;
+            font-weight: bold;
+            width: 60px;
+            height: 60px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            box-shadow: 0 2px 5px rgba(0, 0, 0, 0.1);
+        }
+        
+        .page-body {
+            padding: 20px;
+        }
+        
+        .page-meta {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 15px;
+            margin-bottom: 20px;
+        }
+        
+        .page-meta-item {
+            background-color: var(--light);
+            padding: 10px;
+            border-radius: 5px;
+        }
+        
+        .page-meta-item h4 {
+            font-size: 0.9rem;
+            color: var(--dark);
+            margin-bottom: 5px;
+        }
+        
+        .issues-container {
+            margin-top: 20px;
+        }
+        
+        .issue-card {
+            background-color: var(--light);
+            border-radius: 5px;
+            padding: 15px;
+            margin-bottom: 15px;
+        }
+        
+        .issue-header {
+            display: flex;
+            justify-content: space-between;
+            margin-bottom: 10px;
+        }
+        
+        .issue-title {
+            font-weight: bold;
+            color: var(--dark);
+        }
+        
+        .issue-severity {
+            padding: 3px 8px;
+            border-radius: 20px;
+            font-size: 0.8rem;
+            font-weight: bold;
+        }
+        
+        .severity-high {
+            background-color: #FFEBEE;
+            color: #C62828;
+        }
+        
+        .severity-medium {
+            background-color: #FFF8E1;
+            color: #FF8F00;
+        }
+        
+        .severity-low {
+            background-color: #E8F5E9;
+            color: #2E7D32;
+        }
+        
+        .issue-description {
+            margin-bottom: 10px;
+        }
+        
+        .issue-impact {
+            margin-bottom: 10px;
+            font-style: italic;
+        }
+        
+        .issue-recommendation {
+            background-color: #E3F2FD;
+            padding: 10px;
+            border-radius: 5px;
+            border-left: 4px solid #2196F3;
+        }
+        
+        .footer {
+            text-align: center;
+            padding: 20px;
+            background-color: var(--secondary);
+            color: var(--dark);
+        }
+        
+        @media (max-width: 768px) {
+            .page-header {
+                flex-direction: column;
+            }
+            
+            .page-score {
+                margin-top: 10px;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1>SEO Audit Report</h1>
+            <p>${data.overall ? getDomainFromSummary(data.overall.summary) : 'Website Analysis'}</p>
+        </header>
+        
+        <div class="date">
+            <p>Generated: ${new Date().toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' })}</p>
+        </div>`;
+
+    // Overall section
+    if (overall) {
+      html += `
+        <div class="section">
+            <h2>Overview</h2>
+            <div class="score-container">
+                <div class="score-box">
+                    <div class="score ${getScoreClass(overall.score)}">${overall.score}</div>
+                    <div class="score-details">
+                        <h3>Overall Score</h3>
+                        <p>Based on technical SEO, content, and user experience factors</p>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="summary">
+                <h3>Executive Summary</h3>
+                <p>${overall.summary}</p>
+            </div>
+            
+            <div class="meta-info">
+                <div class="meta-box">
+                    <h4>Domain Authority</h4>
+                    <p>${overall.domainAuthority || 'Not specified'}</p>
+                </div>
+                <div class="meta-box">
+                    <h4>Indexation Status</h4>
+                    <p>${overall.indexationStatus || 'Not specified'}</p>
+                </div>
+                <div class="meta-box">
+                    <h4>Competitive Landscape</h4>
+                    <p>${overall.competitiveLandscape || 'Not specified'}</p>
+                </div>
+            </div>
+            
+            <div class="findings-section">
+                <h3>Key Findings</h3>
+                <ul class="findings-list">
+                    ${overall.keyFindings && overall.keyFindings.length > 0 ? 
+                      overall.keyFindings.map((finding: string) => `<li>${finding}</li>`).join('') : 
+                      '<li>No key findings provided</li>'}
+                </ul>
+            </div>
+            
+            <div class="findings-section">
+                <h3>Quick Wins</h3>
+                <ul class="quick-wins-list">
+                    ${overall.quickWins && overall.quickWins.length > 0 ? 
+                      overall.quickWins.map((win: string) => `<li>${win}</li>`).join('') : 
+                      '<li>No quick wins provided</li>'}
+                </ul>
+            </div>
+        </div>`;
+    }
+
+    // Pages section
+    if (data.pages && data.pages.length > 0) {
+      html += `
+        <div class="section">
+            <h2>Page Analysis</h2>`;
+
+      // Add each page
+      data.pages.forEach((page: any) => {
+        html += `
+            <div class="page-card">
+                <div class="page-header">
+                    <div class="page-title">
+                        <h3>${page.title || 'Page'}</h3>
+                        <p>${page.url || 'URL not specified'}</p>
+                    </div>
+                    <div class="page-score ${getScoreClass(page.score)}">${page.score || '?'}</div>
+                </div>
+                
+                <div class="page-body">
+                    <div class="page-meta">
+                        <div class="page-meta-item">
+                            <h4>Page Type</h4>
+                            <p>${page.type || 'Not specified'}</p>
+                        </div>
+                        <div class="page-meta-item">
+                            <h4>Breadcrumb Path</h4>
+                            <p>${page.breadcrumbPath || 'Not specified'}</p>
+                        </div>
+                        <div class="page-meta-item">
+                            <h4>Indexability</h4>
+                            <p>${page.indexability ? page.indexability.status : 'Not specified'}</p>
+                        </div>
+                    </div>
+                    
+                    <div class="issues-container">
+                        <h3>Issues Identified</h3>`;
+
+        // Add issues if they exist
+        if (page.issues && page.issues.length > 0) {
+          page.issues.forEach((issue: any) => {
+            html += `
+                        <div class="issue-card">
+                            <div class="issue-header">
+                                <div class="issue-title">${issue.title || 'Issue'}</div>
+                                <div class="issue-severity severity-${issue.severity || 'medium'}">${capitalizeFirstLetter(issue.severity || 'medium')}</div>
+                            </div>
+                            <div class="issue-description">${issue.description || 'No description provided'}</div>
+                            <div class="issue-impact"><strong>Impact:</strong> ${issue.impact || 'Impact not specified'}</div>
+                            <div class="issue-recommendation"><strong>Recommendation:</strong> ${issue.recommendation || 'No recommendation provided'}</div>
+                        </div>`;
+          });
+        } else {
+          html += `<p>No issues identified for this page.</p>`;
+        }
+
+        html += `
+                    </div>
+                </div>
+            </div>`;
+      });
+
+      html += `
+        </div>`;
+    }
+
+    // Footer
+    html += `
+        <div class="footer">
+            <p>Generated by MarketNest SEO Audit Tool</p>
+        </div>
+    </div>
+</body>
+</html>`;
+
+    return html;
+  };
+  
+  // Helper function to get recommendation from issue
+  const getRecommendationFromIssue = (issue: string) => {
+    // Generate a recommendation based on the issue text
+    const lowerIssue = issue.toLowerCase();
+    
+    if (lowerIssue.includes('broken')) {
+      return 'Fix broken links or resources to ensure proper user experience and crawlability.';
+    }
+    
+    if (lowerIssue.includes('missing')) {
+      return 'Add the missing elements to improve SEO and user experience.';
+    }
+    
+    if (lowerIssue.includes('slow') || lowerIssue.includes('speed') || lowerIssue.includes('performance')) {
+      return 'Optimize page loading speed by compressing images, minifying code, and leveraging browser caching.';
+    }
+    
+    if (lowerIssue.includes('meta') || lowerIssue.includes('title') || lowerIssue.includes('description')) {
+      return 'Optimize meta tags with relevant keywords and compelling descriptions to improve click-through rates.';
+    }
+    
+    if (lowerIssue.includes('mobile') || lowerIssue.includes('responsive')) {
+      return 'Ensure the website is fully responsive and provides a good experience on all device types.';
+    }
+    
+    if (lowerIssue.includes('content') || lowerIssue.includes('thin')) {
+      return 'Enhance content quality and depth to provide more value to users and improve search rankings.';
+    }
+    
+    if (lowerIssue.includes('heading') || lowerIssue.includes('h1') || lowerIssue.includes('h2')) {
+      return 'Implement a proper heading structure with relevant keywords to improve content hierarchy and SEO.';
+    }
+    
+    // Default recommendation
+    return 'Address this issue to improve overall SEO performance and user experience.';
+  };
+  
+  // Handle export to Google Docs
+  const handleExportToGoogleDocs = () => {
+    try {
+      // Use our direct converter function
+      const html = convertSEOReport(selectedAudit);
+      
+      // Open in a new tab
+      const newWindow = window.open();
+      if (newWindow) {
+        newWindow.document.write(html);
+        newWindow.document.close();
+      }
+    } catch (error) {
+      console.error('Error with direct converter:', error);
+      
+      // Fallback chain
+      try {
+        const html = simpleExportToGoogleDocs(selectedAudit);
+        const newWindow = window.open();
+        if (newWindow) {
+          newWindow.document.write(html);
+          newWindow.document.close();
+        }
+      } catch (fallbackError) {
+        console.error('All export methods failed:', fallbackError);
+        alert('Could not generate report. Please try again later.');
+    <Container>
+      <Header>
+        <Title>SEO Audit</Title>
+      </Header>
+
+      {selectedAudit && (
+        <ContentContainer>
+          <MainContent>
+            {(selectedAudit.report as any)?.geminiAudit && (
+              <div style={{ marginTop: '20px', padding: '20px', backgroundColor: '#1a1a1a', borderRadius: '8px' }}>
+                <h3 style={{ marginBottom: '15px', color: '#0df9b6' }}>AI-Powered SEO Analysis</h3>
+                <div style={{ 
+                  backgroundColor: '#262626', 
+                  padding: '20px', 
+                  borderRadius: '8px',
+                  maxHeight: '600px',
+                  overflowY: 'auto',
+                  fontFamily: 'monospace',
+                  whiteSpace: 'pre-wrap',
+                  fontSize: '14px',
+                  lineHeight: '1.6'
+                }}>
+                  {typeof (selectedAudit.report as any).geminiAudit === 'string' ? (
+                    <pre style={{ margin: 0, whiteSpace: 'pre-wrap' }}>
+                      {(selectedAudit.report as any).geminiAudit}
+                    </pre>
+                  ) : (
+                    <pre style={{ margin: 0, whiteSpace: 'pre-wrap' }}>
+                      {JSON.stringify((selectedAudit.report as any).geminiAudit, null, 2)}
+                    </pre>
+                  )}
+                </div>
+              </div>
+            )}
+          </MainContent>
+        </ContentContainer>
+      )}
+    </Container>
+  </GlobalStyle>
+);
+                                <div>
+                                  <div style={{ fontSize: '48px', fontWeight: 'bold', color: getScoreColor(selectedAudit.report.overall.score) }}>
+                                    {selectedAudit.report.overall.score}/100
+                                  </div>
+                                  <div style={{ fontSize: '14px', color: '#999' }}>
+                                    {selectedAudit.report.overall.score >= 80 ? 'Excellent' : 
+                                     selectedAudit.report.overall.score >= 60 ? 'Good' : 
+                                     selectedAudit.report.overall.score >= 40 ? 'Fair' : 'Poor'}
+                                  </div>
+                                </div>
+                                <div style={{ width: '60%' }}>
+                                  {/* Score breakdown by category */}
+                                  <div style={{ marginBottom: '10px' }}>
+                                    <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '5px' }}>
+                                      <span>Technical</span>
+                                      <span>{selectedAudit.report.technical?.score || 'N/A'}/100</span>
+                                    </div>
+                                    <div style={{ height: '8px', backgroundColor: '#333', borderRadius: '4px', overflow: 'hidden' }}>
+                                      <div style={{ 
+                                        height: '100%', 
+                                        width: `${selectedAudit.report.technical?.score || 0}%`, 
+                                        backgroundColor: getScoreColor(selectedAudit.report.technical?.score || 0),
+                                        borderRadius: '4px'
+                                      }}></div>
+                                    </div>
+                                  </div>
+                                  
+                                  <div style={{ marginBottom: '10px' }}>
+                                    <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '5px' }}>
+                                      <span>Content</span>
+                                      <span>{selectedAudit.report.content?.score || 'N/A'}/100</span>
+                                    </div>
+                                    <div style={{ height: '8px', backgroundColor: '#333', borderRadius: '4px', overflow: 'hidden' }}>
+                                      <div style={{ 
+                                        height: '100%', 
+                                        width: `${selectedAudit.report.content?.score || 0}%`, 
+                                        backgroundColor: getScoreColor(selectedAudit.report.content?.score || 0),
+                                        borderRadius: '4px'
+                                      }}></div>
+                                    </div>
+                                  </div>
+                                  
+                                  <div style={{ marginBottom: '10px' }}>
+                                    <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '5px' }}>
+                                      <span>On-Page</span>
+                                      <span>{selectedAudit.report.onPage?.score || 'N/A'}/100</span>
+                                    </div>
+                                    <div style={{ height: '8px', backgroundColor: '#333', borderRadius: '4px', overflow: 'hidden' }}>
+                                      <div style={{ 
+                                        height: '100%', 
+                                        width: `${selectedAudit.report.onPage?.score || 0}%`, 
+                                        backgroundColor: getScoreColor(selectedAudit.report.onPage?.score || 0),
+                                        borderRadius: '4px'
+                                      }}></div>
+                                    </div>
+                                  </div>
+                                  
+                                  <div style={{ marginBottom: '10px' }}>
+                                    <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '5px' }}>
+                                      <span>Performance</span>
+                                      <span>{selectedAudit.report.performance?.score || 'N/A'}/100</span>
+                                    </div>
+                                    <div style={{ height: '8px', backgroundColor: '#333', borderRadius: '4px', overflow: 'hidden' }}>
+                                      <div style={{ 
+                                        height: '100%', 
+                                        width: `${selectedAudit.report.performance?.score || 0}%`, 
+                                        backgroundColor: getScoreColor(selectedAudit.report.performance?.score || 0),
+                                        borderRadius: '4px'
+                                      }}></div>
+                                    </div>
+                                  </div>
+                                </div>
+                              </div>
+                            </div>
+                            
+                            {/* Top Critical Issues */}
+                            <div style={{ marginTop: '20px' }}>
+                              <h3 style={{ marginBottom: '15px', color: '#0df9b6' }}>Critical Issues</h3>
+                              <div style={{ backgroundColor: '#1a1a1a', padding: '20px', borderRadius: '8px' }}>
+                                {getCriticalIssues(selectedAudit.report).length > 0 ? (
+                                  <div>
+                                    {getCriticalIssues(selectedAudit.report).map((issue, index) => (
+                                      <div key={index} style={{ 
+                                        marginBottom: '15px', 
+                                        padding: '15px', 
+                                        backgroundColor: '#262626', 
+                                        borderRadius: '5px',
+                                        borderLeft: '4px solid #ff3b30'
+                                      }}>
+                                        <div style={{ fontWeight: 'bold', marginBottom: '8px' }}>{issue.title}</div>
+                                        <div style={{ fontSize: '14px', marginBottom: '8px' }}>{issue.description}</div>
+                                        {issue.recommendation && (
+                                          <div style={{ fontSize: '14px', color: '#0df9b6' }}>
+                                            <strong>Recommendation:</strong> {issue.recommendation}
+                                          </div>
+                                        )}
+                                      </div>
+                                    ))}
+                                  </div>
+                                ) : (
+                                  <div style={{ display: 'flex', alignItems: 'center', color: '#34c759' }}>
+                                    <FiCheckCircle style={{ marginRight: '8px' }} /> No critical issues found
+                                  </div>
+                                )}
+                              </div>
+                            </div>
+                            
+                            {/* AI Insights - Full Gemini Output */}
+                            {(selectedAudit.report as any)?.geminiAudit && (
+                              <div style={{ marginTop: '20px', padding: '20px', backgroundColor: '#1a1a1a', borderRadius: '8px' }}>
+                                <h3 style={{ marginBottom: '15px', color: '#0df9b6' }}>AI-Powered SEO Analysis</h3>
+                                <div style={{ 
+                                  backgroundColor: '#262626', 
+                                  padding: '20px', 
+                                  borderRadius: '8px',
+                                  maxHeight: '600px',
+                                  overflowY: 'auto',
+                                  fontFamily: 'monospace',
+                                  whiteSpace: 'pre-wrap',
+                                  fontSize: '14px',
+                                  lineHeight: '1.6'
+                                }}>
+                                  {typeof (selectedAudit.report as any).geminiAudit === 'string' ? (
+                                    <pre style={{ margin: 0, whiteSpace: 'pre-wrap' }}>
+                                      {(selectedAudit.report as any).geminiAudit}
+                                    </pre>
+                                  ) : (
+                                    <pre style={{ margin: 0, whiteSpace: 'pre-wrap' }}>
+                                      {JSON.stringify((selectedAudit.report as any).geminiAudit, null, 2)}
+                                    </pre>
+                                  )}
+                                </div>
+                                <div style={{ textAlign: 'center', marginTop: '15px' }}>
+                                  <button 
+                                    onClick={() => setActiveTab('aianalysis')}
+                                    style={{ 
+                                      padding: '8px 16px', 
+                                      backgroundColor: '#0df9b6', 
+                                      color: '#000', 
+                                      border: 'none', 
+                                      borderRadius: '4px',
+                                      cursor: 'pointer',
+                                      fontWeight: 'bold'
+                                    }}
+                                  >
+                                    View in Full Screen
+                                  </button>
+                                </div>
+                              </div>
+                            )}
+                          </SummaryCard>
+                        </>
+                      )}
+                      
+                      {/* Technical SEO Tab */}
+                      {activeTab === 'technical' && selectedAudit?.report && (
+                        <>
+                          <SummaryCard>
+                            <SectionTitle>Technical SEO Analysis</SectionTitle>
+                            <SummaryText>
+                              Analysis of technical aspects that affect your website's search engine visibility and crawlability.
+                            </SummaryText>
+                            
+                            <div style={{ marginTop: '20px' }}>
+                              <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '20px' }}>
+                                <div style={{ display: 'flex', gap: '10px' }}>
+                                  <div style={{ display: 'flex', alignItems: 'center', gap: '5px' }}>
+                                    <div style={{ width: '12px', height: '12px', borderRadius: '50%', backgroundColor: '#ff3b30' }}></div>
+                                    <span>Critical</span>
+                                  </div>
+                                  <div style={{ display: 'flex', alignItems: 'center', gap: '5px' }}>
+                                    <div style={{ width: '12px', height: '12px', borderRadius: '50%', backgroundColor: '#ff9500' }}></div>
+                                    <span>Warning</span>
+                                  </div>
+                                  <div style={{ display: 'flex', alignItems: 'center', gap: '5px' }}>
+                                    <div style={{ width: '12px', height: '12px', borderRadius: '50%', backgroundColor: '#34c759' }}></div>
+                                    <span>Info</span>
+                                  </div>
+                                </div>
+                              </div>
+                              
+                              <div style={{ backgroundColor: '#1a1a1a', padding: '20px', borderRadius: '8px', marginBottom: '30px' }}>
+                                <h3 style={{ color: '#0df9b6', marginBottom: '15px', borderBottom: '1px solid #333', paddingBottom: '10px' }}>Technical Issues</h3>
+                                {selectedAudit.report.technical?.issues && selectedAudit.report.technical.issues.length > 0 ? (
+                                  <div>
+                                    {selectedAudit.report.technical.issues.map((issue: any, index: number) => (
+                                      <div key={`tech-${index}`} style={{ marginBottom: '20px', padding: '15px', backgroundColor: '#262626', borderRadius: '5px', borderLeft: `4px solid ${issue.severity === 'critical' ? '#ff3b30' : issue.severity === 'warning' ? '#ff9500' : '#34c759'}` }}>
+                                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '10px' }}>
+                                          <h4 style={{ margin: '0', color: '#fff', fontWeight: 'bold' }}>
+                                            {typeof issue === 'string' ? issue : issue.title || 'Technical Issue'}
+                                          </h4>
+                                          {issue.severity && (
+                                            <span style={{
+                                              padding: '3px 8px',
+                                              borderRadius: '4px',
+                                              fontSize: '12px',
+                                              backgroundColor: issue.severity === 'critical' ? '#ff3b30' : issue.severity === 'warning' ? '#ff9500' : '#34c759',
+                                              color: '#000',
+                                              fontWeight: 'bold'
+                                            }}>
+                                              {issue.severity.toUpperCase()}
+                                            </span>
+                                          )}
+                                        </div>
+                                        {issue.description && (
+                                          <p style={{ margin: '10px 0', fontSize: '14px' }}>{issue.description}</p>
+                                        )}
+                                        {issue.recommendation && (
+                                          <div style={{ marginTop: '10px', fontSize: '14px' }}>
+                                            <strong style={{ color: '#0df9b6' }}>Recommendation:</strong>
+                                            <p style={{ margin: '5px 0 0 0' }}>{issue.recommendation}</p>
+                                          </div>
+                                        )}
+                                      </div>
+                                    ))}
+                                  </div>
+                                ) : (
+                                  <p style={{ color: '#34c759' }}><FiCheckCircle style={{ marginRight: '8px' }} /> No technical issues found</p>
+                                )}
+                              </div>
+                              
+                              <div style={{ backgroundColor: '#1a1a1a', padding: '20px', borderRadius: '8px', marginBottom: '30px' }}>
+                                <h3 style={{ color: '#0df9b6', marginBottom: '15px', borderBottom: '1px solid #333', paddingBottom: '10px' }}>Content Issues</h3>
+                                {selectedAudit.report.content?.issues && selectedAudit.report.content.issues.length > 0 ? (
+                                  <div>
+                                    {selectedAudit.report.content.issues.map((issue: any, index: number) => (
+                                      <div key={`content-${index}`} style={{ marginBottom: '20px', padding: '15px', backgroundColor: '#262626', borderRadius: '5px', borderLeft: `4px solid ${issue.severity === 'critical' ? '#ff3b30' : issue.severity === 'warning' ? '#ff9500' : '#34c759'}` }}>
+                                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '10px' }}>
+                                          <h4 style={{ margin: '0', color: '#fff', fontWeight: 'bold' }}>
+                                            {typeof issue === 'string' ? issue : issue.title || 'Content Issue'}
+                                          </h4>
+                                          {issue.severity && (
+                                            <span style={{
+                                              padding: '3px 8px',
+                                              borderRadius: '4px',
+                                              fontSize: '12px',
+                                              backgroundColor: issue.severity === 'critical' ? '#ff3b30' : issue.severity === 'warning' ? '#ff9500' : '#34c759',
+                                              color: '#000',
+                                              fontWeight: 'bold'
+                                            }}>
+                                              {issue.severity.toUpperCase()}
+                                            </span>
+                                          )}
+                                        </div>
+                                        {issue.description && (
+                                          <p style={{ margin: '10px 0', fontSize: '14px' }}>{issue.description}</p>
+                                        )}
+                                        {issue.recommendation && (
+                                          <div style={{ marginTop: '10px', fontSize: '14px' }}>
+                                            <strong style={{ color: '#0df9b6' }}>Recommendation:</strong>
+                                            <p style={{ margin: '5px 0 0 0' }}>{issue.recommendation}</p>
+                                          </div>
+                                        )}
+                                      </div>
+                                    ))}
+                                  </div>
+                                ) : (
+                                  <p style={{ color: '#34c759' }}><FiCheckCircle style={{ marginRight: '8px' }} /> No content issues found</p>
+                                )}
+                              </div>
+                              
+                              <div style={{ backgroundColor: '#1a1a1a', padding: '20px', borderRadius: '8px' }}>
+                                <h3 style={{ color: '#0df9b6', marginBottom: '15px', borderBottom: '1px solid #333', paddingBottom: '10px' }}>On-Page Issues</h3>
+                                {selectedAudit.report.onPage?.issues && selectedAudit.report.onPage.issues.length > 0 ? (
+                                  <div>
+                                    {selectedAudit.report.onPage.issues.map((issue: any, index: number) => (
+                                      <div key={`onpage-${index}`} style={{ marginBottom: '20px', padding: '15px', backgroundColor: '#262626', borderRadius: '5px', borderLeft: `4px solid ${issue.severity === 'critical' ? '#ff3b30' : issue.severity === 'warning' ? '#ff9500' : '#34c759'}` }}>
+                                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '10px' }}>
+                                          <h4 style={{ margin: '0', color: '#fff', fontWeight: 'bold' }}>
+                                            {typeof issue === 'string' ? issue : issue.title || 'On-Page Issue'}
+                                          </h4>
+                                          {issue.severity && (
+                                            <span style={{
+                                              padding: '3px 8px',
+                                              borderRadius: '4px',
+                                              fontSize: '12px',
+                                              backgroundColor: issue.severity === 'critical' ? '#ff3b30' : issue.severity === 'warning' ? '#ff9500' : '#34c759',
+                                              color: '#000',
+                                              fontWeight: 'bold'
+                                            }}>
+                                              {issue.severity.toUpperCase()}
+                                            </span>
+                                          )}
+                                        </div>
+                                        {issue.description && (
+                                          <p style={{ margin: '10px 0', fontSize: '14px' }}>{issue.description}</p>
+                                        )}
+                                        {issue.recommendation && (
+                                          <div style={{ marginTop: '10px', fontSize: '14px' }}>
+                                            <strong style={{ color: '#0df9b6' }}>Recommendation:</strong>
+                                            <p style={{ margin: '5px 0 0 0' }}>{issue.recommendation}</p>
+                                          </div>
+                                        )}
+                                      </div>
+                                    ))}
+                                  </div>
+                                ) : (
+                                  <p style={{ color: '#34c759' }}><FiCheckCircle style={{ marginRight: '8px' }} /> No on-page issues found</p>
+                                )}
+                              </div>
+                            </div>
+                          </SummaryCard>
+                        </>
+                      )}
+                      
+                      {activeTab === 'aianalysis' && selectedAudit && (
+                        <>
+                          <SummaryCard>
+                            <SectionTitle>AI-Powered SEO Analysis</SectionTitle>
+                            <SummaryText>
+                              Comprehensive analysis powered by Google's Gemini AI
+                            </SummaryText>
+                            {(() => {
+                              console.log('AI Analysis tab selected');
+                              console.log('Selected audit:', selectedAudit);
+                              console.log('Report structure:', selectedAudit?.report ? Object.keys(selectedAudit.report) : 'No report');
+                              console.log('Gemini audit available:', (selectedAudit.report as any)?.geminiAudit ? 'Yes' : 'No');
+                              
+                              if ((selectedAudit.report as any)?.geminiAudit) {
+                                console.log('Gemini audit data type:', typeof (selectedAudit.report as any).geminiAudit);
+                                console.log('Gemini audit keys:', Object.keys((selectedAudit.report as any).geminiAudit));
+                                return (
+                                  <div style={{ maxHeight: '600px', overflow: 'auto' }}>
+                                    <AIAnalysisContainer>
+                                      <div dangerouslySetInnerHTML={{ __html: (selectedAudit.report as any)?.geminiAudit }} />
+                                    </AIAnalysisContainer>
+                                  </div>
+                                );
+                              } else {
+                                return (
+                                  <SummaryText>
+                                    AI analysis is still processing or unavailable. Please check back in a few minutes.
+                                    <br/><br/>
+                                    <strong>Debug Info:</strong><br/>
+                                    Report available: {selectedAudit?.report ? 'Yes' : 'No'}<br/>
+                                    Report keys: {selectedAudit?.report ? Object.keys(selectedAudit.report).join(', ') : 'None'}<br/>
+                                    Status: {selectedAudit?.status}<br/>
+                                    Last updated: {selectedAudit?.updated_at}
+                                  </SummaryText>
+                                );
+                              }
+                            })()}
+                          </SummaryCard>
+                        </>
+                      )}
+                      
+                      {/* Content Tab */}
+                      {activeTab === 'content' && selectedAudit?.report && (
+                        <>
+                          <SummaryCard>
+                            <SectionTitle>Content Analysis</SectionTitle>
+                            <SummaryText>
+                              Analysis of your website's content quality, relevance, and optimization for search engines.
+                            </SummaryText>
+                            
+                            {/* Content Score Card */}
+                            <div style={{ marginTop: '20px', padding: '20px', backgroundColor: '#1a1a1a', borderRadius: '8px' }}>
+                              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px' }}>
+                                <h3 style={{ color: '#0df9b6', margin: 0 }}>Content Quality Score</h3>
+                                <div style={{ 
+                                  display: 'flex', 
+                                  alignItems: 'center', 
+                                  justifyContent: 'center',
+                                  width: '60px',
+                                  height: '60px',
+                                  borderRadius: '50%',
+                                  backgroundColor: getScoreColor(selectedAudit.report.content?.score || 0),
+                                  color: '#000',
+                                  fontWeight: 'bold',
+                                  fontSize: '20px'
+                                }}>
+                                  {selectedAudit.report.content?.score || 'N/A'}
+                                </div>
+                              </div>
+                              
+                              <p style={{ marginBottom: '20px' }}>
+                                {selectedAudit.report.content?.summary || 'No content analysis available.'}
+                              </p>
+                            </div>
+                          </SummaryCard>
+                          
+                          <OverviewSection>
+                            <SectionTitle>Site Information</SectionTitle>
+                            <SiteInfoGrid>
+                              <SiteInfoCard>
+                                <SiteInfoLabel>URL</SiteInfoLabel>
+                                <SiteInfoValue>
+                                  <a href={selectedAudit?.report?.url} target="_blank" rel="noopener noreferrer">
+                                    {selectedAudit?.report?.url}
+                                  </a>
+                                </SiteInfoValue>
+                              </SiteInfoCard>
+                              
+                              <SiteInfoCard>
+                                <SiteInfoLabel>Title</SiteInfoLabel>
+                                <SiteInfoValue>{selectedAudit?.report?.metaTags?.title || 'Not found'}</SiteInfoValue>
+                              </SiteInfoCard>
+                              
+                              <SiteInfoCard>
+                                <SiteInfoLabel>Description</SiteInfoLabel>
+                                <SiteInfoValue>{selectedAudit?.report?.metaTags?.description || 'Not found'}</SiteInfoValue>
+                              </SiteInfoCard>
+                              
+                              <SiteInfoCard>
+                                <SiteInfoLabel>Content Word Count</SiteInfoLabel>
+                                <SiteInfoValue>{selectedAudit?.report?.contentWordCount?.toLocaleString() || 'Not available'}</SiteInfoValue>
+                              </SiteInfoCard>
+                              
+                              <SiteInfoCard>
+                                <SiteInfoLabel>Internal Links</SiteInfoLabel>
+                                <SiteInfoValue>{selectedAudit?.report?.links?.internalCount || 'Not available'}</SiteInfoValue>
+                              </SiteInfoCard>
+                              
+                              <SiteInfoCard>
+                                <SiteInfoLabel>External Links</SiteInfoLabel>
+                                <SiteInfoValue>{selectedAudit?.report?.links?.externalCount || 'Not available'}</SiteInfoValue>
+                              </SiteInfoCard>
+                              
+                              <SiteInfoCard>
+                                <SiteInfoLabel>Images</SiteInfoLabel>
+                                <SiteInfoValue>
+                                  {selectedAudit?.report?.images?.total || 'Not available'}
+                                  {selectedAudit?.report?.images?.total > 0 && (
+                                    <span> ({selectedAudit?.report?.images?.withAlt} with alt text)</span>
+                                  )}
+                                </SiteInfoValue>
+                              </SiteInfoCard>
+                            </SiteInfoGrid>
+                          </OverviewSection>
+                          
+                          <OverviewSection>
+                            <SectionTitle>Critical Issues</SectionTitle>
+                            <CriticalIssuesList>
+                              {getCriticalIssues(selectedAudit.report).map((issue, index) => (
+                                <CriticalIssueCard key={index}>
+                                  <CriticalIssueHeader>
+                                    <CriticalIssueTitle>{issue.title}</CriticalIssueTitle>
+                                    <CriticalIssueSeverity $severity={issue.severity}>
+                                      {issue.severity.charAt(0).toUpperCase() + issue.severity.slice(1)}
+                                      {issue.priority && ` • Priority ${issue.priority}`}
+                                    </CriticalIssueSeverity>
+                                  </CriticalIssueHeader>
+                                  <CriticalIssueDescription>{issue.description}</CriticalIssueDescription>
+                                  <CriticalIssueAction>{issue.recommendation}</CriticalIssueAction>
+                                </CriticalIssueCard>
+                              ))}
+                              {getCriticalIssues(selectedAudit.report).length === 0 && (
+                                <NoCriticalIssues>
+                                  <FiCheckCircle color="#34c759" style={{ marginRight: '8px' }} />
+                                  No critical issues found!
+                                </NoCriticalIssues>
+                              )}
+                            </CriticalIssuesList>
+                          </OverviewSection>
+                          
+                          {selectedAudit?.report?.competitiveAnalysis && (
+                            <OverviewSection>
+                              <SectionTitle>Competitive Analysis</SectionTitle>
+                              <CompetitiveAnalysisCard>
+                                <div style={{ padding: '15px' }}>
+                                  <p>{typeof selectedAudit?.report?.competitiveAnalysis === 'string' ? 
+                                     selectedAudit?.report?.competitiveAnalysis : 
+                                     JSON.stringify(selectedAudit?.report?.competitiveAnalysis)}</p>
+                                  
+                                  {selectedAudit?.report?.competitiveAnalysis?.topCompetitors && (
+                                    <div style={{ marginTop: '15px' }}>
+                                      <h4 style={{ color: '#0df9b6', marginBottom: '10px' }}>Top Competitors</h4>
+                                      <ul style={{ listStyleType: 'disc', paddingLeft: '20px' }}>
+                                        {selectedAudit.report.competitiveAnalysis.topCompetitors.map((competitor, index) => (
+                                          <li key={index} style={{ marginBottom: '5px' }}>{competitor}</li>
+                                        ))}
+                                      </ul>
+                                    </div>
+                                  )}
+                                  
+                                  {selectedAudit?.report?.competitiveAnalysis?.competitiveAdvantages && (
+                                    <div style={{ marginTop: '15px' }}>
+                                      <h4 style={{ color: '#0df9b6', marginBottom: '10px' }}>Competitive Advantages</h4>
+                                      <ul style={{ listStyleType: 'disc', paddingLeft: '20px' }}>
+                                        {selectedAudit.report.competitiveAnalysis.competitiveAdvantages.map((advantage, index) => (
+                                          <li key={index} style={{ marginBottom: '5px' }}>{advantage}</li>
+                                        ))}
+                                      </ul>
+                                    </div>
+                                  )}
+                                  
+                                  {selectedAudit?.report?.competitiveAnalysis?.competitiveGaps && (
+                                    <div style={{ marginTop: '15px' }}>
+                                      <h4 style={{ color: '#0df9b6', marginBottom: '10px' }}>Competitive Gaps</h4>
+                                      <ul style={{ listStyleType: 'disc', paddingLeft: '20px' }}>
+                                        {selectedAudit.report.competitiveAnalysis.competitiveGaps.map((gap, index) => (
+                                          <li key={index} style={{ marginBottom: '5px' }}>{gap}</li>
+                                        ))}
+                                      </ul>
+                                    </div>
+                                  )}
+                                </div>
+                              </CompetitiveAnalysisCard>
+                            </OverviewSection>
+                          )}
+                        </>)}
+                      
+                      {activeTab === 'technical' && selectedAudit?.report && (
+                        <>
+                          <SummaryCard>
+                            <SectionTitle>Technical SEO Analysis</SectionTitle>
+                            <SummaryText>
+                              Detailed analysis of technical SEO factors including crawlability, indexability, site structure, and performance.
+                            </SummaryText>
+                            
+                            <div style={{ marginTop: '20px' }}>
+                              <h3>Technical Score</h3>
+                              <div style={{
+                                display: 'flex',
+                                alignItems: 'center',
+                                justifyContent: 'center',
+                                width: '100px',
+                                height: '100px',
+                                borderRadius: '50%',
+                                backgroundColor: getScoreColor(selectedAudit.report.technical?.score || 0),
+                                color: '#000',
+                                fontWeight: 'bold',
+                                fontSize: '24px',
+                                margin: '20px 0'
+                              }}>
+                                {selectedAudit.report.technical?.score || 'N/A'}
+                              </div>
+                              
+                              <h3>Technical Issues</h3>
+                              <div style={{ backgroundColor: '#1a1a1a', padding: '15px', borderRadius: '5px', marginBottom: '20px' }}>
+                                {selectedAudit.report.technical?.issues && selectedAudit.report.technical.issues.length > 0 ? (
+                                  <ul style={{ marginLeft: '20px', lineHeight: '1.6' }}>
+                                    {selectedAudit.report.technical.issues.map((issue: any, index: number) => (
+                                      <li key={`tech-${index}`} style={{ marginBottom: '10px' }}>
+                                        <div>
+                                          <strong style={{ color: '#0df9b6' }}>
+                                            {typeof issue === 'string' ? issue : issue.title || 'Technical Issue'}
+                                          </strong>
+                                          {issue.description && (
+                                            <div style={{ marginTop: '5px', fontSize: '14px' }}>
+                                              {issue.description}
+                                            </div>
+                                          )}
+                                          {issue.recommendation && (
+                                            <div style={{ marginTop: '5px', fontSize: '14px', color: '#0df9b6' }}>
+                                              <strong>Recommendation:</strong> {issue.recommendation}
+                                            </div>
+                                          )}
+                                        </div>
+                                      </li>
+                                    ))}
+                                  </ul>
+                                ) : (
+                                  <p>No technical issues found.</p>
+                                )}
+                              </div>
+                              
+                              <h3>Site Structure</h3>
+                              <div style={{ backgroundColor: '#1a1a1a', padding: '15px', borderRadius: '5px', marginBottom: '20px' }}>
+                                <ul style={{ marginLeft: '20px', lineHeight: '1.6' }}>
+                                  <li><strong>SSL:</strong> {selectedAudit.report.technical?.ssl ? 'Implemented' : 'Not implemented'}</li>
+                                  <li><strong>Mobile Friendly:</strong> {selectedAudit.report.technical?.mobileFriendly ? 'Yes' : 'No'}</li>
+                                  <li><strong>Robots.txt:</strong> {selectedAudit.report.technical?.robotsTxt ? 'Present' : 'Missing'}</li>
+                                  <li><strong>Sitemap:</strong> {selectedAudit.report.technical?.sitemap ? 'Present' : 'Missing'}</li>
+                                  <li><strong>Structured Data:</strong> {selectedAudit.report.technical?.structuredData ? 'Implemented' : 'Not implemented'}</li>
+                                </ul>
+                              </div>
+                              
+                              <h3>Performance Metrics</h3>
+                              <div style={{ backgroundColor: '#1a1a1a', padding: '15px', borderRadius: '5px' }}>
+                                <ul style={{ marginLeft: '20px', lineHeight: '1.6' }}>
+                                  <li><strong>Page Speed:</strong> {typeof selectedAudit.report.technical?.pageSpeed === 'string' ? selectedAudit.report.technical?.pageSpeed : selectedAudit.report.technical?.pageSpeed ? `Desktop: ${selectedAudit.report.technical?.pageSpeed.desktop}, Mobile: ${selectedAudit.report.technical?.pageSpeed.mobile}` : 'N/A'}</li>
+                                  <li><strong>LCP:</strong> {selectedAudit.report.technical?.lcp || 'N/A'}</li>
+                                  <li><strong>FID:</strong> {selectedAudit.report.technical?.fid || 'N/A'}</li>
+                                  <li><strong>CLS:</strong> {selectedAudit.report.technical?.cls || 'N/A'}</li>
+                                </ul>
+                              </div>
+                            </div>
+                          </SummaryCard>
+                        </>
+                      )}
+                      
+                      {activeTab === 'keywords' && (
+                        <>
+                          <SummaryCard>
+                            <SectionTitle>Keyword Map</SectionTitle>
+                            <SummaryText>
+                              Add target keywords for your website and get recommendations for long-tail variations and usage strategies.
+                            </SummaryText>
+                            
+                            <div style={{ marginTop: '20px' }}>
+                              <h3>Add Keywords</h3>
+                              <div style={{ display: 'flex', marginBottom: '20px' }}>
+                                <input 
+                                  type="text" 
+                                  value={newKeyword}
+                                  onChange={(e) => setNewKeyword(e.target.value)}
+                                  placeholder="Enter a keyword"
+                                  style={{
+                                    flex: 1,
+                                    padding: '10px',
+                                    borderRadius: '4px 0 0 4px',
+                                    border: '1px solid #ccc',
+                                    fontSize: '14px'
+                                  }}
+                                  onKeyPress={(e) => {
+                                    if (e.key === 'Enter' && newKeyword.trim()) {
+                                      setKeywords([...keywords, newKeyword.trim()]);
+                                      // Generate long-tail keywords for this keyword
+                                      const longTailSuggestions = generateLongTailKeywords(newKeyword.trim(), selectedAudit?.url || '');
+                                      setLongTailKeywords({
+                                        ...longTailKeywords,
+                                        [newKeyword.trim()]: longTailSuggestions
+                                      });
+                                      setNewKeyword('');
+                                    }
+                                  }}
+                                />
+                                <button
+                                  onClick={() => {
+                                    if (newKeyword.trim()) {
+                                      setKeywords([...keywords, newKeyword.trim()]);
+                                      // Generate long-tail keywords for this keyword
+                                      const longTailSuggestions = generateLongTailKeywords(newKeyword.trim(), selectedAudit?.url || '');
+                                      setLongTailKeywords({
+                                        ...longTailKeywords,
+                                        [newKeyword.trim()]: longTailSuggestions
+                                      });
+                                      setNewKeyword('');
+                                    }
+                                  }}
+                                  style={{
+                                    padding: '10px 15px',
+                                    backgroundColor: '#0df9b6',
+                                    color: '#000',
+                                    border: 'none',
+                                    borderRadius: '0 4px 4px 0',
+                                    cursor: 'pointer',
+                                    fontWeight: 'bold'
+                                  }}
+                                >
+                                  Add
+                                </button>
+                              </div>
+                            </div>
+                            
+                            {keywords.length > 0 ? (
+                              <div>
+                                <h3>Your Keywords</h3>
+                                <div style={{ display: 'flex', flexWrap: 'wrap', gap: '10px', marginBottom: '20px' }}>
+                                  {keywords.map((keyword, index) => (
+                                    <div 
+                                      key={index}
+                                      style={{
+                                        backgroundColor: '#262626',
+                                        color: '#fff',
+                                        padding: '8px 12px',
+                                        borderRadius: '4px',
+                                        display: 'flex',
+                                        alignItems: 'center',
+                                        gap: '8px'
+                                      }}
+                                    >
+                                      <span>{keyword}</span>
+                                      <button
+                                        onClick={() => {
+                                          const newKeywords = [...keywords];
+                                          newKeywords.splice(index, 1);
+                                          setKeywords(newKeywords);
+                                          
+                                          // Remove long-tail keywords for this keyword
+                                          const newLongTailKeywords = {...longTailKeywords};
+                                          delete newLongTailKeywords[keyword];
+                                          setLongTailKeywords(newLongTailKeywords);
+                                        }}
+                                        style={{
+                                          background: 'none',
+                                          border: 'none',
+                                          color: '#ff3b30',
+                                          cursor: 'pointer',
+                                          fontSize: '14px',
+                                          padding: '0',
+                                          display: 'flex',
+                                          alignItems: 'center'
+                                        }}
+                                      >
+                                        <FiTrash2 />
+                                      </button>
+                                    </div>
+                                  ))}
+                                </div>
+                                
+                                <h3>Long-Tail Keyword Suggestions</h3>
+                                <div style={{ marginTop: '10px' }}>
+                                  {Object.entries(longTailKeywords).map(([keyword, suggestions], keywordIndex) => (
+                                    <div key={keywordIndex} style={{ marginBottom: '20px' }}>
+                                      <h4 style={{ marginBottom: '10px' }}>{keyword}</h4>
+                                      <div style={{ display: 'flex', flexWrap: 'wrap', gap: '10px' }}>
+                                        {suggestions.map((suggestion, index) => (
+                                          <div 
+                                            key={index}
+                                            style={{
+                                              backgroundColor: '#1a1a1a',
+                                              color: '#0df9b6',
+                                              padding: '8px 12px',
+                                              borderRadius: '4px',
+                                              fontSize: '14px'
+                                            }}
+                                          >
+                                            {suggestion}
+                                          </div>
+                                        ))}
+                                      </div>
+                                    </div>
+                                  ))}
+                                </div>
+                                
+                                <h3>Keyword Usage Recommendations</h3>
+                                <div style={{ marginTop: '10px', backgroundColor: '#1a1a1a', padding: '15px', borderRadius: '4px' }}>
+                                  <ul style={{ marginLeft: '20px', lineHeight: '1.6' }}>
+                                    <li>Use your primary keywords in page titles, headings (H1, H2), and within the first 100 words of content</li>
+                                    <li>Include long-tail variations naturally throughout your content</li>
+                                    <li>Aim for a keyword density of 1-2% for primary keywords</li>
+                                    <li>Use keywords in image alt text where relevant</li>
+                                    <li>Include keywords in meta descriptions and URL structures</li>
+                                    <li>Create topic clusters around your main keywords</li>
+                                    <li>Use related keywords in internal linking anchor text</li>
+                                  </ul>
+                                </div>
+                              </div>
+                            ) : (
+                              <div style={{ textAlign: 'center', padding: '30px', backgroundColor: '#1a1a1a', borderRadius: '4px' }}>
+                                <p>No keywords added yet. Add some keywords to get started!</p>
+                              </div>
+                            )}
+                          </SummaryCard>
+                        </>
+                      )}
+                      
+                      {activeTab === 'recommendations' && (
+                        <>
+                          <SummaryCard>
+                            <SectionTitle>Competitor Analysis</SectionTitle>
+                            <SummaryText>
+                              Analyze your competitors' SEO strategies and identify opportunities to outrank them.
+                            </SummaryText>
+                            
+                            <div style={{ textAlign: 'center', padding: '40px', backgroundColor: '#1a1a1a', borderRadius: '4px', marginTop: '20px' }}>
+                              <h3 style={{ marginBottom: '15px' }}>Coming Soon</h3>
+                              <p>Competitor analysis features are currently in development.</p>
+                              <p>This section will include competitor keyword analysis, backlink comparison, content gap analysis, and more.</p>
+                            </div>
+                          </SummaryCard>
+                        </>
+                      )}
+                      
+                      {activeTab === 'content' && selectedAudit?.report && (
+                        <SectionContainer>
+                          <SectionHeader>
+                            <SectionTitle>Content Analysis</SectionTitle>
+                            <ScoreBadge $score={selectedAudit?.report?.content?.score || 0}>
+                              {selectedAudit?.report?.content?.score || 'N/A'}
+                            </ScoreBadge>
+                          </SectionHeader>
+                          
+                          {selectedAudit?.report?.content?.summary && (
+                            <SummaryBox>
+                              <p>{selectedAudit.report.content.summary}</p>
+                            </SummaryBox>
+                          )}
+                          
+                          <IssuesList>
+                            {selectedAudit?.report?.content?.issues?.length > 0 ? (
+                              selectedAudit.report.content.issues.map((issue, index) => (
+                                <IssueCard key={index}>
+                                  <IssueSeverity $severity={issue.severity}>
+                                    {issue.severity === 'high' ? <FiAlertCircle /> : 
+                                     issue.severity === 'medium' ? <FiAlertTriangle /> : <FiInfo />}
+                                    {issue.severity.charAt(0).toUpperCase() + issue.severity.slice(1)}
+                                  </IssueSeverity>
+                                  <IssueTitle>{issue.title}</IssueTitle>
+                                  <IssueDescription>{issue.description}</IssueDescription>
+                                  <IssueDetail>
+                                    <IssueDetailTitle>Impact:</IssueDetailTitle>
+                                    <IssueDetailContent>{issue.impact}</IssueDetailContent>
+                                  </IssueDetail>
+                                  <IssueDetail>
+                                    <IssueDetailTitle>Recommendation:</IssueDetailTitle>
+                                    <IssueDetailContent>{issue.recommendation}</IssueDetailContent>
+                                  </IssueDetail>
+                                </IssueCard>
+                              ))
+                            ) : (
+                              <NoIssues>
+                                <FiCheckCircle color="#34c759" style={{ marginRight: '8px' }} />
+                                No content issues found!
+                              </NoIssues>
+                            )}
+                          </IssuesList>
+                          
+                          {selectedAudit?.report?.contentWordCount && (
+                            <MetaInfoCard>
+                              <MetaInfoTitle>Content Word Count</MetaInfoTitle>
+                              <MetaInfoValue>{selectedAudit.report.contentWordCount}</MetaInfoValue>
+                            </MetaInfoCard>
+                          )}
+                        </SectionContainer>
+                      )}
+                      
+                      {activeTab === 'onpage' && selectedAudit?.report && (
+                        <SectionContainer>
+                          <SectionHeader>
+                            <SectionTitle>On-Page SEO</SectionTitle>
+                            <SectionScore $score={selectedAudit?.report?.onPage?.score || 0}>
+                              {selectedAudit?.report?.onPage?.score || 'N/A'}/100
+                            </SectionScore>
+                          </SectionHeader>
+                          
+                          <MetaTagsSection>
+                            <MetaSectionTitle>Meta Tags</MetaSectionTitle>
+                            <MetaTagCard>
+                              <MetaTagName>Title</MetaTagName>
+                              <MetaTagValue>{selectedAudit?.report?.metaTags?.title || 'Not found'}</MetaTagValue>
+                            </MetaTagCard>
+                            <MetaTagCard>
+                              <MetaTagName>Description</MetaTagName>
+                              <MetaTagValue>{selectedAudit?.report?.metaTags?.description || 'Not found'}</MetaTagValue>
+                            </MetaTagCard>
+                            <MetaTagCard>
+                              <MetaTagName>Keywords</MetaTagName>
+                              <MetaTagValue>{selectedAudit?.report?.metaTags?.keywords || 'Not found'}</MetaTagValue>
+                            </MetaTagCard>
+                          </MetaTagsSection>
+                          
+                          <HeadingsSection>
+                            <MetaSectionTitle>Headings</MetaSectionTitle>
+                            <HeadingTypeContainer>
+                              <HeadingType>H1 Tags ({selectedAudit?.report?.headings?.h1?.length || 0})</HeadingType>
+                              <HeadingsList>
+                                {selectedAudit?.report?.headings?.h1?.length > 0 ? (
+                                  selectedAudit.report.headings.h1.map((heading, index) => (
+                                    <HeadingItem key={index}>{heading}</HeadingItem>
+                                  ))
+                                ) : (
+                                  <NoHeadings>No H1 headings found</NoHeadings>
+                                )}
+                              </HeadingsList>
+                            </HeadingTypeContainer>
+                            
+                            <HeadingTypeContainer>
+                              <HeadingType>H2 Tags ({selectedAudit?.report?.headings?.h2?.length || 0})</HeadingType>
+                              <HeadingsList>
+                                {selectedAudit?.report?.headings?.h2?.length > 0 ? (
+                                  selectedAudit.report.headings.h2.map((heading, index) => (
+                                    <HeadingItem key={index}>{heading}</HeadingItem>
+                                  ))
+                                ) : (
+                                  <NoHeadings>No H2 headings found</NoHeadings>
+                                )}
+                              </HeadingsList>
+                            </HeadingTypeContainer>
+                          </HeadingsSection>
+                          
+                          <IssuesList>
+                            {selectedAudit?.report?.onPage?.issues?.length > 0 ? (
+                              selectedAudit.report.onPage.issues.map((issue, index) => (
+                                <IssueCard key={index}>
+                                  <IssueSeverity $severity={issue.severity}>
+                                    {issue.severity === 'high' ? <FiAlertCircle /> : 
+                                     issue.severity === 'medium' ? <FiAlertTriangle /> : <FiInfo />}
+                                    {issue.severity.charAt(0).toUpperCase() + issue.severity.slice(1)}
+                                  </IssueSeverity>
+                                  <IssueTitle>{issue.title}</IssueTitle>
+                                  <IssueDescription>{issue.description}</IssueDescription>
+                                  <IssueDetail>
+                                    <IssueDetailTitle>Impact:</IssueDetailTitle>
+                                    <IssueDetailContent>{issue.impact}</IssueDetailContent>
+                                  </IssueDetail>
+                                  <IssueDetail>
+                                    <IssueDetailTitle>Recommendation:</IssueDetailTitle>
+                                    <IssueDetailContent>{issue.recommendation}</IssueDetailContent>
+                                  </IssueDetail>
+                                </IssueCard>
+                              ))
+                            ) : (
+                              <NoIssues>
+                                <FiCheckCircle color="#34c759" style={{ marginRight: '8px' }} />
+                                No on-page SEO issues found!
+                              </NoIssues>
+                            )}
+                          </IssuesList>
+                        </SectionContainer>
+                      )}
+                      
+                      {activeTab === 'performance' && selectedAudit?.report && (
+                        <SectionContainer>
+                          <SectionTitle>Page-by-Page Analysis</SectionTitle>
+                          <PagesList>
+                            {selectedAudit?.report?.pages?.length > 0 ? (
+                              selectedAudit.report.pages.map((page, pageIndex) => (
+                                <PageCard key={pageIndex}>
+                                  <PageHeader>
+                                    <PageUrl href={page.url} target="_blank" rel="noopener noreferrer">{page.url}</PageUrl>
+                                    <PageScore $score={page.score || 0}>{page.score || 'N/A'}/100</PageScore>
+                                  </PageHeader>
+                                  <PageTitle>{page.title}</PageTitle>
+                                  
+                                  {/* Page Meta Tags */}
+                                  <PageSection>
+                                    <PageSectionTitle>Meta Tags</PageSectionTitle>
+                                    <MetaTagCard>
+                                      <MetaTagName>Title</MetaTagName>
+                                      <MetaTagValue>{page.metaTags?.title || 'Not found'}</MetaTagValue>
+                                      {page.metaTags?.analysis?.titleLength && (
+                                        <MetaTagAnalysis>
+                                          Length: {page.metaTags.analysis.titleLength} characters • 
+                                          {page.metaTags.analysis.titleQuality}
+                                        </MetaTagAnalysis>
+                                      )}
+                                    </MetaTagCard>
+                                    <MetaTagCard>
+                                      <MetaTagName>Description</MetaTagName>
+                                      <MetaTagValue>{page.metaTags?.description || 'Not found'}</MetaTagValue>
+                                      {page.metaTags?.analysis?.descriptionLength && (
+                                        <MetaTagAnalysis>
+                                          Length: {page.metaTags.analysis.descriptionLength} characters • 
+                                          {page.metaTags.analysis.descriptionQuality}
+                                        </MetaTagAnalysis>
+                                      )}
+                                    </MetaTagCard>
+                                  </PageSection>
+                                  
+                                  {/* Page Content Analysis */}
+                                  <PageSection>
+                                    <PageSectionTitle>Content Analysis</PageSectionTitle>
+                                    <ContentAnalysisGrid>
+                                      {page.content?.wordCount && (
+                                        <ContentMetric>
+                                          <ContentMetricLabel>Word Count</ContentMetricLabel>
+                                          <ContentMetricValue>{page.content.wordCount}</ContentMetricValue>
+                                        </ContentMetric>
+                                      )}
+                                      {page.content?.readabilityScore && (
+                                        <ContentMetric>
+                                          <ContentMetricLabel>Readability</ContentMetricLabel>
+                                          <ContentMetricValue $score={page.content.readabilityScore}>
+                                            {page.content.readabilityScore}/100
+                                          </ContentMetricValue>
+                                        </ContentMetric>
+                                      )}
+                                    </ContentAnalysisGrid>
+                                    {page.content?.keywordDensity?.primary && (
+                                      <KeywordDensity>
+                                        <KeywordDensityLabel>Primary Keyword Density</KeywordDensityLabel>
+                                        <KeywordDensityValue>{page.content.keywordDensity.primary}%</KeywordDensityValue>
+                                      </KeywordDensity>
+                                    )}
+                                    {page.content?.quality && (
+                                      <ContentQuality>{page.content.quality}</ContentQuality>
+                                    )}
+                                  </PageSection>
+                                  
+                                  {/* Page Issues */}
+                                  <PageSection>
+                                    <PageSectionTitle>Issues ({page.issues?.length || 0})</PageSectionTitle>
+                                    <IssuesList>
+                                      {page.issues?.length > 0 ? (
+                                        page.issues.map((issue, issueIndex) => (
+                                          <IssueCard key={issueIndex}>
+                                            <IssueSeverity $severity={issue.severity}>
+                                              {issue.severity === 'high' ? <FiAlertCircle /> : 
+                                               issue.severity === 'medium' ? <FiAlertTriangle /> : <FiInfo />}
+                                              {issue.severity.charAt(0).toUpperCase() + issue.severity.slice(1)}
+                                              {issue.priority && ` • Priority ${issue.priority}`}
+                                            </IssueSeverity>
+                                            <IssueTitle>{issue.title}</IssueTitle>
+                                            <IssueDescription>{issue.description}</IssueDescription>
+                                            <IssueDetail>
+                                              <IssueDetailTitle>Impact:</IssueDetailTitle>
+                                              <IssueDetailContent>{issue.impact}</IssueDetailContent>
+                                            </IssueDetail>
+                                            <IssueDetail>
+                                              <IssueDetailTitle>Recommendation:</IssueDetailTitle>
+                                              <IssueDetailContent>{issue.recommendation}</IssueDetailContent>
+                                            </IssueDetail>
+                                          </IssueCard>
+                                        ))
+                                      ) : (
+                                        <NoIssues>
+                                          <FiCheckCircle color="#34c759" style={{ marginRight: '8px' }} />
+                                          No issues found for this page!
+                                        </NoIssues>
+                                      )}
+                                    </IssuesList>
+                                  </PageSection>
+                                  
+                                  {/* Performance Metrics */}
+                                  {page.performance && (
+                                    <PageSection>
+                                      <PageSectionTitle>Performance</PageSectionTitle>
+                                      <PerformanceMetrics>
+                                        {page.performance.estimatedLoadTime && (
+                                          <PerformanceMetric>
+                                            <PerformanceMetricLabel>Load Time</PerformanceMetricLabel>
+                                            <PerformanceMetricValue>{page.performance.estimatedLoadTime}</PerformanceMetricValue>
+                                          </PerformanceMetric>
+                                        )}
+                                        {page.performance.mobileCompatibility && (
+                                          <PerformanceMetric>
+                                            <PerformanceMetricLabel>Mobile Compatibility</PerformanceMetricLabel>
+                                            <PerformanceMetricValue $score={page.performance.mobileCompatibility}>
+                                              {page.performance.mobileCompatibility}/100
+                                            </PerformanceMetricValue>
+                                          </PerformanceMetric>
+                                        )}
+                                      </PerformanceMetrics>
+                                      {page.performance.coreWebVitals && (
+                                        <CoreWebVitals>
+                                          <CoreWebVitalsTitle>Core Web Vitals</CoreWebVitalsTitle>
+                                          <CoreWebVitalsList>
+                                            {page.performance.coreWebVitals.LCP && (
+                                              <CoreWebVital>
+                                                <CoreWebVitalLabel>LCP</CoreWebVitalLabel>
+                                                <CoreWebVitalValue>{page.performance.coreWebVitals.LCP}</CoreWebVitalValue>
+                                              </CoreWebVital>
+                                            )}
+                                            {page.performance.coreWebVitals.FID && (
+                                              <CoreWebVital>
+                                                <CoreWebVitalLabel>FID</CoreWebVitalLabel>
+                                                <CoreWebVitalValue>{page.performance.coreWebVitals.FID}</CoreWebVitalValue>
+                                              </CoreWebVital>
+                                            )}
+                                            {page.performance.coreWebVitals.CLS && (
+                                              <CoreWebVital>
+                                                <CoreWebVitalLabel>CLS</CoreWebVitalLabel>
+                                                <CoreWebVitalValue>{page.performance.coreWebVitals.CLS}</CoreWebVitalValue>
+                                              </CoreWebVital>
+                                            )}
+                                          </CoreWebVitalsList>
+                                        </CoreWebVitals>
+                                      )}
+                                    </PageSection>
+                                  )}
+                                </PageCard>
+                              ))
+                            ) : (
+                              <NoPages>
+                                <FiInfo color="#8e8e93" style={{ marginRight: '8px' }} />
+                                No page analysis available.
+                              </NoPages>
+                            )}
+                          </PagesList>
+                        </SectionContainer>
+                      )}
+                      
+                      {activeTab === 'recommendations' && selectedAudit?.report && (
+                        <SectionContainer>
+                          <SectionTitle>Recommendations</SectionTitle>
+                          <RecommendationsList>
+                            {selectedAudit?.report?.recommendations?.length > 0 ? (
+                              selectedAudit.report.recommendations.map((rec, index) => (
+                                <RecommendationCard key={index}>
+                                  <RecommendationHeader>
+                                    <RecommendationTitle>{rec.title}</RecommendationTitle>
+                                    <RecommendationSeverity $severity={rec.severity}>
+                                      {rec.severity.charAt(0).toUpperCase() + rec.severity.slice(1)} Priority
+                                      {rec.priority && ` • ${rec.priority}`}
+                                    </RecommendationSeverity>
+                                  </RecommendationHeader>
+                                  <RecommendationDescription>{rec.description}</RecommendationDescription>
+                                  <RecommendationDetail>
+                                    <RecommendationDetailTitle>Expected Impact:</RecommendationDetailTitle>
+                                    <RecommendationDetailContent>{rec.impact}</RecommendationDetailContent>
+                                  </RecommendationDetail>
+                                  <RecommendationDetail>
+                                    <RecommendationDetailTitle>How to Implement:</RecommendationDetailTitle>
+                                    <RecommendationDetailContent>{rec.recommendation}</RecommendationDetailContent>
+                                  </RecommendationDetail>
+                                  {rec.estimatedEffort && (
+                                    <RecommendationDetail>
+                                      <RecommendationDetailTitle>Estimated Effort:</RecommendationDetailTitle>
+                                      <RecommendationDetailContent>{rec.estimatedEffort}</RecommendationDetailContent>
+                                    </RecommendationDetail>
+                                  )}
+                                  {rec.estimatedImpact && (
+                                    <RecommendationDetail>
+                                      <RecommendationDetailTitle>Estimated Impact:</RecommendationDetailTitle>
+                                      <RecommendationDetailContent>{rec.estimatedImpact}</RecommendationDetailContent>
+                                    </RecommendationDetail>
+                                  )}
+                                </RecommendationCard>
+                              ))
+                            ) : (
+                              <NoRecommendations>
+                                <FiInfo color="#8e8e93" style={{ marginRight: '8px' }} />
+                                No recommendations available.
+                              </NoRecommendations>
+                            )}
+                          </RecommendationsList>
+                        </SectionContainer>
+                      )}
+                      
+                      {/* AI Analysis Tab - Shows the full Gemini output */}
+                      {activeTab === 'aianalysis' && selectedAudit?.report && (
+                        <SectionContainer>
+                          <SectionTitle>AI-Powered SEO Analysis</SectionTitle>
+                          <SummaryText>
+                            Comprehensive SEO analysis generated by Google Gemini AI using your custom prompt.
+                          </SummaryText>
+                          
+                          <div style={{ marginTop: '20px', padding: '20px', backgroundColor: '#1a1a1a', borderRadius: '8px' }}>
+                            {(selectedAudit.report as any)?.geminiAudit ? (
+                              <div>
+                                <h3 style={{ marginBottom: '15px', color: '#0df9b6' }}>Full AI Analysis</h3>
+                                <div style={{ 
+                                  backgroundColor: '#262626', 
+                                  padding: '20px', 
+                                  borderRadius: '8px',
+                                  maxHeight: '800px',
+                                  overflowY: 'auto',
+                                  fontFamily: 'monospace',
+                                  whiteSpace: 'pre-wrap',
+                                  fontSize: '14px',
+                                  lineHeight: '1.6'
+                                }}>
+                                  {typeof (selectedAudit.report as any).geminiAudit === 'string' ? (
+                                    <pre style={{ margin: 0, whiteSpace: 'pre-wrap' }}>
+                                      {(selectedAudit.report as any).geminiAudit}
+                                    </pre>
+                                  ) : (
+                                    <pre style={{ margin: 0, whiteSpace: 'pre-wrap' }}>
+                                      {JSON.stringify((selectedAudit.report as any).geminiAudit, null, 2)}
+                                    </pre>
+                                  )}
+                                </div>
+                              </div>
+                            ) : (
+                              <div style={{ textAlign: 'center', padding: '40px 0' }}>
+                                <FiInfo size={40} style={{ color: '#8e8e93', marginBottom: '16px' }} />
+                                <p>No AI analysis available for this audit.</p>
+                              </div>
+                            )}
+                          </div>
+                        </SectionContainer>
+                      )}
+                    </TabContent>
+                  </>
+                )}
+              </>
+            ) : (
+              <NoData>
+                {isLoading ? (
+                  <div>
+                    <FiRefreshCw size={24} style={{ marginRight: '8px', animation: 'spin 2s linear infinite' }} />
+                    Loading SEO audits...
+                  </div>
+                ) : (
+                  <>
+                    <FiInfo size={24} style={{ marginRight: '8px' }} />
+                    No SEO audit selected. Create a new audit or select one from the sidebar.
+                  </>
+                )}
+              </NoData>
+            )}
+          </MainContent>
+        </ContentContainer>
+      </Content>
+    </Container>
+  );
+};
+
+// Styled components
+const Container = styled.div`
+  padding: 24px;
+  max-width: 1200px;
+  margin: 0 auto;
+`;
+
+const ScoreBadge = styled.div<{ $score: number }>`
+  background-color: ${props => {
+    if (props.$score >= 80) return 'rgba(52, 199, 89, 0.2)';
+    if (props.$score >= 60) return 'rgba(255, 204, 0, 0.2)';
+    return 'rgba(255, 59, 48, 0.2)';
+  }};
+  color: ${props => {
+    if (props.$score >= 80) return '#34c759';
+    if (props.$score >= 60) return '#ffcc00';
+    return '#ff3b30';
+  }};
+  padding: 4px 8px;
+  border-radius: 4px;
+  font-size: 14px;
+  font-weight: 600;
+`;
+
+const SummaryBox = styled.div`
+  background-color: #262626;
+  border-radius: 8px;
+  padding: 16px;
+  margin-bottom: 24px;
+  
+  p {
+    margin: 0;
+    line-height: 1.6;
+  }
+`;
+
+const Header = styled.div`
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 20px;
+  border-bottom: 1px solid #333;
+`;
+
+const Title = styled.h1`
+  font-size: 24px;
+  font-weight: 600;
+  margin: 0;
+`;
+
+const ActionButton = styled.button`
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  background-color: #0df9b6;
+  color: #000000;
+  border: none;
+  border-radius: 4px;
+  padding: 8px 16px;
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background-color 0.2s;
+
+  &:hover {
+    background-color: #0ce0a3;
+  }
+`;
+
+const ErrorMessage = styled.div`
+  background-color: rgba(255, 59, 48, 0.1);
+  color: #ff3b30;
+  padding: 12px 16px;
+  margin: 16px;
+  border-radius: 4px;
+  font-size: 14px;
+`;
+
+const ErrorContainer = styled.div`
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  background-color: rgba(255, 59, 48, 0.1);
+  color: #ff3b30;
+  padding: 12px 16px;
+  margin: 16px;
+  border-radius: 4px;
+  font-size: 14px;
+`;
+
+const Content = styled.div`
+  flex: 1;
+  overflow-y: auto;
+  position: relative;
+  z-index: 1;
+`;
+
+const ContentContainer = styled.div`
+  display: flex;
+  flex: 1;
+  overflow: hidden;
+`;
+
+const Sidebar = styled.div`
+  width: 300px;
+  border-right: 1px solid #333;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+`;
+
+const SidebarTitle = styled.h2`
+  font-size: 16px;
+  font-weight: 600;
+  padding: 16px;
+  margin: 0;
+  border-bottom: 1px solid #333;
+`;
+
+const AuditList = styled.div`
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 16px;
+`;
+
+const AuditItem = styled.div<{ $isSelected: boolean }>`
+  background-color: ${props => props.$isSelected ? '#333' : '#262626'};
+  border-radius: 8px;
+  padding: 12px;
+  cursor: pointer;
+  transition: background-color 0.2s;
+
+  &:hover {
+    background-color: ${props => props.$isSelected ? '#333' : '#2a2a2a'};
+  }
+`;
+
+const AuditItemHeader = styled.div`
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 8px;
+`;
+
+const AuditItemUrl = styled.div`
+  font-size: 14px;
+  font-weight: 500;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: 180px;
+`;
+
+const StatusBadge = styled.span<{ $status: string }>`
+  font-size: 12px;
+  font-weight: 600;
+  padding: 2px 6px;
+  border-radius: 4px;
+  background-color: ${props => {
+    const color = getStatusColor(props.$status);
+    return `${color}20`; // 20% opacity
+  }};
+  color: ${props => getStatusColor(props.$status)};
+`;
+
+const AuditItemMeta = styled.div`
+  font-size: 12px;
+  color: #999;
+  margin-bottom: 8px;
+`;
+
+const AuditItemActions = styled.div`
+  display: flex;
+  justify-content: flex-end;
+`;
+
+const ActionIcon = styled.button`
+  background-color: transparent;
+  color: #999;
+  border: none;
+  padding: 4px;
+  cursor: pointer;
+  transition: color 0.2s;
+
+  &:hover {
+    color: #ff3b30;
+  }
+`;
+
+const MainContent = styled.div`
+  flex: 1;
+  padding: 20px;
+  overflow-y: auto;
+  position: relative;
+  z-index: 2;
+`;
+
+const Loading = styled.div`
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  height: 100px;
+  color: #999;
+  font-size: 14px;
+`;
+
+const NoData = styled.div`
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  height: 100px;
+  color: #999;
+  font-size: 14px;
+`;
+
+const AuditHeader = styled.div`
+  margin-bottom: 24px;
+`;
+
+const AuditUrl = styled.a`
+  font-size: 20px;
+  font-weight: 600;
+  color: #0df9b6;
+  text-decoration: none;
+  display: block;
+  margin-bottom: 8px;
+
+  &:hover {
+    text-decoration: underline;
+  }
+`;
+
+const AuditActions = styled.div`
+  display: flex;
+  gap: 10px;
+  margin-bottom: 12px;
+`;
+
+const ExportButton = styled.button`
+  display: flex;
+  align-items: center;
+  background-color: #262626;
+  color: #0df9b6;
+  border: 1px solid #0df9b6;
+  border-radius: 4px;
+  padding: 8px 12px;
+  font-size: 13px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  
+  &:hover {
+    background-color: rgba(13, 249, 182, 0.1);
+  }
+`;
+
+const AuditMeta = styled.div`
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+`;
+
+const AuditDate = styled.div`
+  font-size: 14px;
+  color: #999;
+`;
+
+const AuditScore = styled.div<{ $score: number }>`
+  font-size: 16px;
+  font-weight: 600;
+  color: ${props => getScoreColor(props.$score)};
+`;
+
+const TabsContainer = styled.div`
+  display: flex;
+  border-bottom: 1px solid #333;
+  margin-bottom: 24px;
+  overflow-x: auto;
+  scrollbar-width: none;
+
+  &::-webkit-scrollbar {
+    display: none;
+  }
+`;
+
+const Tab = styled.button<{ $isActive: boolean }>`
+  background-color: transparent;
+  color: ${props => props.$isActive ? '#0df9b6' : '#ffffff'};
+  border: none;
+  border-bottom: 2px solid ${props => props.$isActive ? '#0df9b6' : 'transparent'};
+  padding: 12px 16px;
+  font-size: 14px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: color 0.2s, border-color 0.2s;
+  white-space: nowrap;
+
+  &:hover {
+    color: #0df9b6;
+  }
+`;
+
+const TabContent = styled.div`
+  margin-top: 24px;
+`;
+
+const OverviewSection = styled.div`
+  margin-bottom: 32px;
+`;
+
+const SectionTitle = styled.h2`
+  font-size: 18px;
+  font-weight: 600;
+  margin: 0 0 16px 0;
+`;
+
+const SummaryCard = styled.div`
+  background-color: #262626;
+  border-radius: 8px;
+  padding: 16px;
+  margin-bottom: 24px;
+`;
+
+const SummaryText = styled.div`
+  font-size: 16px;
+  line-height: 1.6;
+  color: #4a5568;
+  margin-bottom: 20px;
+`;
+
+const IssuesTable = styled.table`
+  width: 100%;
+  border-collapse: collapse;
+  margin-top: 20px;
+  font-family: 'DM Sans', sans-serif;
+  
+  th, td {
+    padding: 12px 15px;
+    text-align: left;
+    border-bottom: 1px solid #e2e8f0;
+  }
+  
+  th {
+    background-color: #f7fafc;
+    font-weight: 600;
+    color: #4a5568;
+    position: sticky;
+    top: 0;
+    z-index: 10;
+  }
+  
+  tr:hover {
+    background-color: #f7fafc;
+  }
+  
+  td p {
+    margin: 5px 0 0 0;
+    font-size: 14px;
+    color: #718096;
+  }
+`;
+
+interface SeverityBadgeProps {
+  $severity: string;
+}
+
+const SeverityBadge = styled.span<SeverityBadgeProps>`
+  display: inline-block;
+  padding: 4px 8px;
+  border-radius: 4px;
+  font-size: 12px;
+  font-weight: 600;
+  text-transform: uppercase;
+  background-color: ${props => {
+    switch (props.$severity.toLowerCase()) {
+      case 'high':
+        return '#FED7D7';
+      case 'medium':
+        return '#FEEBC8';
+      case 'low':
+        return '#C6F6D5';
+      default:
+        return '#EDF2F7';
+    }
+  }};
+  color: ${props => {
+    switch (props.$severity.toLowerCase()) {
+      case 'high':
+        return '#9B2C2C';
+      case 'medium':
+        return '#9C4221';
+      case 'low':
+        return '#276749';
+      default:
+        return '#4A5568';
+    }
+  }};
+`;
+
+const AIAnalysisContainer = styled.div`
+  padding: 20px;
+  font-family: 'DM Sans', sans-serif;
+  
+  h2 {
+    font-size: 20px;
+    font-weight: 600;
+    margin-top: 30px;
+    margin-bottom: 15px;
+    color: #2d3748;
+    border-bottom: 1px solid #e2e8f0;
+    padding-bottom: 8px;
+  }
+  
+  h3 {
+    font-size: 18px;
+    font-weight: 500;
+    margin-top: 20px;
+    margin-bottom: 10px;
+    color: #4a5568;
+  }
+  
+  p {
+    font-size: 15px;
+    line-height: 1.6;
+    margin-bottom: 15px;
+    color: #4a5568;
+  }
+  
+  ul, ol {
+    margin-left: 20px;
+    margin-bottom: 20px;
+  }
+  
+  li {
+    margin-bottom: 8px;
+    line-height: 1.5;
+  }
+  
+  table {
+    width: 100%;
+    border-collapse: collapse;
+    margin-bottom: 20px;
+  }
+  
+  th, td {
+    border: 1px solid #e2e8f0;
+    padding: 10px;
+    text-align: left;
+  }
+  
+  th {
+    background-color: #f7fafc;
+    font-weight: 600;
+  }
+  
+  code {
+    background-color: #f7fafc;
+    padding: 2px 4px;
+    border-radius: 4px;
+    font-family: monospace;
+    font-size: 14px;
+  }
+  
+  .score-high {
+    color: #38a169;
+    font-weight: 600;
+  }
+  
+  .score-medium {
+    color: #dd6b20;
+    font-weight: 600;
+  }
+  
+  .score-low {
+    color: #e53e3e;
+    font-weight: 600;
+  }
+`;
+
+const ScoreGrid = styled.div`
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
+{{ ... }}
+  gap: 16px;
+`;
+
+const ScoreCard = styled.div`
+  background-color: #262626;
+  border-radius: 8px;
+  padding: 16px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+`;
+
+const ScoreLabel = styled.div`
+  font-size: 14px;
+  margin-bottom: 8px;
+`;
+
+const ScoreValue = styled.div<{ $score: number }>`
+  font-size: 24px;
+  font-weight: 600;
+  color: ${props => getScoreColor(props.$score)};
+`;
+
+const Card = styled.div`
+  background-color: #262626;
+  border-radius: 8px;
+  padding: 20px;
+  margin: 16px;
+  position: relative;
+  z-index: 9999;
+  pointer-events: auto;
+  box-shadow: 0 8px 40px 0 rgba(0,0,0,0.65);
+`;
+
+const CardTitle = styled.h2`
+  font-size: 18px;
+  font-weight: 600;
+  margin: 0 0 16px 0;
+`;
+
+const Form = styled.form`
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+`;
+
+const FormGroup = styled.div`
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+`;
+
+const Label = styled.label`
+  font-size: 14px;
+  font-weight: 500;
+`;
+
+const Input = styled.input`
+  background-color: #333;
+  color: #ffffff;
+  border: 1px solid #444;
+  border-radius: 4px;
+  padding: 10px 12px;
+  font-size: 14px;
+
+  &:focus {
+    outline: none;
+    border-color: #0df9b6;
+  }
+`;
+
+const ButtonGroup = styled.div`
+  display: flex;
+  justify-content: flex-end;
+  gap: 12px;
+  margin-top: 8px;
+`;
+
+const Button = styled.button<{ $secondary?: boolean }>`
+  background-color: ${props => props.$secondary ? 'transparent' : '#0df9b6'};
+  color: ${props => props.$secondary ? '#ffffff' : '#000000'};
+  border: ${props => props.$secondary ? '1px solid #444' : 'none'};
+  border-radius: 4px;
+  padding: 8px 16px;
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background-color 0.2s, color 0.2s;
+
+  &:hover {
+    background-color: ${props => props.$secondary ? 'rgba(255, 255, 255, 0.05)' : '#0ce0a3'};
+  }
+
+  &:disabled {
+    background-color: #555;
+    color: #888;
+    cursor: not-allowed;
+  }
+`;
+
+// Section components for content, onPage, and recommendations tabs
+const SectionContainer = styled.div`
+  margin: 0 16px 32px 16px;
+`;
+
+const SectionHeader = styled.div`
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 16px;
+`;
+
+const SectionScore = styled.div<{ $score: number }>`
+  font-size: 18px;
+  font-weight: 600;
+  color: ${props => getScoreColor(props.$score)};
+`;
+
+// Issue components for displaying SEO issues
+const IssuesList = styled.div`
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  margin-bottom: 24px;
+`;
+
+const IssueCard = styled.div`
+  background-color: #262626;
+  border-radius: 8px;
+  padding: 16px;
+`;
+
+const IssueSeverity = styled.div<{ $severity: string }>`
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 12px;
+  font-weight: 500;
+  padding: 4px 8px;
+  border-radius: 4px;
+  margin-bottom: 8px;
+  background-color: ${props => {
+    switch (props.$severity) {
+      case 'high': return 'rgba(255, 59, 48, 0.2)';
+      case 'medium': return 'rgba(255, 149, 0, 0.2)';
+      case 'low': return 'rgba(142, 142, 147, 0.2)';
+      default: return 'rgba(142, 142, 147, 0.2)';
+    }
+  }};
+  color: ${props => {
+    switch (props.$severity) {
+      case 'high': return '#ff3b30';
+      case 'medium': return '#ff9500';
+      case 'low': return '#8e8e93';
+      default: return '#8e8e93';
+    }
+  }};
+`;
+
+const IssueTitle = styled.h3`
+  font-size: 16px;
+  font-weight: 600;
+  margin: 8px 0;
+`;
+
+const IssueDescription = styled.p`
+  font-size: 14px;
+  margin: 0 0 16px 0;
+  color: #cccccc;
+`;
+
+const IssueDetail = styled.div`
+  margin-bottom: 12px;
+`;
+
+const IssueDetailTitle = styled.h4`
+  font-size: 14px;
+  font-weight: 600;
+  margin: 0 0 4px 0;
+`;
+
+const IssueDetailContent = styled.p`
+  font-size: 14px;
+  margin: 0;
+  color: #cccccc;
+`;
+
+const NoIssues = styled.div`
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 24px;
+  background-color: #262626;
+  border-radius: 8px;
+  color: #cccccc;
+`;
+
+// Meta info components for displaying content word count, etc.
+const MetaInfoCard = styled.div`
+  background-color: #262626;
+  border-radius: 8px;
+  padding: 16px;
+  margin-bottom: 16px;
+`;
+
+const MetaInfoTitle = styled.h3`
+  font-size: 16px;
+  font-weight: 600;
+  margin: 0 0 8px 0;
+`;
+
+const MetaInfoValue = styled.p`
+  font-size: 18px;
+  font-weight: 500;
+  margin: 0;
+  color: #0df9b6;
+`;
+
+// Meta tags section components
+const MetaTagsSection = styled.div`
+  background-color: #262626;
+  border-radius: 8px;
+  padding: 16px;
+  margin-bottom: 24px;
+`;
+
+const MetaSectionTitle = styled.h3`
+  font-size: 16px;
+  font-weight: 600;
+  margin: 0 0 16px 0;
+`;
+
+const MetaTagCard = styled.div`
+  margin-bottom: 16px;
+  padding-bottom: 16px;
+  border-bottom: 1px solid #333;
+  &:last-child {
+    border-bottom: none;
+    margin-bottom: 0;
+    padding-bottom: 0;
+  }
+`;
+
+const MetaTagName = styled.h4`
+  font-size: 14px;
+  font-weight: 600;
+  margin: 0 0 8px 0;
+`;
+
+const MetaTagValue = styled.p`
+  font-size: 14px;
+  margin: 0;
+  color: #cccccc;
+  word-break: break-word;
+`;
+
+// Headings section components
+const HeadingsSection = styled.div`
+  background-color: #262626;
+  border-radius: 8px;
+  padding: 16px;
+  margin-bottom: 24px;
+`;
+
+const HeadingTypeContainer = styled.div`
+  margin-bottom: 24px;
+  &:last-child {
+    margin-bottom: 0;
+  }
+`;
+
+const HeadingType = styled.h4`
+  font-size: 14px;
+  font-weight: 600;
+  margin: 0 0 12px 0;
+`;
+
+const HeadingsList = styled.div`
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+`;
+
+const HeadingItem = styled.div`
+  font-size: 14px;
+  padding: 8px 12px;
+  background-color: #333;
+  border-radius: 4px;
+  color: #cccccc;
+`;
+
+const NoHeadings = styled.div`
+  font-size: 14px;
+  color: #999;
+  padding: 8px 0;
+`;
+
+// Recommendation components
+const RecommendationsList = styled.div`
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+`;
+
+const RecommendationCard = styled.div`
+  background-color: #262626;
+  border-radius: 8px;
+  padding: 16px;
+`;
+
+const RecommendationHeader = styled.div`
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  margin-bottom: 12px;
+`;
+
+const RecommendationTitle = styled.h3`
+  font-size: 16px;
+  font-weight: 600;
+  margin: 0;
+  flex: 1;
+`;
+
+const RecommendationSeverity = styled.div<{ $severity: string }>`
+  font-size: 12px;
+  font-weight: 500;
+  padding: 4px 8px;
+  border-radius: 4px;
+  background-color: ${props => {
+    switch (props.$severity) {
+      case 'high': return 'rgba(255, 59, 48, 0.2)';
+      case 'medium': return 'rgba(255, 149, 0, 0.2)';
+      case 'low': return 'rgba(142, 142, 147, 0.2)';
+      default: return 'rgba(142, 142, 147, 0.2)';
+    }
+  }};
+  color: ${props => {
+    switch (props.$severity) {
+      case 'high': return '#ff3b30';
+      case 'medium': return '#ff9500';
+      case 'low': return '#8e8e93';
+      default: return '#8e8e93';
+    }
+  }};
+`;
+
+const RecommendationDescription = styled.p`
+  font-size: 14px;
+  margin: 0 0 16px 0;
+  color: #cccccc;
+`;
+
+const RecommendationDetail = styled.div`
+  margin-bottom: 12px;
+  &:last-child {
+    margin-bottom: 0;
+  }
+`;
+
+const RecommendationDetailTitle = styled.h4`
+  font-size: 14px;
+  font-weight: 600;
+  margin: 0 0 4px 0;
+`;
+
+const RecommendationDetailContent = styled.p`
+  font-size: 14px;
+  margin: 0;
+  color: #cccccc;
+`;
+
+// Page-by-page analysis components
+const PagesList = styled.div`
+  display: flex;
+  flex-direction: column;
+  gap: 32px;
+`;
+
+const PageCard = styled.div`
+  background-color: #262626;
+  border-radius: 8px;
+  padding: 20px;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+`;
+
+const PageHeader = styled.div`
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  margin-bottom: 8px;
+`;
+
+const PageUrl = styled.a`
+  font-size: 16px;
+  font-weight: 600;
+  color: #0df9b6;
+  text-decoration: none;
+  word-break: break-all;
+  max-width: 80%;
+  
+  &:hover {
+    text-decoration: underline;
+  }
+`;
+
+const PageTitle = styled.h3`
+  font-size: 18px;
+  font-weight: 600;
+  margin: 0 0 16px 0;
+  color: #ffffff;
+`;
+
+const PageScore = styled.div<{ $score: number }>`
+  font-size: 16px;
+  font-weight: 600;
+  color: ${props => getScoreColor(props.$score)};
+  padding: 4px 8px;
+  border-radius: 4px;
+  background-color: ${props => {
+    const color = getScoreColor(props.$score);
+    return `${color}20`; // 20% opacity
+  }};
+`;
+
+const PageSection = styled.div`
+  margin-bottom: 24px;
+  padding-bottom: 24px;
+  border-bottom: 1px solid #333;
+  
+  &:last-child {
+    margin-bottom: 0;
+    padding-bottom: 0;
+    border-bottom: none;
+  }
+`;
+
+const PageSectionTitle = styled.h4`
+  font-size: 16px;
+  font-weight: 600;
+  margin: 0 0 16px 0;
+  color: #ffffff;
+`;
+
+const ContentAnalysisGrid = styled.div`
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
+  gap: 16px;
+  margin-bottom: 16px;
+`;
+
+const ContentMetric = styled.div`
+  background-color: #333;
+  border-radius: 8px;
+  padding: 12px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+`;
+
+const ContentMetricLabel = styled.div`
+  font-size: 12px;
+  color: #999;
+  margin-bottom: 8px;
+`;
+
+const ContentMetricValue = styled.div<{ $score?: number }>`
+  font-size: 18px;
+  font-weight: 600;
+  color: ${props => props.$score ? getScoreColor(props.$score) : '#ffffff'};
+`;
+
+const KeywordDensity = styled.div`
+  margin-top: 16px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+`;
+
+const KeywordDensityLabel = styled.div`
+  font-size: 14px;
+  color: #999;
+`;
+
+const KeywordDensityValue = styled.div`
+  font-size: 14px;
+  font-weight: 600;
+  color: #ffffff;
+`;
+
+const ContentQuality = styled.div`
+  margin-top: 16px;
+  font-size: 14px;
+  line-height: 1.5;
+  color: #cccccc;
+  padding: 12px;
+  background-color: #333;
+  border-radius: 8px;
+`;
+
+const PerformanceMetrics = styled.div`
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
+  gap: 16px;
+  margin-bottom: 16px;
+`;
+
+const PerformanceMetric = styled.div`
+  background-color: #333;
+  border-radius: 8px;
+  padding: 12px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+`;
+
+const PerformanceMetricLabel = styled.div`
+  font-size: 12px;
+  color: #999;
+  margin-bottom: 8px;
+`;
+
+const PerformanceMetricValue = styled.div<{ $score?: number }>`
+  font-size: 18px;
+  font-weight: 600;
+  color: ${props => props.$score ? getScoreColor(props.$score) : '#ffffff'};
+`;
+
+const CoreWebVitals = styled.div`
+  margin-top: 16px;
+`;
+
+const CoreWebVitalsTitle = styled.h5`
+  font-size: 14px;
+  font-weight: 600;
+  margin: 0 0 12px 0;
+  color: #ffffff;
+`;
+
+const CoreWebVitalsList = styled.div`
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 12px;
+`;
+
+const CoreWebVital = styled.div`
+  background-color: #333;
+  border-radius: 8px;
+  padding: 12px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+`;
+
+const CoreWebVitalLabel = styled.div`
+  font-size: 12px;
+  color: #999;
+  margin-bottom: 8px;
+`;
+
+const CoreWebVitalValue = styled.div`
+  font-size: 14px;
+  font-weight: 600;
+  color: #ffffff;
+`;
+
+const MetaTagAnalysis = styled.div`
+  font-size: 12px;
+  color: #999;
+  margin-top: 4px;
+`;
+
+const NoPages = styled.div`
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 24px;
+  background-color: #262626;
+  border-radius: 8px;
+  color: #cccccc;
+`;
+
+// Overview page additional components
+const AuditTimestamp = styled.div`
+  font-size: 12px;
+  color: #999;
+  margin-top: 16px;
+  text-align: right;
+`;
+
+const ScoreDescription = styled.div`
+  font-size: 12px;
+  color: #999;
+  margin-top: 8px;
+  text-align: center;
+`;
+
+const SiteInfoGrid = styled.div`
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+  gap: 16px;
+`;
+
+const SiteInfoCard = styled.div`
+  background-color: #262626;
+  border-radius: 8px;
+  padding: 16px;
+`;
+
+const SiteInfoLabel = styled.div`
+  font-size: 12px;
+  color: #999;
+  margin-bottom: 8px;
+`;
+
+const SiteInfoValue = styled.div`
+  font-size: 14px;
+  word-break: break-word;
+  
+  a {
+    color: #0df9b6;
+    text-decoration: none;
+    
+    &:hover {
+      text-decoration: underline;
+    }
+  }
+`;
+
+const CriticalIssuesList = styled.div`
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+`;
+
+const CriticalIssueCard = styled.div`
+  background-color: #262626;
+  border-radius: 8px;
+  padding: 16px;
+`;
+
+const CriticalIssueHeader = styled.div`
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  margin-bottom: 12px;
+`;
+
+const CriticalIssueTitle = styled.h3`
+  font-size: 16px;
+  font-weight: 600;
+  margin: 0;
+  flex: 1;
+`;
+
+const CriticalIssueSeverity = styled.div<{ $severity: string }>`
+  font-size: 12px;
+  font-weight: 500;
+  padding: 4px 8px;
+  border-radius: 4px;
+  background-color: ${props => {
+    switch (props.$severity) {
+      case 'high': return 'rgba(255, 59, 48, 0.2)';
+      case 'medium': return 'rgba(255, 149, 0, 0.2)';
+      case 'low': return 'rgba(142, 142, 147, 0.2)';
+      default: return 'rgba(142, 142, 147, 0.2)';
+    }
+  }};
+  color: ${props => {
+    switch (props.$severity) {
+      case 'high': return '#ff3b30';
+      case 'medium': return '#ff9500';
+      case 'low': return '#8e8e93';
+      default: return '#8e8e93';
+    }
+  }};
+`;
+
+const CriticalIssueDescription = styled.p`
+  font-size: 14px;
+  margin: 0 0 16px 0;
+  color: #cccccc;
+`;
+
+const CriticalIssueAction = styled.div`
+  font-size: 14px;
+  padding: 12px;
+  background-color: rgba(13, 249, 182, 0.1);
+  border-left: 3px solid #0df9b6;
+  border-radius: 4px;
+  color: #ffffff;
+`;
+
+const NoCriticalIssues = styled.div`
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 24px;
+  background-color: #262626;
+  border-radius: 8px;
+  color: #cccccc;
+`;
+
+const CompetitiveAnalysisCard = styled.div`
+  background-color: #262626;
+  border-radius: 8px;
+  padding: 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 24px;
+`;
+
+const CompetitiveAnalysisSection = styled.div`
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+`;
+
+const CompetitiveAnalysisTitle = styled.h4`
+  font-size: 16px;
+  font-weight: 600;
+  margin: 0;
+  color: #ffffff;
+`;
+
+const CompetitiveAnalysisList = styled.ul`
+  margin: 0;
+  padding: 0 0 0 20px;
+`;
+
+const CompetitiveAnalysisItem = styled.li`
+  font-size: 14px;
+  margin-bottom: 8px;
+  color: #cccccc;
+`;
+
+const NoRecommendations = styled.div`
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 24px;
+  background-color: #262626;
+  border-radius: 8px;
+  color: #cccccc;
+`;
+
+const GlobalStyle = styled.div`
+  @keyframes spin {
+    from {
+      transform: rotate(0deg);
+    }
+    to {
+      transform: rotate(360deg);
+    }
+  }
+`;
+
+export default SEOAuditPage;

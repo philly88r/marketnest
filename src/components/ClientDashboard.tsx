@@ -2,7 +2,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import styled from 'styled-components';
-import { FiArrowLeft, FiEdit, FiMail, FiPhone, FiActivity, FiCalendar, FiCheckCircle, FiClock, FiCircle, FiFolder, FiList, FiSave, FiX, FiPlus, FiTrash2 } from 'react-icons/fi';
+import { FiArrowLeft, FiEdit, FiMail, FiPhone, FiActivity, FiCalendar, FiCheckCircle, FiClock, FiCircle, FiFolder, FiList, FiSave, FiX, FiPlus, FiTrash2, FiKey, FiSearch } from 'react-icons/fi';
 // Only using real data from Supabase
 import ProjectDashboard from './ProjectDashboard';
 import ClientFileManager from './ClientFileManager';
@@ -13,6 +13,8 @@ import Client004Checklist from './Client004Checklist';
 import SEOAuditPage from './SEOAuditPage';
 import FundraiserPage from './FundraiserPage';
 import ClientDashboardAI from './ClientDashboardAI';
+import KeywordsPage from './KeywordsPage';
+import CompetitorAnalysisPage from './CompetitorAnalysisPage';
 import { renderIcon } from '../utils/iconUtils';
 import { getClientById, updateClient, Client } from '../utils/clientService';
 import { supabase } from '../utils/supabaseClient';
@@ -550,7 +552,7 @@ interface ClientDashboardProps {
 // Using Project and Task interfaces from projectService
 
 const ClientDashboard: React.FC<ClientDashboardProps> = ({ clientId, onBack }) => {
-  const [activeTab, setActiveTab] = useState<'overview' | 'projects' | 'files' | 'tasks' | 'checklist' | 'analytics' | 'fundraiser' | 'email' | 'seo' | 'landing-pages' | 'ai-tools'>('overview');
+  const [activeTab, setActiveTab] = useState<'overview' | 'projects' | 'files' | 'tasks' | 'checklist' | 'analytics' | 'fundraiser' | 'email' | 'seo' | 'keywords' | 'competitor-analysis' | 'landing-pages' | 'ai-tools'>('overview');
   const [client, setClient] = useState<Client | null>(null);
   const [projects, setProjects] = useState<Project[]>([]);
   const [loading, setLoading] = useState<boolean>(true);
@@ -694,6 +696,9 @@ const ClientDashboard: React.FC<ClientDashboardProps> = ({ clientId, onBack }) =
       document.removeEventListener('mousedown', handleClickOutside);
     };
   }, [editedClient]);
+
+  // Import AnalyticsDashboard at the top of the file
+  const AnalyticsDashboard = React.lazy(() => import('./AnalyticsDashboard'));
 
   // Render the content based on active tab
   const renderContent = () => {
@@ -1194,7 +1199,9 @@ const ClientDashboard: React.FC<ClientDashboardProps> = ({ clientId, onBack }) =
         return (
           <AnalyticsContent>
             <h3>Client Analytics</h3>
-            <p>Detailed analytics and reporting for this client will be available soon.</p>
+            <React.Suspense fallback={<div>Loading analytics dashboard...</div>}>
+              <AnalyticsDashboard clientId={clientId} dateRange="month" />
+            </React.Suspense>
             
             <ComingSoonMessage>
               <h4>Coming Soon</h4>
@@ -1247,6 +1254,12 @@ const ClientDashboard: React.FC<ClientDashboardProps> = ({ clientId, onBack }) =
         
       case 'seo':
         return <SEOAuditPage clientId={clientId} />;
+        
+      case 'keywords':
+        return <KeywordsPage clientId={clientId} />;
+      
+      case 'competitor-analysis':
+        return <CompetitorAnalysisPage clientId={clientId} />;
         
       case 'landing-pages':
         return (
@@ -1314,6 +1327,12 @@ const ClientDashboard: React.FC<ClientDashboardProps> = ({ clientId, onBack }) =
           Email Marketing
         </TabButton>
         <TabButton $active={activeTab === 'seo'} onClick={() => setActiveTab('seo')}>SEO Audit</TabButton>
+        <TabButton $active={activeTab === 'keywords'} onClick={() => setActiveTab('keywords')}>
+          <FiKey style={{ marginRight: '5px' }} /> Keywords
+        </TabButton>
+        <TabButton $active={activeTab === 'competitor-analysis'} onClick={() => setActiveTab('competitor-analysis')}>
+          <FiSearch style={{ marginRight: '5px' }} /> Competitor Analysis
+        </TabButton>
         <TabButton $active={activeTab === 'landing-pages'} onClick={() => setActiveTab('landing-pages')}>
           Landing Pages
         </TabButton>

@@ -334,10 +334,8 @@ export const getTasksByProjectId = async (projectId: string): Promise<Task[]> =>
       .eq('project_id', projectId);
       
     if (error) {
-      console.warn('Error fetching tasks from database, using mock data:', error);
-      // Return mock tasks that match the project ID
-      // return mockTasks.filter(task => task.project_id === projectId);
-      return [];
+      console.error('Error fetching tasks from database:', error);
+      throw new Error(`Failed to fetch tasks: ${error.message || 'Unknown error'}`);
     }
     
     if (!data || data.length === 0) {
@@ -349,9 +347,7 @@ export const getTasksByProjectId = async (projectId: string): Promise<Task[]> =>
     return data;
   } catch (error) {
     console.error('Error in getTasksByProjectId:', error);
-    // Return mock tasks as fallback
-    // return mockTasks.filter(task => task.project_id === projectId);
-    return [];
+    throw new Error(`Failed to get tasks: ${error instanceof Error ? error.message : 'Unknown error'}`);
   }
 };
 
@@ -369,24 +365,8 @@ export const createTask = async (task: Omit<Task, 'id'>): Promise<Task> => {
       .single();
       
     if (error) {
-      console.warn('Error creating task in database, using mock data:', error);
-      // Create a mock task as fallback
-      const mockId = 'task-' + Math.random().toString(36).substring(2, 10);
-      const mockTask: Task = {
-        id: mockId,
-        name: task.name,
-        description: task.description,
-        status: task.status,
-        assignee: task.assignee,
-        project_id: task.project_id,
-        due_date: task.due_date,
-        created_at: new Date().toISOString(),
-        created_by: task.created_by || 'admin'
-      };
-      
-      // Add to mock tasks array for local state management
-      // mockTasks.push(mockTask);
-      return mockTask;
+      console.error('Error creating task in database:', error);
+      throw new Error(`Failed to create task: ${error.message || 'Unknown error'}`);
     }
     
     console.log('Task created successfully:', data);

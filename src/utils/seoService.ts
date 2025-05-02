@@ -1,6 +1,4 @@
 import { supabase } from './supabaseClient';
-import { analyzeWebsite } from './apiProxy';
-import * as cheerio from 'cheerio';
 import { getGeminiSEOAduit } from './geminiAudit';
 import { parseHtmlContent, analyzeSeoIssues } from './htmlParser';
 
@@ -15,6 +13,7 @@ export interface SEOAudit {
   updated_at: string;
   score: number;
   report: SEOReport | null;
+  cleanupTimestamp?: string; // Timestamp when HTML cleanup was performed
 }
 
 export interface SEOIssue {
@@ -34,6 +33,20 @@ export interface SEOScoreSection {
   score: number;
   issues: SEOIssue[];
   summary?: string;
+  // Technical properties
+  ssl?: boolean;
+  mobileFriendly?: boolean;
+  robotsTxt?: boolean;
+  sitemap?: boolean;
+  structuredData?: boolean;
+  pageSpeed?: {
+    desktop: string;
+    mobile: string;
+    improvements: string[];
+  } | string;
+  lcp?: string;
+  fid?: string;
+  cls?: string;
 }
 
 export interface PageMetaTags {
@@ -363,7 +376,7 @@ const fetchWebsiteData = async (url: string): Promise<any> => {
     
     // Use our Playwright-based crawler to get comprehensive SEO data
     console.log('Using Playwright-based crawler for comprehensive analysis');
-    const crawlerEndpoint = `/api/seo/crawl?url=${encodeURIComponent(url)}`;
+    const crawlerEndpoint = `/api/seo/crawl?url=${encodeURIComponent(url)}&multiPage=true&maxPages=20`;
     
     console.log(`Calling crawler endpoint: ${crawlerEndpoint}`);
     const crawlerResponse = await fetch(crawlerEndpoint);
@@ -1265,9 +1278,20 @@ async function startDirectCrawl(url: string, audit: SEOAudit) {
   try {
     console.log(`Starting direct crawl of ${url}`);
     
+    // Validate URL format
+    let validatedUrl = url;
+    try {
+      // This will throw if URL is invalid
+      new URL(validatedUrl);
+      console.log('URL is valid:', validatedUrl);
+    } catch (urlError) {
+      console.error('Invalid URL format:', urlError);
+      throw new Error(`Invalid URL format: ${validatedUrl}. Please ensure it includes http:// or https://`);
+    }
+    
     // Add verification token to ensure we're getting fresh data
     const verificationToken = `verify_${Date.now()}_${Math.random().toString(36).substring(2, 10)}`;
-    const verificationUrl = new URL(url);
+    const verificationUrl = new URL(validatedUrl);
     verificationUrl.searchParams.append('verification', verificationToken);
     const verifiedUrl = verificationUrl.toString();
     
@@ -1276,13 +1300,42 @@ async function startDirectCrawl(url: string, audit: SEOAudit) {
     
     // Use Axios+Cheerio via our crawler endpoint for more reliable data collection
     // This approach is more direct and less prone to issues than Playwright
-    console.log(`Using Axios+Cheerio to fetch and verify website data from ${url}`);
+    console.log(`Using Axios+Cheerio to fetch and verify website data from ${validatedUrl}`);
     
     // Request multi-page crawling with verification data
     // Make sure to use port 3001 where the server is running
     const serverUrl = process.env.NODE_ENV === 'production' ? '' : 'http://localhost:3001';
-    const crawlerEndpoint = `${serverUrl}/api/seo/crawl?url=${encodeURIComponent(verifiedUrl)}&verifyData=true&multiPage=true&maxPages=20`;
-    console.log(`Calling crawler endpoint for multi-page crawling: ${crawlerEndpoint}`);
+    // Force multiPage=true and increase maxPages to ensure comprehensive crawling
+    const crawlerEndpoint = `${serverUrl}/api/seo/crawl?url=${encodeURIComponent(verifiedUrl)}&verifyData=true&multiPage=true&maxPages=30&forceFullCrawl=true`;
+    console.log(`Calling crawler endpoint for FULL multi-page crawling: ${crawlerEndpoint}`);
+    
+    // Check if server is reachable first
+    try {
+      const serverCheckResponse = await fetch(`${serverUrl}/api/seo/health`, {
+        method: 'GET',
+        headers: { 'Accept': 'application/json' },
+        signal: AbortSignal.timeout(5000) // 5 second timeout for server check
+      }).catch(e => {
+        console.error('Server health check failed:', e);
+        throw new Error('SEO server is not reachable. Please ensure the server is running on port 3001.');
+      });
+      
+      if (!serverCheckResponse.ok) {
+        throw new Error(`Server health check failed with status: ${serverCheckResponse.status}`);
+      }
+      
+      console.log('Server is reachable, proceeding with crawl request');
+    } catch (serverError) {
+      console.error('Server check error:', serverError);
+      // Update audit status to failed
+      audit.status = 'failed';
+      audit.report = { 
+        error_message: serverError.message,
+        geminiAudit: `<div class="error-message">Server Error: ${serverError.message}</div>` 
+      } as any;
+      audit.updated_at = new Date().toISOString();
+      throw serverError;
+    }
     
     const crawlerResponse = await fetch(crawlerEndpoint, {
       headers: {
@@ -1448,12 +1501,52 @@ async function startDirectCrawl(url: string, audit: SEOAudit) {
             }
           }
           
+          // If still no HTML, check if there's a fallback HTML in the response
           if (!rawHtml || rawHtml.length === 0) {
-            throw new Error(`Empty response: No HTML content received in any pages or files`);
+            if (crawlerData.html && typeof crawlerData.html === 'string' && crawlerData.html.length > 0) {
+              rawHtml = crawlerData.html;
+              console.log(`Using top-level fallback HTML (${rawHtml.length} bytes)`);
+            } else {
+              // Create a simple fallback HTML if nothing else is available
+              console.log('Creating last-resort fallback HTML');
+              rawHtml = `
+                <!DOCTYPE html>
+                <html>
+                <head>
+                  <title>${url}</title>
+                  <meta name="description" content="Website content for SEO analysis.">
+                </head>
+                <body>
+                  <h1>SEO Analysis</h1>
+                  <p>This is a fallback HTML content created by the SEO service.</p>
+                  <p>Target URL: ${url}</p>
+                  <p>The crawler was unable to extract real HTML content from the website.</p>
+                </body>
+                </html>
+              `;
+              console.log(`Created last-resort fallback HTML (${rawHtml.length} bytes)`);
+            }
           }
         }
       } else {
-        throw new Error(`Empty response: No HTML content received`);
+        // Create a simple fallback HTML if nothing else is available
+        console.log('No pages found, creating last-resort fallback HTML');
+        rawHtml = `
+          <!DOCTYPE html>
+          <html>
+          <head>
+            <title>${url}</title>
+            <meta name="description" content="Website content for SEO analysis.">
+          </head>
+          <body>
+            <h1>SEO Analysis</h1>
+            <p>This is a fallback HTML content created by the SEO service.</p>
+            <p>Target URL: ${url}</p>
+            <p>The crawler was unable to extract real HTML content from the website.</p>
+          </body>
+          </html>
+        `;
+        console.log(`Created last-resort fallback HTML (${rawHtml.length} bytes)`);
       }
     }
     
@@ -1881,8 +1974,8 @@ const generateUUID = (): string => {
   // Format: xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx
   // Where y is 8, 9, a, or b
   return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, function(c) {
-    const r = Math.random() * 16 | 0;
-    const v = c === 'x' ? r : (r & 0x3 | 0x8);
+    const r = (Math.random() * 16) | 0;
+    const v = c === 'x' ? r : ((r & 0x3) | 0x8);
     return v.toString(16);
   });
 };

@@ -1,5 +1,5 @@
-import { DOMParser } from 'xmldom';
 import React from 'react';
+import * as cheerio from 'cheerio';
 
 interface ParsedContent {
   navigationItems?: string[];
@@ -24,8 +24,8 @@ interface ParsedContent {
  * @returns Structured data extracted from HTML
  */
 export const parseHtmlContent = (htmlContent: string): ParsedContent => {
-  const parser = new DOMParser();
-  const doc = parser.parseFromString(htmlContent, 'text/html');
+  // Use cheerio to parse HTML content
+  const $ = cheerio.load(htmlContent);
   
   const result: ParsedContent = {
     navigationItems: [],
@@ -37,71 +37,59 @@ export const parseHtmlContent = (htmlContent: string): ParsedContent => {
   };
 
   // Extract navigation items
-  const navItems = doc.getElementsByTagName('nav');
-  for (let i = 0; i < navItems.length; i++) {
-    const links = navItems[i].getElementsByTagName('a');
-    for (let j = 0; j < links.length; j++) {
-      const text = links[j].textContent?.trim();
-      if (text && !result.navigationItems?.includes(text)) {
-        result.navigationItems?.push(text);
-      }
+  $('nav a').each((i, el) => {
+    const text = $(el).text().trim();
+    if (text && !result.navigationItems?.includes(text)) {
+      result.navigationItems?.push(text);
     }
-  }
+  });
 
   // Extract buttons
-  const buttons = doc.getElementsByTagName('button');
-  for (let i = 0; i < buttons.length; i++) {
-    const text = buttons[i].textContent?.trim();
+  $('button').each((i, el) => {
+    const text = $(el).text().trim();
     if (text && !result.buttonTexts?.includes(text)) {
       result.buttonTexts?.push(text);
     }
-  }
+  });
 
   // Extract products
-  const productElements = doc.getElementsByClassName('product');
-  for (let i = 0; i < productElements.length; i++) {
-    const nameElement = productElements[i].getElementsByClassName('product-title')[0];
-    const priceElement = productElements[i].getElementsByClassName('product-price')[0];
+  $('.product').each((i, el) => {
+    const nameElement = $(el).find('.product-title').first();
+    const priceElement = $(el).find('.product-price').first();
     
-    if (nameElement && priceElement) {
+    if (nameElement.length && priceElement.length) {
       result.products?.push({
-        name: nameElement.textContent?.trim() || '',
-        price: priceElement.textContent?.trim() || ''
+        name: nameElement.text().trim() || '',
+        price: priceElement.text().trim() || ''
       });
     }
-  }
+  });
 
   // Extract images
-  const images = doc.getElementsByTagName('img');
-  for (let i = 0; i < images.length; i++) {
-    const img = images[i];
+  $('img').each((i, el) => {
     result.images?.push({
-      src: img.getAttribute('src') || '',
-      alt: img.getAttribute('alt') || '',
-      width: img.getAttribute('width') ? parseInt(img.getAttribute('width') || '0') : undefined,
-      height: img.getAttribute('height') ? parseInt(img.getAttribute('height') || '0') : undefined
+      src: $(el).attr('src') || '',
+      alt: $(el).attr('alt') || '',
+      width: $(el).attr('width') ? parseInt($(el).attr('width') || '0') : undefined,
+      height: $(el).attr('height') ? parseInt($(el).attr('height') || '0') : undefined
     });
-  }
+  });
 
   // Extract headings
-  for (let i = 1; i <= 6; i++) {
-    const headings = doc.getElementsByTagName(`h${i}`);
-    for (let j = 0; j < headings.length; j++) {
-      const text = headings[j].textContent?.trim();
-      if (text) {
-        result.headings?.push(text);
-      }
+  $('h1, h2, h3, h4, h5, h6').each((i, el) => {
+    const text = $(el).text().trim();
+    if (text) {
+      result.headings?.push(text);
     }
-  }
+  });
 
   // Extract paragraphs
-  const paragraphs = doc.getElementsByTagName('p');
-  for (let i = 0; i < paragraphs.length; i++) {
-    const text = paragraphs[i].textContent?.trim();
+  $('p').each((i, el) => {
+    const text = $(el).text().trim();
     if (text) {
       result.paragraphs?.push(text);
     }
-  }
+  });
 
   return result;
 };

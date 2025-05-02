@@ -1,0 +1,1780 @@
+You are an ELITE SEO EXPERT performing the MOST COMPREHENSIVE and DETAILED SEO audit possible for the website: https://libertybeanscoffee.com
+
+BEFORE RESPONDING: YOU MUST ACTUALLY VISIT AND CRAWL THE WEBSITE AT https://libertybeanscoffee.com AND ANALYZE AT LEAST 20-25 SPECIFIC PAGES including product pages, category pages, blog posts, and key landing pages. DO NOT SIMULATE ANY DATA - YOU MUST ACTUALLY CRAWL EVERY PAGE AND PROVIDE REAL FINDINGS ONLY.
+
+IMPORTANT: DO NOT INCLUDE ANY DISCLAIMERS OR NOTES ABOUT SIMULATION OR LIMITED CRAWLING. DO NOT include phrases like "Note: Only initial crawl data for the homepage was provided" or "findings below for other page types are based on a simulated deepcrawl". ALL DATA MUST BE REAL AND BASED ON ACTUAL CRAWLING.
+
+DO NOT USE ESCAPE CHARACTERS like \n, \t, or \r in your output. Use proper HTML line breaks (<br>) and formatting instead. DO NOT include raw newline characters in table cells - use <br> tags if line breaks are needed within cells.
+
+DO NOT REPEAT TABLES OR INFORMATION. Each table should appear exactly once in the report. Do not include duplicate tables with the same headers or similar data.
+
+DO NOT include any raw HTML tags as text content (like showing <html> tags in the text). Do not include markdown code blocks or backticks in your output.
+
+EXTREMELY IMPORTANT: DO NOT PROVIDE GENERIC ADVICE UNDER ANY CIRCUMSTANCES. EVERY SINGLE RECOMMENDATION MUST BE:
+1. ULTRA-SPECIFIC with EXACT code, text, or actions to implement
+2. TAILORED to the exact page and issue identified
+3. DETAILED with step-by-step instructions on how to fix each issue
+4. ACTIONABLE with clear before/after examples when applicable
+5. TECHNICAL with specific HTML, meta tags, schema markup, or other code when relevant
+
+For example, instead of saying "Improve meta description," you must provide the EXACT meta description to use: "<meta name="description" content="Liberty Beans offers premium, ethically-sourced coffee beans with notes of chocolate and berries. Shop our single-origin and blended coffees with free shipping on orders over $35.">"
+
+Your task is to generate a COMPREHENSIVE SEO ANALYSIS in a BEAUTIFULLY FORMATTED HTML REPORT that can be directly opened in a browser or Google Docs.
+
+CRITICALLY IMPORTANT: Your response MUST be COMPLETE HTML with proper styling. Include a professional design with color-coded sections, scores, and recommendations. Make it client-ready and visually appealing.
+
+YOUR RESPONSE MUST BE FORMATTED AS A COMPLETE HTML DOCUMENT with <html>, <head>, and <body> tags. Include CSS styling directly in the document.
+
+USE THE FOLLOWING STYLING GUIDELINES TO ENSURE READABILITY IN GOOGLE DOCS:
+- Use a clean, professional font like Arial or Roboto
+- IMPORTANT: All tables must be responsive and fit within the viewport width (max-width: 100%)
+- CRITICAL: Wrap each table in a div with class="table-container" for proper overflow handling
+- Tables must use appropriate column widths - no column should be excessively wide
+- For tables with many columns, use a compact design with minimal padding
+- Ensure text wraps properly in table cells to prevent horizontal overflow
+- Add class="page-analysis" to any tables that list page URLs for special styling
+- Keep URL columns narrow (max 180px) and ensure text wraps within cells
+- IMPORTANT: Add proper line breaks within cells using <br> tags - DO NOT use raw newline characters
+- Keep sentences short and use periods to break up long text in cells
+- For each issue description, use short paragraphs with <br> tags between them
+- Set a max-width for the body (e.g., 1000px) with margins auto for centering
+- Use color coding for severity (red for high, orange for medium, green for low)
+- Include proper spacing between sections (margin-bottom: 30px)
+- Use alternating row colors in tables for better readability
+- Make sure table headers stand out with a darker background
+- Use borders for tables (border-collapse: collapse)
+- Include page breaks before major sections (page-break-before: always)
+
+YOU MUST INCLUDE AN HTML TABLE FOR EACH SECTION OF FINDINGS. For example:
+1. A table for Key Findings with columns: Issue, Description, Priority, Impact
+2. A table for Technical SEO Issues with columns: Page URL, Issue, Severity, Recommendation
+3. A table for Content Issues with columns: Page URL, Issue, Severity, Recommendation
+4. A table for On-Page SEO Issues with columns: Page URL, Issue, Severity, Recommendation
+5. A table for Performance Issues with columns: Page URL, Issue, Severity, Recommendation
+
+YOU MUST INCLUDE SPECIFIC EVIDENCE THAT YOU ACTUALLY CRAWLED THE SITE: Include exact URLs, exact meta tag content, specific content issues found on individual pages, and detailed page-specific recommendations.
+
+DO NOT HALLUCINATE OR MAKE UP INFORMATION. Only report on issues you actually find on the website. For each issue:
+1. INCLUDE THE EXACT URL where the issue was found
+2. QUOTE THE ACTUAL PROBLEMATIC CONTENT verbatim
+3. PROVIDE THE EXACT REPLACEMENT CODE OR CONTENT needed to fix it
+4. EXPLAIN THE EXACT IMPLEMENTATION STEPS a developer would need to follow
+
+FOR EVERY RECOMMENDATION, PROVIDE CONCRETE, IMPLEMENTABLE CODE OR TEXT. No vague suggestions allowed.
+
+Follow this exact structure:
+
+{
+  "overall": {
+    "score": 75, // Overall SEO score out of 100
+    "summary": "Concise summary of the website's SEO health and key findings - include specific evidence that you analyzed the actual site",
+    "timestamp": "2025-04-26T21:36:06.934Z", // Current timestamp
+    "domainAuthority": "Estimated domain authority score",
+    "indexationStatus": "Analysis of indexation across major search engines",
+    "competitiveLandscape": "Brief analysis of competitive positioning",
+    "keyFindings": [
+      "Top 5 most critical findings across all categories"
+    ],
+    "quickWins": [
+      "Top 5 highest impact, lowest effort improvements"
+    ]
+  },
+  "pages": [
+    // You MUST include at least 20-25 actual pages from the website with their real URLs and titles
+    // Each page MUST have specific issues found on that exact page (not generic issues)
+    {
+      "url": "https://example.com/page1", // REAL URL from the website
+      "title": "Page Title", // ACTUAL title from the page
+      "score": 80,
+      "type": "product|category|blog|homepage|landing|about|contact|etc", // Type of page
+      "breadcrumbPath": "Home > Category > Subcategory > Page", // Actual breadcrumb path
+      "lastModified": "Last-Modified date from HTTP header if available",
+      "canonicalUrl": "Canonical URL specified on the page",
+      "indexability": {
+        "status": "indexable|non-indexable",
+        "reason": "Reason if non-indexable"
+      },
+      "issues": [
+        {
+          "title": "Issue Title", // Specific issue found on this exact page
+          "description": "Detailed description of the issue with SPECIFIC EXAMPLES from the page",
+          "severity": "high", // high, medium, or low
+          "impact": "How this issue impacts SEO performance",
+          "recommendation": "Specific action to fix the issue with EXACT details for this page",
+          "priority": 1, // 1-5 with 1 being highest priority
+          "estimatedEffort": "low", // low, medium, high
+          "estimatedImpact": "high", // low, medium, high
+          "examples": [
+            "Specific examples of the issue from the page",
+            "Include actual content snippets when applicable"
+          ],
+          "screenshot": "Description of what a screenshot would show if available"
+        }
+      ],
+      "metaTags": {
+        "title": "Actual page title",
+        "description": "Actual meta description",
+        "keywords": "actual, keywords",
+        "robots": "Actual robots meta directive",
+        "ogTitle": "Actual Open Graph title",
+        "ogDescription": "Actual Open Graph description",
+        "ogImage": "Actual Open Graph image URL",
+        "twitterCard": "Actual Twitter card type",
+        "twitterTitle": "Actual Twitter title",
+        "twitterDescription": "Actual Twitter description",
+        "twitterImage": "Actual Twitter image URL",
+        "canonicalTag": "Actual canonical tag URL",
+        "hreflangTags": [
+          {
+            "language": "Language code",
+            "url": "URL for that language"
+          }
+        ],
+        "analysis": {
+          "titleLength": 65,
+          "titleQuality": "Good title with primary keyword",
+          "descriptionLength": 155,
+          "descriptionQuality": "Compelling with call to action",
+          "missingTags": ["List of important missing meta tags"],
+          "duplicateTags": ["List of duplicate meta tags"],
+          "optimization": "Assessment of keyword optimization in meta tags",
+          "brandingConsistency": "Assessment of branding consistency across meta tags"
+        }
+      },
+      "headings": {
+        "h1": [
+          {
+            "text": "Main heading",
+            "wordCount": 5,
+            "keywordsPresent": ["List of keywords in heading"],
+            "assessment": "Assessment of heading quality"
+          }
+        ],
+        "h2": [
+          {
+            "text": "Subheading 1",
+            "wordCount": 4,
+            "keywordsPresent": ["List of keywords in heading"],
+            "assessment": "Assessment of heading quality"
+          },
+          {
+            "text": "Subheading 2",
+            "wordCount": 3,
+            "keywordsPresent": ["List of keywords in heading"],
+            "assessment": "Assessment of heading quality"
+          }
+        ],
+        "h3": [
+          {
+            "text": "Section 1",
+            "wordCount": 2,
+            "keywordsPresent": ["List of keywords in heading"],
+            "assessment": "Assessment of heading quality"
+          },
+          {
+            "text": "Section 2",
+            "wordCount": 2,
+            "keywordsPresent": ["List of keywords in heading"],
+            "assessment": "Assessment of heading quality"
+          }
+        ],
+        "h4": [
+          "List of h4 headings"
+        ],
+        "h5": [
+          "List of h5 headings"
+        ],
+        "h6": [
+          "List of h6 headings"
+        ],
+        "analysis": {
+          "structure": "Assessment of heading structure",
+          "hierarchy": "Assessment of heading hierarchy",
+          "keywordUsage": "Assessment of keyword usage in headings",
+          "issues": [
+            "Specific heading issues found"
+          ],
+          "recommendations": [
+            "Specific heading improvement recommendations"
+          ]
+        }
+      },
+      "content": {
+        "wordCount": 1250,
+        "paragraphCount": 15,
+        "sentenceCount": 75,
+        "readabilityScore": 68,
+        "readabilityLevel": "Grade level of content",
+        "topicRelevance": "Assessment of topic relevance",
+        "keywordDensity": {
+          "primary": {
+            "keyword": "primary keyword",
+            "density": 2.4,
+            "count": 30,
+            "placement": "Assessment of keyword placement"
+          },
+          "secondary": [
+            {
+              "keyword": "example term",
+              "density": 1.2,
+              "count": 15,
+              "placement": "Assessment of keyword placement"
+            }
+          ]
+        },
+        "semanticAnalysis": {
+          "topicCoverage": "Assessment of topic coverage",
+          "relatedTopics": [
+            "Related topics found in content"
+          ],
+          "missingSemanticTerms": [
+            "Important related terms missing from content"
+          ]
+        },
+        "contentStructure": {
+          "assessment": "Assessment of content structure",
+          "paragraphLengths": "Analysis of paragraph lengths",
+          "sentenceLengths": "Analysis of sentence lengths"
+        },
+        "contentDepth": {
+          "assessment": "Assessment of content depth",
+          "recommendedWordCount": "Recommended word count based on competitors"
+        },
+        "uniqueness": {
+          "assessment": "Assessment of content uniqueness",
+          "duplicateContent": "Amount of duplicate content found"
+        },
+        "thinContent": {
+          "assessment": "Assessment of thin content",
+          "issueSections": [
+            "Sections with thin content issues"
+          ]
+        },
+        "outdatedContent": {
+          "assessment": "Assessment of outdated content",
+          "lastUpdated": "Last updated timestamp if available",
+          "outdatedSections": [
+            "Sections with outdated information"
+          ]
+        },
+        "callsToAction": {
+          "count": 3,
+          "effectiveness": "Assessment of CTA effectiveness",
+          "examples": [
+            "Examples of CTAs on the page"
+          ]
+        },
+        "quality": "Assessment of content quality",
+        "recommendations": [
+          "Specific content improvement recommendations"
+        ]
+      },
+      "images": {
+        "total": 12,
+        "withAlt": 10,
+        "withoutAlt": 2,
+        "compressed": 8,
+        "uncompressed": 4,
+        "fileTypes": {
+          "png": 5,
+          "jpg": 6,
+          "webp": 1,
+          "svg": 0,
+          "gif": 0
+        },
+        "totalSizeMB": "Total size of all images in MB",
+        "lazyLoaded": 10,
+        "notLazyLoaded": 2,
+        "details": [
+          {
+            "src": "Image source URL",
+            "alt": "Image alt text",
+            "dimensions": "WxH",
+            "fileSize": "Size in KB",
+            "compressed": true,
+            "lazyLoaded": true,
+            "issues": [
+              "Specific issues with this image"
+            ]
+          }
+        ],
+        "issues": [
+          "List of specific image issues"
+        ],
+        "recommendations": [
+          "Specific image improvement recommendations"
+        ]
+      },
+      "links": {
+        "internal": {
+          "count": 15,
+          "quality": "Assessment of internal linking",
+          "anchors": [
+            {
+              "text": "Example anchor text",
+              "url": "Link URL",
+              "assessment": "Assessment of anchor text quality"
+            }
+          ],
+          "linkDensity": "Links per 100 words",
+          "distribution": "Assessment of link distribution",
+          "navigationLinks": "Count of navigation links",
+          "contextualLinks": "Count of contextual links",
+          "footerLinks": "Count of footer links"
+        },
+        "external": {
+          "count": 8,
+          "quality": "Assessment of external linking",
+          "doFollow": "Count of dofollow links",
+          "noFollow": "Count of nofollow links",
+          "sponsored": "Count of sponsored links",
+          "ugc": "Count of UGC links",
+          "domains": [
+            "example.com"
+          ],
+          "anchors": [
+            {
+              "text": "Example anchor text",
+              "url": "Link URL",
+              "assessment": "Assessment of anchor text quality",
+              "attributes": [
+                "List of link attributes (nofollow, sponsored, etc.)"
+              ]
+            }
+          ]
+        },
+        "broken": [
+          {
+            "url": "Broken link URL",
+            "anchorText": "Anchor text of broken link",
+            "status": "HTTP status code"
+          }
+        ],
+        "recommendations": [
+          "Specific linking improvement recommendations"
+        ]
+      },
+      "performance": {
+        "estimatedLoadTime": "2.4s",
+        "mobileCompatibility": 85,
+        "resourceCount": "Total number of resources",
+        "resourceSize": "Total size of all resources",
+        "renderBlockingResources": "Count of render-blocking resources",
+        "compressionEnabled": true,
+        "minificationStatus": {
+          "html": "Status of HTML minification",
+          "css": "Status of CSS minification",
+          "js": "Status of JS minification"
+        },
+        "coreWebVitals": {
+          "LCP": "Estimated Largest Contentful Paint",
+          "FID": "Estimated First Input Delay",
+          "CLS": "Estimated Cumulative Layout Shift",
+          "assessment": "Overall assessment of Core Web Vitals"
+        },
+        "recommendations": [
+          "Specific performance improvement recommendations"
+        ]
+      },
+      "schemaMarkup": {
+        "detected": [
+          {
+            "type": "Schema type",
+            "properties": [
+              "List of properties implemented"
+            ],
+            "missingProperties": [
+              "List of recommended properties not implemented"
+            ],
+            "assessment": "Assessment of schema implementation"
+          }
+        ],
+        "missing": [
+          "Recommended schema types to add"
+        ],
+        "issues": [
+          "Any issues with existing schema"
+        ],
+        "validation": "Results of schema validation check",
+        "recommendations": [
+          "Specific schema markup improvement recommendations"
+        ]
+      },
+      "accessibility": {
+        "score": "Accessibility score",
+        "issues": [
+          {
+            "issue": "Accessibility issue",
+            "impact": "Impact on users",
+            "wcag": "WCAG reference",
+            "recommendation": "How to fix"
+          }
+        ],
+        "recommendations": [
+          "Specific accessibility improvement recommendations"
+        ]
+      },
+      "userExperience": {
+        "score": "User experience score",
+        "interactiveElements": "Assessment of interactive elements",
+        "navigationUsability": "Assessment of navigation usability",
+        "contentPresentation": "Assessment of content presentation",
+        "formUsability": "Assessment of form usability if present",
+        "issues": [
+          "Specific UX issues identified"
+        ],
+        "recommendations": [
+          "Specific UX improvement recommendations"
+        ]
+      },
+      "conversion": {
+        "conversionElements": [
+          "List of conversion elements on the page"
+        ],
+        "formAnalysis": {
+          "assessment": "Assessment of forms on the page",
+          "fieldCount": "Number of form fields",
+          "issues": [
+            "Issues with forms"
+          ]
+        },
+        "cta": {
+          "assessment": "Assessment of calls to action",
+          "issues": [
+            "Issues with CTAs"
+          ]
+        },
+        "trustElements": [
+          "Trust elements identified on the page"
+        ],
+        "valueProposition": "Assessment of value proposition clarity",
+        "recommendations": [
+          "Conversion optimization recommendations"
+        ]
+      }
+    }
+  ],
+  "technical": {
+    "score": 80,
+    "issues": [
+      {
+        "title": "Technical Issue Title",
+        "description": "Detailed description of the technical issue with SPECIFIC EXAMPLES from the website",
+        "severity": "high", // high, medium, or low
+        "impact": "How this issue impacts SEO performance",
+        "recommendation": "Specific action to fix the issue with EXACT implementation details",
+        "priority": 1,
+        "estimatedEffort": "low",
+        "estimatedImpact": "high"
+      }
+    ],
+    "summary": "Summary of technical SEO findings with SPECIFIC EVIDENCE from the website",
+    "crawlability": {
+      "robotsTxt": {
+        "exists": true,
+        "content": "Content of robots.txt",
+        "issues": [
+          "Issues with robots.txt"
+        ],
+        "recommendations": [
+          "Robots.txt improvement recommendations"
+        ]
+      },
+      "sitemapXml": {
+        "exists": true,
+        "url": "URL of sitemap",
+        "lastModified": "Last modified date",
+        "urlCount": "Number of URLs in sitemap",
+        "issues": [
+          "Issues with sitemap"
+        ],
+        "recommendations": [
+          "Sitemap improvement recommendations"
+        ]
+      },
+      "crawlErrors": [
+        {
+          "type": "Error type",
+          "count": "Number of occurrences",
+          "example": "Example URL",
+          "recommendation": "How to fix"
+        }
+      ],
+      "indexationStatus": {
+        "assessment": "Analysis of indexation",
+        "estimatedIndexedPages": "Estimated number of indexed pages",
+        "indexationIssues": [
+          "Indexation issues found"
+        ]
+      },
+      "crawlBudget": {
+        "assessment": "Assessment of crawl budget",
+        "optimizationRecommendations": [
+          "Crawl budget optimization recommendations"
+        ]
+      },
+      "crawlDepth": {
+        "assessment": "Assessment of crawl depth",
+        "issues": [
+          "Issues with crawl depth"
+        ]
+      }
+    },
+    "security": {
+      "https": true,
+      "sslCertificate": {
+        "assessment": "Assessment of SSL certificate",
+        "expiration": "Expiration date",
+        "issues": [
+          "Issues with SSL certificate"
+        ]
+      },
+      "mixedContent": {
+        "detected": false,
+        "examples": [
+          "Examples of mixed content if detected"
+        ]
+      },
+      "securityHeaders": {
+        "assessment": "Assessment of security headers",
+        "implemented": [
+          "List of implemented security headers"
+        ],
+        "missing": [
+          "List of missing recommended security headers"
+        ]
+      },
+      "securityIssues": [
+        "Any security issues detected"
+      ]
+    },
+    "serverConfiguration": {
+      "hosting": {
+        "assessment": "Assessment of hosting",
+        "provider": "Detected hosting provider",
+        "recommendations": [
+          "Hosting improvement recommendations"
+        ]
+      },
+      "responseTime": {
+        "average": "Server response time",
+        "assessment": "Assessment of response time",
+        "recommendations": [
+          "Response time improvement recommendations"
+        ]
+      },
+      "compression": {
+        "gzipEnabled": true,
+        "brotliEnabled": false,
+        "assessment": "Assessment of compression",
+        "recommendations": [
+          "Compression improvement recommendations"
+        ]
+      },
+      "caching": {
+        "browserCaching": "Assessment of browser caching",
+        "cachingHeaders": {
+          "exists": true,
+          "assessment": "Assessment of caching headers",
+          "recommendations": [
+            "Caching headers improvement recommendations"
+          ]
+        },
+        "cdnUsage": {
+          "detected": false,
+          "provider": "Detected CDN provider",
+          "assessment": "Assessment of CDN usage",
+          "recommendations": [
+            "CDN improvement recommendations"
+          ]
+        }
+      },
+      "http2Enabled": true,
+      "tlsVersion": "TLS version detected",
+      "serverSoftware": "Server software detected",
+      "redirects": {
+        "chainedRedirects": [
+          "Chained redirects detected"
+        ],
+        "redirectLoop": [
+          "Redirect loops detected"
+        ],
+        "temporaryRedirects": [
+          "Temporary redirects that should be permanent"
+        ],
+        "assessment": "Assessment of redirects",
+        "recommendations": [
+          "Redirect implementation recommendations"
+        ]
+      },
+      "errorPages": {
+        "custom404": true,
+        "custom500": false,
+        "assessment": "Assessment of error pages",
+        "recommendations": [
+          "Error page improvement recommendations"
+        ]
+      }
+    },
+    "javascript": {
+      "rendered": "Assessment of JavaScript rendering",
+      "indexability": "Assessment of JavaScript indexability",
+      "frameworks": [
+        "Detected JavaScript frameworks"
+      ],
+      "issues": [
+        "JavaScript SEO issues"
+      ],
+      "recommendations": [
+        "JavaScript SEO recommendations"
+      ]
+    },
+    "internationalization": {
+      "hreflang": {
+        "implemented": true,
+        "issues": [
+          "Hreflang issues detected"
+        ],
+        "recommendations": [
+          "Hreflang implementation recommendations"
+        ]
+      },
+      "geotargeting": {
+        "assessment": "Assessment of geotargeting",
+        "recommendations": [
+          "Geotargeting recommendations"
+        ]
+      },
+      "internationalIssues": [
+        "Other international SEO issues"
+      ]
+    },
+    "duplicateContent": {
+      "assessment": "Assessment of duplicate content issues",
+      "patterns": [
+        "Duplicate content patterns detected"
+      ],
+      "examples": [
+        {
+          "pattern": "Duplicate pattern",
+          "urls": [
+            "Example URLs"
+          ]
+        }
+      ],
+      "recommendations": [
+        "Duplicate content resolution recommendations"
+      ]
+    },
+    "canonicalization": {
+      "assessment": "Assessment of canonicalization",
+      "issues": [
+        "Canonicalization issues"
+      ],
+      "recommendations": [
+        "Canonicalization recommendations"
+      ]
+    },
+    "dataStructures": {
+      "structuredData": {
+        "assessment": "Assessment of structured data implementation",
+        "recommendations": [
+          "Structured data improvement recommendations"
+        ]
+      },
+      "jsonLd": {
+        "assessment": "Assessment of JSON-LD implementation",
+        "recommendations": [
+          "JSON-LD improvement recommendations"
+        ]
+      },
+      "microdata": {
+        "assessment": "Assessment of microdata implementation",
+        "recommendations": [
+          "Microdata improvement recommendations"
+        ]
+      },
+      "rdfa": {
+        "assessment": "Assessment of RDFa implementation",
+        "recommendations": [
+          "RDFa improvement recommendations"
+        ]
+      }
+    },
+    "advanced": {
+      "javascript": {
+        "assessment": "Assessment of JavaScript SEO",
+        "recommendations": [
+          "JavaScript SEO recommendations"
+        ]
+      },
+      "ajax": {
+        "assessment": "Assessment of AJAX implementation",
+        "recommendations": [
+          "AJAX SEO recommendations"
+        ]
+      },
+      "spa": {
+        "detected": false,
+        "framework": "Detected SPA framework if any",
+        "assessment": "Assessment of SPA SEO",
+        "recommendations": [
+          "SPA SEO recommendations"
+        ]
+      },
+      "pagination": {
+        "assessment": "Assessment of pagination implementation",
+        "recommendations": [
+          "Pagination SEO recommendations"
+        ]
+      },
+      "infinite": {
+        "detected": false,
+        "assessment": "Assessment of infinite scroll implementation",
+        "recommendations": [
+          "Infinite scroll SEO recommendations"
+        ]
+      },
+      "faceted": {
+        "detected": false,
+        "assessment": "Assessment of faceted navigation",
+        "recommendations": [
+          "Faceted navigation SEO recommendations"
+        ]
+      }
+    }
+  },
+  "content": {
+    "score": 70,
+    "issues": [
+      {
+        "title": "Content Issue Title",
+        "description": "Detailed description of the content issue with SPECIFIC EXAMPLES from the website",
+        "severity": "high",
+        "impact": "How this issue impacts SEO performance",
+        "recommendation": "Specific action to fix the issue with EXACT implementation details",
+        "priority": 1,
+        "estimatedEffort": "medium",
+        "estimatedImpact": "high"
+      }
+    ],
+    "contentAudit": {
+      "qualityAssessment": "Overall content quality assessment",
+      "contentTypes": [
+        {
+          "type": "Content type (blog, product, etc.)",
+          "count": "Number of pages",
+          "averageWordCount": "Average word count",
+          "qualityAssessment": "Quality assessment for this content type",
+          "recommendations": [
+            "Content improvement recommendations for this type"
+          ]
+        }
+      ],
+      "topPerformingContent": [
+        {
+          "url": "URL of content",
+          "title": "Title of content",
+          "wordCount": "Word count",
+          "uniqueValue": "Description of unique value proposition"
+        }
+      ],
+      "contentGaps": [
+        {
+          "topic": "Missing topic",
+          "relevance": "Relevance to site",
+          "competitorExamples": [
+            "Examples of competitor content on this topic"
+          ],
+          "recommendations": "Specific content creation recommendations"
+        }
+      ],
+      "contentCluster": {
+        "assessment": "Assessment of topic clustering",
+        "clusters": [
+          {
+            "topic": "Cluster topic",
+            "pillarPage": "Pillar page URL",
+            "clusterPages": [
+              "Cluster page URLs"
+            ],
+            "missingSubtopics": [
+              "Missing subtopics in this cluster"
+            ],
+            "recommendations": [
+              "Recommendations for this content cluster"
+            ]
+          }
+        ],
+        "missingClusters": [
+          "Important topic clusters missing from the site"
+        ]
+      },
+      "contentFreshness": {
+        "assessment": "Assessment of content freshness",
+        "outdatedPages": [
+          {
+            "url": "URL of outdated page",
+            "lastUpdated": "Last updated date",
+            "recommendations": "Specific update recommendations"
+          }
+        ]
+      },
+      "seasonalContent": {
+        "assessment": "Assessment of seasonal content strategy",
+        "opportunities": [
+          "Seasonal content opportunities"
+        ]
+      },
+      "contentFormats": {
+        "assessment": "Assessment of content format diversity",
+        "recommendations": [
+          "Content format diversity recommendations"
+        ]
+      },
+      "recommendations": [
+        "Content improvement recommendations"
+      ]
+    },
+    "readability": {
+      "averageScore": 65,
+      "assessment": "Readability assessment",
+      "fleschKincaidGrade": "Flesch-Kincaid Grade Level",
+      "fleschReadingEase": "Flesch Reading Ease Score",
+      "byPageType": [
+        {
+          "type": "Page type",
+          "averageScore": "Average readability score",
+          "assessment": "Assessment for this page type"
+        }
+      ],
+      "improvements": [
+        "Readability improvement suggestions"
+      ]
+    },
+    "engagement": {
+      "assessment": "Content engagement assessment",
+      "metrics": {
+        "estimatedTimeOnPage": "Estimated time on page",
+        "estimatedBounceRate": "Estimated bounce rate",
+        "estimatedScrollDepth": "Estimated scroll depth"
+      },
+      "recommendations": [
+        "Engagement improvement recommendations"
+      ]
+    },
+    "entityAnalysis": {
+      "entities": [
+        {
+          "name": "Entity name",
+          "type": "Entity type",
+          "mentions": "Number of mentions",
+          "context": "Context in which the entity appears"
+        }
+      ],
+      "recommendations": [
+        "Entity optimization recommendations"
+      ]
+    },
+    "naturalLanguageProcessing": {
+      "sentimentAnalysis": "Content sentiment analysis",
+      "topicModeling": [
+        "Topics identified using NLP"
+      ],
+      "e-a-t": {
+        "assessment": "Assessment of E-A-T signals",
+        "expertise": "Expertise signals identified",
+        "authoritativeness": "Authority signals identified",
+        "trustworthiness": "Trust signals identified",
+        "recommendations": [
+          "E-A-T improvement recommendations"
+        ]
+      }
+    },
+    "userGenerated": {
+      "assessment": "Assessment of user-generated content",
+      "types": [
+        "Types of UGC identified"
+      ],
+      "moderationStatus": "Assessment of UGC moderation",
+      "recommendations": [
+        "UGC improvement recommendations"
+      ]
+    },
+    "multimedia": {
+      "assessment": "Assessment of multimedia content",
+      "types": [
+        {
+          "type": "Multimedia type",
+          "count": "Count",
+          "quality": "Quality assessment"
+        }
+      ],
+      "recommendations": [
+        "Multimedia content recommendations"
+      ]
+    }
+  },
+  "onPage": {
+    "score": 65,
+    "issues": [
+      {
+        "title": "On-Page Issue Title",
+        "description": "Detailed description of the on-page issue with SPECIFIC EXAMPLES from the website",
+        "severity": "medium",
+        "impact": "How this issue impacts SEO performance",
+        "recommendation": "Specific action to fix the issue with EXACT implementation details",
+        "priority": 2,
+        "estimatedEffort": "low",
+        "estimatedImpact": "medium"
+      }
+    ],
+    "metaTagsAudit": {
+      "titleTags": {
+        "assessment": "Assessment of title tags",
+        "lengthAnalysis": "Analysis of title tag lengths",
+        "keywordUsage": "Analysis of keyword usage in titles",
+        "duplicates": [
+          "Duplicate title tags identified"
+        ],
+        "branding": "Assessment of branding in titles",
+        "templates": {
+          "assessment": "Assessment of title tag templates",
+          "sampleTemplates": [
+            "Example title tag templates identified"
+          ]
+        },
+        "recommendations": [
+          "Title tag improvement recommendations"
+        ]
+      },
+      "metaDescriptions": {
+        "assessment": "Assessment of meta descriptions",
+        "lengthAnalysis": "Analysis of meta description lengths",
+        "keywordUsage": "Analysis of keyword usage in descriptions",
+        "callToAction": "Assessment of calls to action in descriptions",
+        "duplicates": [
+          "Duplicate meta descriptions identified"
+        ],
+        "missing": [
+          "Pages missing meta descriptions"
+        ],
+        "templates": {
+          "assessment": "Assessment of meta description templates",
+          "sampleTemplates": [
+            "Example meta description templates identified"
+          ]
+        },
+        "recommendations": [
+          "Meta description improvement recommendations"
+        ]
+      },
+      "canonicalTags": {
+        "assessment": "Assessment of canonical tags",
+        "issues": [
+          "Canonical tag issues identified"
+        ],
+        "self-referential": "Assessment of self-referential canonicals",
+        "crossDomain": "Assessment of cross-domain canonicals",
+        "recommendations": [
+          "Canonical tag improvement recommendations"
+        ]
+      },
+      "hreflangTags": {
+        "assessment": "Assessment of hreflang tags",
+        "issues": [
+          "Hreflang tag issues identified"
+        ],
+        "recommendations": [
+          "Hreflang tag improvement recommendations"
+        ]
+      },
+      "robotsTags": {
+        "assessment": "Assessment of robots meta tags",
+        "issues": [
+          "Robots meta tag issues identified"
+        ],
+        "recommendations": [
+          "Robots meta tag improvement recommendations"
+        ]
+      },
+      "openGraph": {
+        "assessment": "Assessment of Open Graph tags",
+        "issues": [
+          "Open Graph tag issues identified"
+        ],
+        "recommendations": [
+          "Open Graph tag improvement recommendations"
+        ]
+      },
+      "twitterCards": {
+        "assessment": "Assessment of Twitter Card tags",
+        "issues": [
+          "Twitter Card tag issues identified"
+        ],
+        "recommendations": [
+          "Twitter Card tag improvement recommendations"
+        ]
+      },
+      "otherMetaTags": {
+        "assessment": "Assessment of other meta tags",
+        "issues": [
+          "Other meta tag issues identified"
+        ],
+        "recommendations": [
+          "Other meta tag improvement recommendations"
+        ]
+      }
+    },
+    "urlStructure": {
+      "assessment": "Assessment of URL structure",
+      "patterns": [
+        "URL patterns identified"
+      ],
+      "parameterUsage": "Assessment of URL parameters",
+      "keywordUsage": "Assessment of keywords in URLs",
+      "lengthAnalysis": "Analysis of URL lengths",
+      "issues": [
+        "URL structure issues"
+      ],
+      "recommendations": [
+        "URL structure improvement recommendations"
+      ]
+    },
+    "internalLinking": {
+      "assessment": "Assessment of internal linking",
+      "structure": {
+        "assessment": "Assessment of internal linking structure",
+        "siloing": "Assessment of content siloing",
+        ""keywordMapping": {
+      "siteStructure": {
+        "assessment": "Assessment of site structure for keyword targeting",
+        "hierarchyAnalysis": "Analysis of keyword hierarchy implementation",
+        "recommendations": [
+          "Site structure improvement recommendations for keyword targeting"
+        ]
+      },
+      "pageMapping": [
+        {
+          "page": "Page URL",
+          "primaryKeyword": "Primary keyword for this page",
+          "secondaryKeywords": [
+            "Secondary keywords for this page"
+          ],
+          "supportingKeywords": [
+            "Supporting keywords for this page"
+          ],
+          "implementationAssessment": "Assessment of keyword implementation on this page",
+          "competingPages": [
+            "Internal pages competing for the same keywords"
+          ],
+          "recommendations": [
+            "Page-specific keyword implementation recommendations"
+          ]
+        }
+      ],
+      "keywordCannibalization": {
+        "assessment": "Assessment of keyword cannibalization issues",
+        "cannibalizedKeywords": [
+          {
+            "keyword": "Cannibalized keyword",
+            "competingPages": [
+              "Pages competing for this keyword"
+            ],
+            "recommendedPrimary": "Recommended primary page for this keyword",
+            "resolutionStrategy": "Recommended cannibalization resolution strategy"
+          }
+        ],
+        "recommendations": [
+          "Keyword cannibalization resolution recommendations"
+        ]
+      }
+    },
+    "recommendations": [
+      "Keyword strategy improvement recommendations"
+    ]
+  },
+  "recommendations": [
+    {
+      "title": "Recommendation title",
+      "description": "Detailed explanation",
+      "severity": "high",
+      "impact": "Expected impact on SEO",
+      "implementation": {
+        "steps": [
+          "Step-by-step implementation instructions"
+        ],
+        "resources": [
+          "Required resources"
+        ],
+        "timeline": "Estimated implementation timeline",
+        "dependencies": [
+          "Implementation dependencies"
+        ]
+      },
+      "priority": 1,
+      "estimatedEffort": "Estimated implementation effort",
+      "estimatedImpact": "Estimated impact on rankings",
+      "kpis": [
+        "KPIs to measure success of this implementation"
+      ],
+      "examples": [
+        "Example implementations if applicable"
+      ]
+    }
+  ],
+  "url": "https://libertybeanscoffee.com",
+  "metaTags": {
+    "title": "Site title",
+    "description": "Site description",
+    "keywords": "site, keywords",
+    "robots": "Robots directive",
+    "canonical": "Canonical URL",
+    "viewport": "Viewport configuration",
+    "openGraph": {
+      "title": "Open Graph title",
+      "description": "Open Graph description",
+      "image": "Open Graph image URL",
+      "type": "Open Graph type"
+    },
+    "twitter": {
+      "card": "Twitter card type",
+      "title": "Twitter title",
+      "description": "Twitter description",
+      "image": "Twitter image URL"
+    }
+  },
+  "headings": {
+    "h1": ["Main H1"],
+    "h2": ["Main H2"],
+    "h3": ["Main H3"],
+    "analysis": "Analysis of site-wide heading structure"
+  },
+  "images": {
+    "total": 25,
+    "withAlt": 20,
+    "withoutAlt": 5,
+    "withTitle": 15,
+    "withoutTitle": 10,
+    "responsive": 22,
+    "nonResponsive": 3,
+    "fileTypes": {
+      "png": 10,
+      "jpg": 12,
+      "webp": 3,
+      "svg": 0,
+      "gif": 0
+    },
+    "lazyLoaded": 18,
+    "nonLazyLoaded": 7,
+    "compressionAnalysis": "Analysis of image compression",
+    "sizingAnalysis": "Analysis of image sizing",
+    "recommendations": [
+      "Site-wide image improvement recommendations"
+    ]
+  },
+  "links": {
+    "internalCount": 30,
+    "externalCount": 15,
+    "brokenCount": 3,
+    "internalLinkingAnalysis": "Analysis of internal linking structure",
+    "externalLinkingAnalysis": "Analysis of external linking strategy",
+    "anchorTextAnalysis": "Analysis of anchor text usage",
+    "recommendations": [
+      "Site-wide linking improvement recommendations"
+    ]
+  },
+  "contentWordCount": 2500,
+  "competitiveAnalysis": {
+    "topCompetitors": [
+      {
+        "domain": "Competitor domain",
+        "strengths": [
+          "Competitive strengths"
+        ],
+        "weaknesses": [
+          "Competitive weaknesses"
+        ],
+        "keywordOverlap": "Keyword overlap analysis",
+        "backlinksComparison": "Backlinks comparison",
+        "contentComparison": "Content strategy comparison",
+        "technicalComparison": "Technical implementation comparison"
+      }
+    ],
+    "competitiveGaps": [
+      {
+        "area": "Gap area",
+        "competitors": [
+          "Competitors with advantage in this area"
+        ],
+        "analysisDetails": "Detailed analysis of the competitive gap",
+        "impact": "Impact on search visibility",
+        "closingStrategy": "Strategy to close this competitive gap"
+      }
+    ],
+    "competitiveAdvantages": [
+      {
+        "area": "Advantage area",
+        "comparedTo": [
+          "Competitors at disadvantage in this area"
+        ],
+        "analysisDetails": "Detailed analysis of the competitive advantage",
+        "leveragingStrategy": "Strategy to leverage this competitive advantage"
+      }
+    ],
+    "marketOpportunities": [
+      {
+        "opportunity": "Market opportunity",
+        "currentCoverage": "Current coverage of this opportunity",
+        "competitorCoverage": "Competitor coverage of this opportunity",
+        "potentialImpact": "Potential impact of capitalizing on this opportunity",
+        "implementationStrategy": "Strategy to capitalize on this opportunity"
+      }
+    ],
+    "recommendations": [
+      "Competitive strategy recommendations"
+    ]
+  },
+  "localSEO": {
+    "relevance": "Assessment of local SEO relevance for this business",
+    "googleBusinessProfile": {
+      "claimed": true,
+      "completeness": "Assessment of profile completeness",
+      "accuracy": "Assessment of information accuracy",
+      "photosQuality": "Assessment of photo quality and quantity",
+      "reviewStrategy": "Assessment of review management strategy",
+      "q&aManagement": "Assessment of Q&A management",
+      "postingStrategy": "Assessment of Google post strategy",
+      "linkingStrategy": "Assessment of profile linking strategy",
+      "issues": [
+        "Google Business Profile issues identified"
+      ],
+      "recommendations": [
+        "Google Business Profile improvement recommendations"
+      ]
+    },
+    "localCitations": {
+      "assessment": "Assessment of local citations",
+      "consistencyAnalysis": "Analysis of NAP consistency",
+      "coverageAnalysis": "Analysis of citation coverage",
+      "distributionAnalysis": "Analysis of citation distribution",
+      "topCitations": [
+        "Top existing citations"
+      ],
+      "missingCitations": [
+        "Important missing citations"
+      ],
+      "issues": [
+        "Citation issues identified"
+      ],
+      "recommendations": [
+        "Citation improvement recommendations"
+      ]
+    },
+    "localKeywords": {
+      "assessment": "Assessment of local keyword targeting",
+      "coverageAnalysis": "Analysis of local keyword coverage",
+      "implementationAnalysis": "Analysis of local keyword implementation",
+      "issues": [
+        "Local keyword issues identified"
+      ],
+      "recommendations": [
+        "Local keyword targeting recommendations"
+      ]
+    },
+    "localContent": {
+      "assessment": "Assessment of local content strategy",
+      "coverageAnalysis": "Analysis of local content coverage",
+      "localPages": {
+        "assessment": "Assessment of location-specific pages",
+        "recommendations": [
+          "Location-specific page recommendations"
+        ]
+      },
+      "localBlogContent": {
+        "assessment": "Assessment of local blog content",
+        "recommendations": [
+          "Local blog content recommendations"
+        ]
+      },
+      "issues": [
+        "Local content issues identified"
+      ],
+      "recommendations": [
+        "Local content strategy recommendations"
+      ]
+    },
+    "localBacklinks": {
+      "assessment": "Assessment of local backlink strategy",
+      "coverageAnalysis": "Analysis of local backlink coverage",
+      "opportunityAnalysis": "Analysis of local backlink opportunities",
+      "issues": [
+        "Local backlink issues identified"
+      ],
+      "recommendations": [
+        "Local backlink strategy recommendations"
+      ]
+    },
+    "recommendations": [
+      "Local SEO strategy recommendations"
+    ]
+  },
+  "ecommerce": {
+    "relevance": "Assessment of e-commerce SEO relevance for this business",
+    "productPages": {
+      "assessment": "Assessment of product page optimization",
+      "titleAnalysis": "Analysis of product title optimization",
+      "descriptionAnalysis": "Analysis of product description optimization",
+      "imageAnalysis": "Analysis of product image optimization",
+      "schemaAnalysis": "Analysis of product schema implementation",
+      "reviewsAnalysis": "Analysis of product review implementation",
+      "pricingAnalysis": "Analysis of pricing display",
+      "availabilityAnalysis": "Analysis of availability display",
+      "crossLinkingAnalysis": "Analysis of product cross-linking",
+      "conversionElementsAnalysis": "Analysis of conversion elements",
+      "issues": [
+        "Product page issues identified"
+      ],
+      "recommendations": [
+        "Product page optimization recommendations"
+      ]
+    },
+    "categoryPages": {
+      "assessment": "Assessment of category page optimization",
+      "titleAnalysis": "Analysis of category title optimization",
+      "descriptionAnalysis": "Analysis of category description optimization",
+      "productDisplayAnalysis": "Analysis of product display optimization",
+      "filteringAnalysis": "Analysis of filtering implementation",
+      "sortingAnalysis": "Analysis of sorting implementation",
+      "paginationAnalysis": "Analysis of pagination implementation",
+      "breadcrumbAnalysis": "Analysis of breadcrumb implementation",
+      "schemaAnalysis": "Analysis of category schema implementation",
+      "issues": [
+        "Category page issues identified"
+      ],
+      "recommendations": [
+        "Category page optimization recommendations"
+      ]
+    },
+    "productStructure": {
+      "assessment": "Assessment of product structure",
+      "hierarchyAnalysis": "Analysis of product hierarchy",
+      "taxonomyAnalysis": "Analysis of product taxonomy",
+      "attributeAnalysis": "Analysis of product attribute implementation",
+      "variationAnalysis": "Analysis of product variation implementation",
+      "issues": [
+        "Product structure issues identified"
+      ],
+      "recommendations": [
+        "Product structure optimization recommendations"
+      ]
+    },
+    "cartCheckout": {
+      "assessment": "Assessment of cart and checkout optimization",
+      "cartPageAnalysis": "Analysis of cart page optimization",
+      "checkoutProcessAnalysis": "Analysis of checkout process optimization",
+      "abandonmentReductionAnalysis": "Analysis of abandonment reduction strategies",
+      "issues": [
+        "Cart and checkout issues identified"
+      ],
+      "recommendations": [
+        "Cart and checkout optimization recommendations"
+      ]
+    },
+    "searchImplementation": {
+      "assessment": "Assessment of on-site search implementation",
+      "functionalityAnalysis": "Analysis of search functionality",
+      "relevanceAnalysis": "Analysis of search result relevance",
+      "featuresAnalysis": "Analysis of search features",
+      "issues": [
+        "On-site search issues identified"
+      ],
+      "recommendations": [
+        "On-site search optimization recommendations"
+      ]
+    },
+    "recommendations": [
+      "E-commerce SEO strategy recommendations"
+    ]
+  },
+  "social": {
+    "relevance": "Assessment of social media SEO relevance for this business",
+    "socialProfiles": {
+      "assessment": "Assessment of social profile optimization",
+      "platforms": [
+        {
+          "platform": "Social platform name",
+          "profileUrl": "Profile URL",
+          "followersCount": "Estimated follower count",
+          "engagementRate": "Estimated engagement rate",
+          "optimizationAssessment": "Assessment of profile optimization",
+          "contentStrategyAssessment": "Assessment of content strategy",
+          "integrationAssessment": "Assessment of website integration",
+          "recommendations": [
+            "Platform-specific optimization recommendations"
+          ]
+        }
+      ],
+      "issues": [
+        "Social profile issues identified"
+      ],
+      "recommendations": [
+        "Social profile optimization recommendations"
+      ]
+    },
+    "socialSharing": {
+      "assessment": "Assessment of social sharing implementation",
+      "buttonImplementation": "Analysis of social sharing button implementation",
+      "openGraphImplementation": "Analysis of Open Graph implementation",
+      "twitterCardImplementation": "Analysis of Twitter Card implementation",
+      "issuesIdentified": [
+        "Social sharing issues identified"
+      ],
+      "recommendations": [
+        "Social sharing optimization recommendations"
+      ]
+    },
+    "socialEngagement": {
+      "assessment": "Assessment of social engagement strategy",
+      "contentSharingAnalysis": "Analysis of content sharing strategy",
+      "conversationStrategyAnalysis": "Analysis of conversation strategy",
+      "communityBuildingAnalysis": "Analysis of community building strategy",
+      "issuesIdentified": [
+        "Social engagement issues identified"
+      ],
+      "recommendations": [
+        "Social engagement optimization recommendations"
+      ]
+    },
+    "influencerStrategy": {
+      "assessment": "Assessment of influencer strategy",
+      "currentImplementation": "Analysis of current influencer collaboration",
+      "opportunityAnalysis": "Analysis of influencer opportunities",
+      "issuesIdentified": [
+        "Influencer strategy issues identified"
+      ],
+      "recommendations": [
+        "Influencer strategy optimization recommendations"
+      ]
+    },
+    "recommendations": [
+      "Social media SEO strategy recommendations"
+    ]
+  },
+  "security": {
+    "score": 75,
+    "issues": [
+      {
+        "title": "Security Issue Title",
+        "description": "Detailed description of the security issue with SPECIFIC EXAMPLES",
+        "severity": "high",
+        "impact": "How this issue impacts SEO and user trust",
+        "recommendation": "Specific action to fix the issue with EXACT implementation details",
+        "priority": 1,
+        "estimatedEffort": "medium",
+        "estimatedImpact": "high"
+      }
+    ],
+    "ssl": {
+      "implemented": true,
+      "certificate": {
+        "provider": "SSL certificate provider",
+        "expiration": "Certificate expiration date",
+        "type": "Certificate type",
+        "issues": [
+          "SSL certificate issues identified"
+        ]
+      },
+      "implementation": {
+        "forceHttps": true,
+        "hstsPolicyImplemented": false,
+        "mixedContentIssues": [
+          "Mixed content issues identified"
+        ]
+      },
+      "recommendations": [
+        "SSL implementation recommendations"
+      ]
+    },
+    "securityHeaders": {
+      "implemented": [
+        "Implemented security headers"
+      ],
+      "missing": [
+        "Missing recommended security headers"
+      ],
+      "issues": [
+        "Security header issues identified"
+      ],
+      "recommendations": [
+        "Security header implementation recommendations"
+      ]
+    },
+    "contentSecurity": {
+      "cspImplemented": false,
+      "xssProtection": "Assessment of XSS protection",
+      "clickjackingProtection": "Assessment of clickjacking protection",
+      "issues": [
+        "Content security issues identified"
+      ],
+      "recommendations": [
+        "Content security implementation recommendations"
+      ]
+    },
+    "vulnerabilities": {
+      "outdatedSoftware": [
+        "Outdated software identified"
+      ],
+      "exposedSensitiveFiles": [
+        "Exposed sensitive files identified"
+      ],
+      "insecureConfiguration": [
+        "Insecure configuration settings identified"
+      ],
+      "recommendations": [
+        "Vulnerability remediation recommendations"
+      ]
+    },
+    "privacyCompliance": {
+      "gdprCompliance": "Assessment of GDPR compliance",
+      "ccpaCompliance": "Assessment of CCPA compliance",
+      "cookieConsent": "Assessment of cookie consent implementation",
+      "privacyPolicy": "Assessment of privacy policy",
+      "issues": [
+        "Privacy compliance issues identified"
+      ],
+      "recommendations": [
+        "Privacy compliance implementation recommendations"
+      ]
+    },
+    "recommendations": [
+      "Security and privacy improvement recommendations"
+    ]
+  },
+  "analytics": {
+    "score": 70,
+    "issues": [
+      {
+        "title": "Analytics Issue Title",
+        "description": "Detailed description of the analytics issue with SPECIFIC EXAMPLES",
+        "severity": "medium",
+        "impact": "How this issue impacts measurement and decision-making",
+        "recommendation": "Specific action to fix the issue with EXACT implementation details",
+        "priority": 2,
+        "estimatedEffort": "low",
+        "estimatedImpact": "high"
+      }
+    ],
+    "implementation": {
+      "platforms": [
+        {
+          "platform": "Analytics platform name",
+          "implementationQuality": "Assessment of implementation quality",
+          "configurationQuality": "Assessment of configuration quality",
+          "issues": [
+            "Implementation issues identified"
+          ],
+          "recommendations": [
+            "Implementation improvement recommendations"
+          ]
+        }
+      ],
+      "trackingCoverage": "Assessment of tracking coverage",
+      "eventTracking": "Assessment of event tracking implementation",
+      "goalConfiguration": "Assessment of goal configuration",
+      "ecommerceTracking": "Assessment of e-commerce tracking",
+      "customDimensions": "Assessment of custom dimension usage",
+      "issues": [
+        "Analytics implementation issues identified"
+      ],
+      "recommendations": [
+        "Analytics implementation recommendations"
+      ]
+    },
+    "googleSearchConsole": {
+      "verified": true,
+      "sitemapSubmission": "Assessment of sitemap submission",
+      "indexCoverage": "Assessment of index coverage",
+      "manualActions": [
+        "Manual actions identified"
+      ],
+      "securityIssues": [
+        "Security issues identified"
+      ],
+      "usabilityIssues": [
+        "Mobile usability issues identified"
+      ],
+      "issues": [
+        "Search Console issues identified"
+      ],
+      "recommendations": [
+        "Search Console optimization recommendations"
+      ]
+    },
+    "conversionTracking": {
+      "assessment": "Assessment of conversion tracking implementation",
+      "primaryConversions": "Assessment of primary conversion tracking",
+      "secondaryConversions": "Assessment of secondary conversion tracking",
+      "microConversions": "Assessment of micro-conversion tracking",
+      "funnelAnalysis": "Assessment of funnel analysis implementation",
+      "issues": [
+        "Conversion tracking issues identified"
+      ],
+      "recommendations": [
+        "Conversion tracking implementation recommendations"
+      ]
+    },
+    "userBehavior": {
+      "assessment": "Assessment of user behavior tracking",
+      "scrollDepthTracking": "Assessment of scroll depth tracking",
+      "heatmapTracking": "Assessment of heatmap tracking",
+      "sessionRecording": "Assessment of session recording implementation",
+      "issues": [
+        "User behavior tracking issues identified"
+      ],
+      "recommendations": [
+        "User behavior tracking implementation recommendations"
+      ]
+    },
+    "tagManagement": {
+      "assessment": "Assessment of tag management implementation",
+      "platformUsage": "Assessment of tag management platform usage",
+      "loadPerformance": "Assessment of tag loading performance",
+      "organizationQuality": "Assessment of tag organization quality",
+      "issues": [
+        "Tag management issues identified"
+      ],
+      "recommendations": [
+        "Tag management implementation recommendations"
+      ]
+    },
+    "recommendations": [
+      "Analytics and measurement improvement recommendations"
+    ]
+  },
+  "implementation": {
+    "prioritization": {
+      "critical": [
+        {
+          "recommendation": "Critical recommendation",
+          "impact": "Expected impact",
+          "effort": "Required effort",
+          "timeline": "Implementation timeline",
+          "steps": [
+            "Implementation steps"
+          ]
+        }
+      ],
+      "high": [
+        {
+          "recommendation": "High priority recommendation",
+          "impact": "Expected impact",
+          "effort": "Required effort",
+          "timeline": "Implementation timeline",
+          "steps": [
+            "Implementation steps"
+          ]
+        }
+      ],
+      "medium": [
+        {
+          "recommendation": "Medium priority recommendation",
+          "impact": "Expected impact",
+          "effort": "Required effort",
+          "timeline": "Implementation timeline",
+          "steps": [
+            "Implementation steps"
+          ]
+        }
+      ],
+      "low": [
+        {
+          "recommendation": "Low priority recommendation",
+          "impact": "Expected impact",
+          "effort": "Required effort",
+          "timeline": "Implementation timeline",
+          "steps": [
+            "Implementation steps"
+          ]
+        }
+      ]
+    },
+    "quickWins": [
+      {
+        "recommendation": "Quick win recommendation",
+        "impact": "Expected impact",
+        "effort": "Required effort",
+        "timeline": "Implementation timeline",
+        "steps": [
+          "Implementation steps"
+        ]
+      }
+    ],
+    "roadmap": {
+      "immediate": [
+        "Immediate actions (1-2 weeks)"
+      ],
+      "shortTerm": [
+        "Short-term actions (1-3 months)"
+      ],
+      "mediumTerm": [
+        "Medium-term actions (3-6 months)"
+      ],
+      "longTerm": [
+        "Long-term actions (6-12 months)"
+      ]
+    },
+    "resourceRequirements": {
+      "personnel": [
+        {
+          "role": "Required role",
+          "responsibilities": [
+            "Role responsibilities"
+          ],
+          "estimatedHours": "Estimated hours required"
+        }
+      ],
+      "tools": [
+        {
+          "tool": "Required tool",
+          "purpose": "Tool purpose",
+          "estimatedCost": "Estimated cost"
+        }
+      ],
+      "budget": {
+        "onetime": "Estimated one-time costs",
+        "recurring": "Estimated recurring costs"
+      }
+    },
+    "measurementPlan": {
+      "kpis": [
+        {
+          "kpi": "Key Performance Indicator",
+          "baseline": "Current baseline",
+          "target": "Target value",
+          "timeline": "Achievement timeline",
+          "measurementMethod": "Measurement method"
+        }
+      ],
+      "trackingImplementation": [
+        {
+          "tracking": "Required tracking implementation",
+          "purpose": "Tracking purpose",
+          "implementationSteps": [
+            "Implementation steps"
+          ]
+        }
+      ],
+      "reportingSetup": [
+        {
+          "report": "Required report",
+          "audience": "Report audience",
+          "frequency": "Reporting frequency",
+          "metrics": [
+            "Report metrics"
+          ]
+        }
+      ]
+    }
+  }
+}

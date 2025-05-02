@@ -1,10 +1,11 @@
 import React, { useState } from 'react';
 import styled from 'styled-components';
 import { FiAlertCircle, FiAlertTriangle, FiInfo, FiCheckCircle } from 'react-icons/fi';
-import { SEOIssue, SEOScoreSection } from '../utils/seoService';
+import { SEOIssue, SEOScoreSection, SEOReport } from '../utils/seoService';
 
 interface SEOTechnicalSectionProps {
-  technicalData: SEOScoreSection | string;
+  technicalData?: SEOScoreSection | string;
+  report?: SEOReport;
 }
 
 const getScoreColor = (score: number) => {
@@ -13,32 +14,41 @@ const getScoreColor = (score: number) => {
   return '#ff3b30';
 };
 
-const SEOTechnicalSection: React.FC<SEOTechnicalSectionProps> = ({ technicalData }) => {
+const SEOTechnicalSection: React.FC<SEOTechnicalSectionProps> = ({ technicalData, report }) => {
   // Always declare hooks at the top level, regardless of conditions
   const [filterSeverity, setFilterSeverity] = useState<string | null>(null);
   const [searchQuery, setSearchQuery] = useState('');
   
-  // Check if technicalData is a string (HTML content)
-  if (typeof technicalData === 'string') {
-    return (
-      <Container>
-        <div 
-          className="seo-technical-content"
-          dangerouslySetInnerHTML={{ __html: technicalData }}
-          style={{
-            fontSize: '14px',
-            lineHeight: '1.6',
-            color: '#ffffff',
-            padding: '20px',
-            backgroundColor: '#262626',
-            borderRadius: '8px',
-          }}
-        />
-      </Container>
-    );
-  }
+  // If report is provided, extract technical data from it
+  const technicalContent = report?.technical || technicalData;
   
-  const { score, issues } = technicalData;
+  // If we have technical data as an object
+  if (!technicalContent || typeof technicalContent === 'string' || !technicalContent.score || !technicalContent.issues) {
+    // If technicalData is a string (HTML content)
+    if (typeof technicalContent === 'string') {
+      return (
+        <Container>
+          <div 
+            className="seo-technical-content"
+            dangerouslySetInnerHTML={{ __html: technicalContent as string }}
+            style={{
+              fontSize: '14px',
+              lineHeight: '1.6',
+              color: '#ffffff',
+              padding: '20px',
+              backgroundColor: '#262626',
+              borderRadius: '8px',
+            }}
+          />
+        </Container>
+      );
+    } else {
+      return <Container>No technical data available</Container>;
+    }
+  }
+
+  // Extract data from the technical section
+  const { score, issues } = technicalContent as SEOScoreSection;
 
   // Filter issues based on severity and search query
   const filteredIssues = issues.filter(issue => {

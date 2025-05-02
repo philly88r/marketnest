@@ -1,83 +1,70 @@
 import axios from 'axios';
+import { repairJson, safeParseJson } from './jsonRepair';
+import { getSEOAuditPrompt } from './seoPrompt';
 
 const GEMINI_API_KEY = process.env.REACT_APP_GEMINI_API_KEY || '';
-const GEMINI_API_URL = 'https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-pro-preview-03-25:generateContent';
+const GEMINI_API_URL = 'https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-preview-04-17:generateContent';
 
 if (!GEMINI_API_KEY) {
   console.error('WARNING: REACT_APP_GEMINI_API_KEY is not set in environment variables! Gemini audit will not work.');
 }
 
-// The extremely detailed audit prompt template with strict anti-hallucination controls
-// Now enhanced for use with our more reliable Axios+Cheerio crawler
-const BASE_PROMPT = `CRITICAL INSTRUCTION: You are ONLY allowed to analyze the ACTUAL HTML, CSS, and data provided to you. DO NOT make up or hallucinate ANY information about the website. If you cannot find certain information in the provided data, explicitly state "No data available" for that section.
+// Variable to store the prompt once it's loaded
+let BASE_PROMPT = '';
 
-### VERIFICATION REQUIREMENTS:
-1. You MUST include a "Data Verification" section at the beginning of your response that lists:
-   - The exact URL(s) you were provided
-   - The total HTML size in bytes
-   - The number of pages successfully crawled
-   - The number of pages that failed to crawl (if any)
-   - A sample of the actual HTML content (first 100 characters)
-   - The crawl verification data provided
+// Flag to track if we've already tried to load the prompt
+let promptLoaded = false;
 
-2. For ANY claim you make about the website, you MUST cite the specific evidence from the provided data.
+/**
+ * Fetch the prompt from the server endpoint
+ */
+async function fetchPromptFromServer(): Promise<string> {
+  try {
+    // Determine the server URL based on environment
+    const serverUrl = process.env.NODE_ENV === 'production' ? window.location.origin : 'http://localhost:3001';
+    const response = await fetch(`${serverUrl}/api/seo/audit-prompt`, {
+      headers: {
+        'Accept': 'text/plain'
+      }
+    });
+    
+    if (!response.ok) {
+      throw new Error(`Failed to fetch prompt: ${response.status} ${response.statusText}`);
+    }
+    
+    // Get the text content and log the first 100 characters for debugging
+    const promptContent = await response.text();
+    console.log('Successfully loaded prompt from server endpoint');
+    console.log(`Prompt starts with: ${promptContent.substring(0, 100)}...`);
+    
+    // Ensure the prompt is valid by checking for basic content
+    if (!promptContent || promptContent.length < 10) {
+      throw new Error('Prompt content is too short or empty');
+    }
+    
+    return promptContent;
+  } catch (error) {
+    console.error('Error fetching prompt from server:', error);
+    // Return a basic fallback prompt if the server fetch fails
+    return getSEOAuditPrompt('https://example.com');
+  }
+}
 
-3. If the provided data is minimal or appears to be a placeholder page, state this clearly and focus your analysis ONLY on what is actually present.
+// Function to update the URL in the prompt
+function getPromptWithUpdatedUrl(prompt: string, url: string): string {
+  // Replace the hardcoded URL with the actual URL being audited
+  return prompt.replace(/https:\/\/libertybeanscoffee\.com/g, url);
+}
 
-4. NEVER invent URLs, page content, meta tags, or any other information not explicitly provided in the data.
-
-Now, analyze the website data provided to you and include:
-
-1. Page-by-page analysis: Examine at least 20-25 individual pages (including homepage, product pages, category pages, blog posts, and key landing pages) and provide specific issues and recommendations for each.
-
-2. Technical SEO: Evaluate crawlability, indexability, site structure, SSL, robots.txt, sitemap.xml, server configuration, mobile-friendliness, JavaScript rendering, internationalization, duplicate content, canonicalization, structured data implementation, and advanced technical aspects such as pagination, infinite scroll, and faceted navigation.
-
-3. On-page SEO: Analyze meta tags, headings, URL structure, internal linking, content layout, and HTML quality for each page. Provide detailed assessment of title tags, meta descriptions, canonical tags, hreflang tags, robots meta directives, Open Graph tags, and Twitter Card implementation.
-
-4. Performance: Assess page speed, Core Web Vitals (LCP, FID, CLS, INP), resource optimization, server performance, caching implementation, resource preloading, and advanced performance aspects such as HTTP/2, HTTP/3, and service worker implementation.
-
-5. Content quality: Evaluate content depth, relevance, readability, keyword usage, content freshness, topic clustering, entity optimization, E-A-T signals, multimedia usage, and identify content gaps. Analyze sentiment, readability scores, user engagement metrics, and provide content strategy recommendations.
-
-6. Mobile optimization: Assess responsive design, mobile usability, touch-friendliness, mobile-specific configurations, and mobile SERP appearance. Evaluate viewport configuration, tap target sizes, font sizes, content overflow, popup implementation, and interstitial compliance.
-
-7. Backlink profile: Analyze backlink quality, quantity, diversity, anchor text distribution, toxic links, and identify link building opportunities. Provide detailed assessment of domain authority, linking domain relevance, and competitive comparison.
-
-8. Keyword targeting: Identify current keyword rankings, keyword cannibalization issues, new keyword opportunities, and competitor keyword analysis. Analyze keyword mapping, user intent coverage, seasonality, and provide keyword strategy recommendations.
-
-9. Competitive analysis: Compare with direct competitors to identify advantages, gaps, market opportunities, and provide competitive strategy recommendations. Analyze competitor content strategies, technical implementations, backlink profiles, and keyword targeting.
-
-10. Local SEO: Assess Google Business Profile optimization, citation consistency and coverage, local keyword targeting, location-specific content, and local backlink strategy.
-
-11. E-commerce SEO: Evaluate product page optimization, category page structure, product hierarchy, cart and checkout process, and on-site search implementation.
-
-12. Social media integration: Assess social profile optimization, social sharing implementation, social engagement strategy, and influencer collaboration opportunities.
-
-13. Security and privacy: Evaluate SSL implementation, security headers, content security policies, vulnerability remediation, and privacy compliance.
-
-14. Analytics and measurement: Assess analytics implementation, Google Search Console setup, conversion tracking, user behavior monitoring, and tag management.
-
-15. Implementation plan: Provide prioritized recommendations, quick wins, implementation roadmap, resource requirements, and measurement plan.
-
-For each issue, provide EXTREMELY SPECIFIC details, HIGHLY ACTIONABLE recommendations, severity levels (high/medium/low), priority ranking (1-5), and detailed estimated impact. Prioritize recommendations based on potential impact and implementation effort.
-
-YOUR ANALYSIS SHOULD BE EXTRAORDINARILY COMPREHENSIVE - far more detailed than a typical SEO audit. Include extensive technical analysis, content evaluation, competitive insights, and page-by-page breakdown with specific issues and fixes.
-
-Each section should contain MAXIMUM DETAIL - do not summarize or abbreviate your findings. For every issue found, provide extensive context, impact assessment, and step-by-step remediation instructions.
-
-CRITICALLY IMPORTANT: You MUST include SPECIFIC EVIDENCE that you actually analyzed the site:
-1. Only include EXACT URLs that were provided in the data
-2. Only quote ACTUAL meta tags, headings, and content from the provided data
-3. If you don't have enough data to complete a section, state "Insufficient data provided" for that section
-4. Include a final "Data Limitations" section that honestly describes what you were and weren't able to analyze based on the provided data
-
-REMEMBER: It is better to provide a limited but ACCURATE analysis than to make up information. NEVER fabricate data or pretend to have analyzed pages that weren't provided to you.
-3. Provide SPECIFIC content issues found on individual pages (word count, keyword usage, etc.)
-4. Include DETAILED page-specific recommendations
-5. Reference REAL competitors in the same industry
-
-IMPORTANT: Your response must be VALID JSON only. Do not include any explanatory text, markdown formatting, or code blocks. The response should parse correctly with JSON.parse().
-
-MAKE THIS THE MOST DETAILED AND VALUABLE SEO AUDIT POSSIBLE - INCLUDE EVERYTHING AN SEO EXPERT WOULD WANT TO KNOW.`;
+// Initialize the prompt loading - this will happen once when the module is imported
+(async function initializePrompt() {
+  if (!promptLoaded) {
+    BASE_PROMPT = await fetchPromptFromServer();
+    promptLoaded = true;
+  }
+})().catch(error => {
+  console.error('Failed to initialize prompt:', error);
+});
 
 /**
  * Attempts to fix common issues in malformed JSON
@@ -306,9 +293,11 @@ Technical Issues: ${crawlSummary.technicalIssues}
 Content Issues: ${crawlSummary.contentIssues}
 `;
       
-      // Add the full data (limited to 8000 chars to avoid token limits)
-      crawlDataForPrompt += '\n\nFull crawl data (truncated):\n' + 
-        JSON.stringify(crawlData, null, 2).slice(0, 8000);
+      // Add the full data (limited to 500,000 chars to utilize the higher token limit of gemini-2.0-flash-lite)
+      crawlDataForPrompt += `
+Full crawl data (truncated):
+` + 
+        JSON.stringify(crawlData, null, 2).slice(0, 500000);
       
       console.log('Successfully created crawler data summary for Gemini');
     } catch (error) {
@@ -320,24 +309,59 @@ Content Issues: ${crawlSummary.contentIssues}
   console.log(`Prompt length: ${BASE_PROMPT.length + siteUrl.length + crawlDataForPrompt.length} characters`);
   console.log('Crawl summary:', crawlSummary);
   
+  // Make sure the prompt is loaded
+  if (!promptLoaded) {
+    console.log('Prompt not yet loaded, fetching now...');
+    // Get the SEO audit prompt for this site
+    BASE_PROMPT = getSEOAuditPrompt(siteUrl);
+    promptLoaded = true;
+  }
+  // Update the prompt with the actual URL being audited
+  const updatedBasePrompt = getPromptWithUpdatedUrl(BASE_PROMPT, siteUrl);
+  
   // Compose the prompt with site URL, crawl data summary, and verification metadata
-  const prompt = `${BASE_PROMPT}\n\nTarget site: ${siteUrl}\n\nCrawl data summary:\n${crawlDataForPrompt}\n\nVERIFICATION METADATA (DO NOT FABRICATE BEYOND THIS DATA):\n${JSON.stringify(verificationMetadata, null, 2)}`;
+  const prompt = `${updatedBasePrompt}\n\nCrawl data summary:\n${crawlDataForPrompt}\n\nVERIFICATION METADATA (DO NOT FABRICATE BEYOND THIS DATA):\n${JSON.stringify(verificationMetadata, null, 2)}`;
 
   try {
-    // Set a timeout of 10 minutes (600000ms) for the Gemini API call
+    // Set a timeout of 10 minutes for the Gemini API call to allow for thorough analysis
     console.log('Sending request to Gemini API...');
-    const response = await axios.post(
-      `${GEMINI_API_URL}?key=${GEMINI_API_KEY}`,
-      {
-        contents: [
-          { role: 'user', parts: [{ text: prompt }] }
-        ]
-      },
-      {
-        headers: { 'Content-Type': 'application/json' },
-        timeout: 600000 // 10 minute timeout
-      }
-    );
+    console.log(`Request timestamp: ${new Date().toISOString()}`);
+    console.log(`Prompt length: ${prompt.length} characters`);
+    console.log(`API URL: ${GEMINI_API_URL}`);
+    console.log('API Key defined:', !!GEMINI_API_KEY);
+    
+    // Log the start time for performance tracking
+    const startTime = Date.now();
+    
+    // Create a promise that rejects after 10 minutes
+    const timeoutPromise = new Promise((_, reject) => {
+      setTimeout(() => {
+        reject(new Error('Gemini API call timed out after 10 minutes'));
+      }, 600000); // 600 second timeout (10 minutes)
+    });
+    
+    // Race the API call against the timeout
+    const response = await Promise.race([
+      axios.post(
+        `${GEMINI_API_URL}?key=${GEMINI_API_KEY}`,
+        {
+          contents: [
+            { role: 'user', parts: [{ text: prompt }] }
+          ]
+        },
+        {
+          headers: { 'Content-Type': 'application/json' },
+          timeout: 600000 // 600 second timeout in axios as well (10 minutes)
+        }
+      ),
+      timeoutPromise
+    ]) as any; // Type assertion to avoid TypeScript errors
+    
+    // Log the response time
+    const responseTime = Date.now() - startTime;
+    console.log(`Gemini API response received in ${responseTime}ms`);
+    console.log(`Response status: ${response.status} ${response.statusText}`);
+    console.log(`Response headers:`, response.headers);
     
     // Add robust error handling for the response
     if (response.status !== 200) {
@@ -377,35 +401,113 @@ Content Issues: ${crawlSummary.contentIssues}
     console.log(`Gemini API call completed for ${siteUrl}. Response length: ${text.length} characters`);
     console.log(`First 100 characters of response: ${text.substring(0, 100)}...`);
     
-    // Try to parse the response as JSON first (since our prompt asks for JSON)
+    // Try to parse the response as JSON using our advanced repair utility
     try {
-      // Fix common JSON issues and extract JSON from markdown code blocks if present
-      let fixedText = fixMalformedJson(text);
+      console.log('Attempting to repair and parse JSON response...');
       
-      // Check if the response is wrapped in a markdown code block
-      const jsonBlockMatch = fixedText.match(/```(?:json)?([\s\S]*?)```/m);
-      if (jsonBlockMatch && jsonBlockMatch[1]) {
-        console.log('Found JSON in markdown code block, extracting...');
-        fixedText = jsonBlockMatch[1].trim();
+      // Use our new JSON repair utility to fix common issues
+      const repairedJson = repairJson(text);
+      console.log(`JSON repair completed. Length: ${repairedJson.length} characters`);
+      
+      // Try to parse the repaired JSON
+      const jsonData = safeParseJson(repairedJson);
+      
+      // Check if we got back a string (parsing failed) or an object (parsing succeeded)
+      if (typeof jsonData === 'string') {
+        throw new Error('JSON parsing failed even after repair');
       }
       
-      const jsonData = JSON.parse(fixedText);
-      console.log('Successfully parsed Gemini response as JSON');
+      console.log('Successfully parsed Gemini response as JSON after repair');
       
-      // Return both the parsed JSON and the HTML content
+      // Create a nicely formatted HTML representation for display
+      const formattedHtml = `
+        <div class="gemini-analysis">
+          <h2>SEO Analysis for ${siteUrl}</h2>
+          
+          ${jsonData.overall?.summary ? `
+            <div class="analysis-section">
+              <h3>Overall Assessment</h3>
+              <p>${jsonData.overall.summary}</p>
+              ${jsonData.overall.score ? `<p><strong>Score:</strong> ${jsonData.overall.score}/100</p>` : ''}
+            </div>
+          ` : ''}
+          
+          ${jsonData.keyFindings?.length > 0 ? `
+            <div class="analysis-section">
+              <h3>Key Findings</h3>
+              <ul>
+                ${jsonData.keyFindings.map(finding => `<li>${finding}</li>`).join('')}
+              </ul>
+            </div>
+          ` : ''}
+          
+          ${jsonData.quickWins?.length > 0 ? `
+            <div class="analysis-section">
+              <h3>Quick Wins</h3>
+              <ul>
+                ${jsonData.quickWins.map(win => `<li>${win}</li>`).join('')}
+              </ul>
+            </div>
+          ` : ''}
+          
+          ${jsonData.technicalIssues?.length > 0 ? `
+            <div class="analysis-section">
+              <h3>Technical Issues</h3>
+              <ul>
+                ${jsonData.technicalIssues.map(issue => `
+                  <li>
+                    <strong>${issue.title}</strong> - ${issue.priority || 'Medium'} Priority
+                    <p>${issue.description}</p>
+                    ${issue.recommendation ? `<p><em>Recommendation:</em> ${issue.recommendation}</p>` : ''}
+                  </li>
+                `).join('')}
+              </ul>
+            </div>
+          ` : ''}
+          
+          ${jsonData.contentIssues?.length > 0 ? `
+            <div class="analysis-section">
+              <h3>Content Issues</h3>
+              <ul>
+                ${jsonData.contentIssues.map(issue => `
+                  <li>
+                    <strong>${issue.title}</strong> - ${issue.priority || 'Medium'} Priority
+                    <p>${issue.description}</p>
+                    ${issue.recommendation ? `<p><em>Recommendation:</em> ${issue.recommendation}</p>` : ''}
+                  </li>
+                `).join('')}
+              </ul>
+            </div>
+          ` : ''}
+        </div>
+      `;
+      
+      // Return both the parsed JSON and the formatted HTML content
       return {
         data: jsonData,
-        htmlContent: `<pre>${JSON.stringify(jsonData, null, 2)}</pre>`,
+        htmlContent: formattedHtml,
+        rawResponse: text, // Store the original response for debugging
         timestamp: new Date().toISOString(),
         crawlSummary
       };
     } catch (parseError) {
-      console.error('Failed to parse Gemini response as JSON:', parseError);
-      console.log('Returning raw HTML content instead');
+      console.error('Failed to parse Gemini response as JSON even after repair:', parseError);
+      console.log('Generating HTML from raw response...');
       
-      // Return the HTML content directly
+      // Clean the raw text directly instead of wrapping it
+      let cleanedRawText = text.trim();
+      // Remove potential leading ```html or ``` with surrounding whitespace/newlines
+      cleanedRawText = cleanedRawText.replace(/^\s*```html[\s\n]*/i, '');
+      cleanedRawText = cleanedRawText.replace(/^\s*```[\s\n]*/i, '');
+      // Remove potential trailing ``` with surrounding whitespace/newlines
+      cleanedRawText = cleanedRawText.replace(/[\s\n]*```\s*$/i, '');
+
+      console.log('Cleaned raw response fallback (first 500 chars):', cleanedRawText.substring(0, 500));
+
+      // Return the cleaned HTML content and the *original* raw response for debugging
       return {
-        htmlContent: text,
+        htmlContent: cleanedRawText, // Use the cleaned text
+        rawResponse: text,          // Keep original raw text for reference if needed
         timestamp: new Date().toISOString(),
         crawlSummary,
         parseError: parseError.message
@@ -418,7 +520,56 @@ Content Issues: ${crawlSummary.contentIssues}
     const errorMessage = err?.response?.data?.error?.message || err?.message || 'Unknown error';
     console.error('Error details:', errorMessage);
     
-    // Return an error object that can be displayed to the user
+    // Check if this is a timeout error
+    const isTimeout = errorMessage.includes('timeout') || 
+                      errorMessage.includes('timed out') ||
+                      err?.code === 'ECONNABORTED' ||
+                      err?.name === 'AbortError';
+    
+    if (isTimeout) {
+      console.log('Gemini API call timed out, providing fallback response');
+      
+      // Create a simple fallback SEO analysis with the HTML we've already extracted
+      return {
+        data: {
+          url: siteUrl,
+          timestamp: new Date().toISOString(),
+          summary: 'SEO analysis was automatically generated due to API timeout.',
+          technicalSEO: {
+            score: 'N/A',
+            issues: [
+              {
+                title: 'HTML Content Successfully Extracted',
+                description: 'The crawler successfully extracted HTML content from the website.',
+                recommendation: 'The HTML content is available for manual review.'
+              }
+            ]
+          },
+          contentAnalysis: {
+            score: 'N/A',
+            summary: 'Content analysis not available due to API timeout.'
+          }
+        },
+        htmlContent: `
+          <div class="success-container">
+            <h2>SEO Analysis for ${siteUrl}</h2>
+            <p>The AI-powered analysis timed out, but we've successfully extracted the HTML content from your website.</p>
+            <p>HTML content size: ${verificationMetadata.dataVerification.htmlSize} bytes</p>
+            <p>Pages crawled: ${verificationMetadata.dataVerification.pagesProvided}</p>
+            <h3>Next Steps</h3>
+            <ul>
+              <li>Try running the analysis again</li>
+              <li>If the timeout persists, consider analyzing fewer pages</li>
+              <li>The HTML content has been successfully extracted and is available for review</li>
+            </ul>
+          </div>
+        `,
+        timestamp: new Date().toISOString(),
+        crawlSummary
+      };
+    }
+    
+    // For other errors, return a generic error message
     return {
       htmlContent: `<div class="error-container">
         <h2>SEO Analysis Error</h2>

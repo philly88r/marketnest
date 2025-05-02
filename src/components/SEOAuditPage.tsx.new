@@ -1,0 +1,478 @@
+import React, { useState, useEffect } from 'react';
+import styled from 'styled-components';
+import { FiPlus, FiDownload, FiRefreshCw } from 'react-icons/fi';
+import { 
+  generateSEOAudit, 
+  getSEOAuditsByClientId, 
+  deleteSEOAudit,
+  SEOAudit,
+  SEOReport,
+  SEOIssue
+} from '../utils/seoService';
+import { getCurrentUser } from '../utils/authService';
+import { downloadAsHtml } from '../utils/reportExporter';
+import { simpleExportToGoogleDocs } from '../utils/simpleReportExporter';
+
+// Styled components
+const Container = styled.div`
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  width: 100%;
+  color: #ffffff;
+`;
+
+const Header = styled.div`
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 20px;
+  border-bottom: 1px solid #333;
+`;
+
+const Title = styled.h1`
+  margin: 0;
+  font-size: 24px;
+  font-weight: 600;
+`;
+
+const ButtonsContainer = styled.div`
+  display: flex;
+  gap: 12px;
+`;
+
+const Button = styled.button`
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  padding: 8px 16px;
+  border-radius: 6px;
+  font-size: 14px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  background-color: #262626;
+  color: #ffffff;
+  border: 1px solid #333;
+
+  &:hover {
+    background-color: #333;
+  }
+
+  &:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+  }
+`;
+
+const PrimaryButton = styled(Button)`
+  background-color: #0df9b6;
+  color: #000000;
+  border: none;
+
+  &:hover {
+    background-color: #0be0a5;
+  }
+`;
+
+const ContentContainer = styled.div`
+  flex: 1;
+  padding: 20px;
+  overflow-y: auto;
+`;
+
+const MainContent = styled.div`
+  width: 100%;
+  max-width: 1200px;
+  margin: 0 auto;
+`;
+
+const AuditForm = styled.div`
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  margin-bottom: 20px;
+  padding: 20px;
+  background-color: #262626;
+  border-radius: 8px;
+`;
+
+const FormTitle = styled.h2`
+  margin: 0;
+  font-size: 18px;
+  font-weight: 600;
+`;
+
+const FormGroup = styled.div`
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+`;
+
+const Label = styled.label`
+  font-size: 14px;
+  font-weight: 500;
+`;
+
+const Input = styled.input`
+  padding: 10px 12px;
+  border-radius: 6px;
+  background-color: #333;
+  border: 1px solid #444;
+  color: #ffffff;
+  font-size: 14px;
+
+  &:focus {
+    outline: none;
+    border-color: #0df9b6;
+  }
+`;
+
+const ErrorMessage = styled.div`
+  color: #ff3b30;
+  font-size: 14px;
+  margin-top: 8px;
+`;
+
+const LoadingSpinner = styled.div`
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 40px;
+  font-size: 14px;
+  color: #999;
+
+  svg {
+    animation: spin 1s linear infinite;
+    margin-right: 8px;
+  }
+
+  @keyframes spin {
+    from {
+      transform: rotate(0deg);
+    }
+    to {
+      transform: rotate(360deg);
+    }
+  }
+`;
+
+const NoAuditsMessage = styled.div`
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 40px;
+  background-color: #262626;
+  border-radius: 8px;
+  text-align: center;
+`;
+
+const AIReportContainer = styled.div`
+  width: 100%;
+  margin-top: 20px;
+  font-family: Arial, sans-serif;
+`;
+
+// Type definitions
+interface SEOAuditPageProps {
+  clientId: string;
+}
+
+// Main component
+const SEOAuditPage: React.FC<SEOAuditPageProps> = ({ clientId }) => {
+  const [audits, setAudits] = useState<SEOAudit[]>([]);
+  const [selectedAudit, setSelectedAudit] = useState<SEOAudit | null>(null);
+  const [isLoading, setIsLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [url, setUrl] = useState('');
+  const [showNewAuditForm, setShowNewAuditForm] = useState(false);
+
+  // Load audits when the component mounts
+  useEffect(() => {
+    const loadAudits = async () => {
+      try {
+        setIsLoading(true);
+        const fetchedAudits = await getSEOAuditsByClientId(clientId);
+        
+        if (fetchedAudits && Array.isArray(fetchedAudits)) {
+          setAudits(fetchedAudits);
+          
+          // If there are audits, select the most recent one
+          if (fetchedAudits.length > 0) {
+            setSelectedAudit(fetchedAudits[0]);
+          }
+        } else {
+          console.warn('Invalid audits data:', fetchedAudits);
+          setAudits([]);
+        }
+      } catch (err) {
+        console.error('Error loading SEO audits:', err);
+        setError('Failed to load SEO audits');
+        setAudits([]);
+      } finally {
+        setIsLoading(false);
+      }
+    };
+    
+    loadAudits();
+  }, [clientId]);
+
+  // Handle polling for audit updates
+  useEffect(() => {
+    // Only set up polling if we have a selected audit in progress
+    if (!selectedAudit || selectedAudit.status === 'completed' || selectedAudit.status === 'failed') {
+      return;
+    }
+    
+    console.log('Setting up polling for audit:', selectedAudit.id);
+    
+    // Start polling for updates
+    const pollInterval = setInterval(async () => {
+      try {
+        // Get the latest audits
+        const latestAudits = await getSEOAuditsByClientId(clientId);
+        
+        // Find the current audit in the list
+        const updatedAudit = latestAudits.find(audit => audit && audit.id === selectedAudit?.id);
+        
+        // If we found the audit and it has a status, update the UI
+        if (updatedAudit) {
+          // Force React to see this as a new object by creating a shallow copy
+          const refreshedAudit = {...updatedAudit};
+          
+          // Update the selected audit to trigger a re-render
+          setSelectedAudit(refreshedAudit);
+          
+          // Also update the audit in the list
+          setAudits(prevAudits => 
+            prevAudits.map(audit => 
+              audit.id === refreshedAudit.id ? refreshedAudit : audit
+            )
+          );
+          
+          // If the audit is completed or failed, stop polling
+          if (refreshedAudit.status === 'completed' || refreshedAudit.status === 'failed') {
+            console.log('Audit completed or failed, stopping polling');
+            clearInterval(pollInterval);
+          }
+        }
+      } catch (pollError) {
+        console.error('Error polling for audit updates:', pollError);
+        clearInterval(pollInterval);
+      }
+    }, 5000); // Poll every 5 seconds
+    
+    // Clean up the interval when the component unmounts or selectedAudit changes
+    return () => {
+      console.log('Cleaning up polling interval');
+      clearInterval(pollInterval);
+    };
+  }, [selectedAudit?.id, clientId]);
+
+  // Handle creating a new SEO audit
+  const handleCreateAudit = async () => {
+    if (!url) {
+      setError('Please enter a URL to audit');
+      return;
+    }
+    
+    setIsLoading(true);
+    setError(null);
+    
+    try {
+      console.log('Creating new SEO audit for URL:', url);
+      
+      // Get the current user to use their real UUID
+      const user = getCurrentUser();
+      const userId = user?.id || 'anonymous';
+      
+      // Use the real user ID instead of client ID to ensure real audits
+      // Only fall back to anonymous if no user is logged in
+      const userUuid = userId !== 'anonymous' ? userId : '00000000-0000-0000-0000-000000000000';
+      console.log('Using user ID:', userUuid);
+      
+      // Create a new audit
+      const newAudit = await generateSEOAudit(url, userUuid);
+      
+      console.log('Received new audit:', newAudit);
+      
+      // Verify we have a valid audit object with an ID
+      if (!newAudit || !newAudit.id) {
+        console.error('Invalid audit response:', newAudit);
+        throw new Error('Failed to create audit - invalid response');
+      }
+      
+      // Add the new audit to the list and select it, ensuring no duplicates
+      setAudits(prevAudits => {
+        // Check if this audit ID already exists in the array
+        const exists = prevAudits.some(audit => audit.id === newAudit.id);
+        if (exists) {
+          // If it exists, replace it instead of adding a duplicate
+          return prevAudits.map(audit => 
+            audit.id === newAudit.id ? newAudit : audit
+          );
+        } else {
+          // If it's new, add it to the beginning of the array
+          return [newAudit, ...prevAudits];
+        }
+      });
+      setSelectedAudit(newAudit);
+      setUrl('');
+      setShowNewAuditForm(false);
+      
+      // Refresh the audit list after a short delay to get updated status
+      setTimeout(async () => {
+        try {
+          const refreshedAudits = await getSEOAuditsByClientId(clientId);
+          if (refreshedAudits && Array.isArray(refreshedAudits)) {
+            setAudits(refreshedAudits);
+            
+            // Find and select the newly created audit
+            const createdAudit = refreshedAudits.find(audit => audit.id === newAudit.id);
+            if (createdAudit) {
+              setSelectedAudit(createdAudit);
+            }
+          } else {
+            console.warn('Refreshed audits returned invalid data:', refreshedAudits);
+          }
+        } catch (refreshError) {
+          console.error('Error refreshing audits:', refreshError);
+        }
+      }, 2000);
+    } catch (err: any) {
+      console.error('Error creating SEO audit:', err);
+      setError(`Failed to create SEO audit: ${err.message || 'Unknown error'}`);
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  // Handle export to Google Docs
+  const handleExportToGoogleDocs = () => {
+    try {
+      // Use our direct converter function
+      const html = simpleExportToGoogleDocs(selectedAudit);
+      
+      // Open in a new tab
+      const newWindow = window.open();
+      if (newWindow) {
+        newWindow.document.write(html);
+        newWindow.document.close();
+      }
+    } catch (error) {
+      console.error('Error exporting to Google Docs:', error);
+      alert('Could not generate report. Please try again later.');
+    }
+  };
+
+  // Handle download as HTML
+  const handleDownloadAsHtml = () => {
+    if (selectedAudit) {
+      downloadAsHtml(selectedAudit);
+    }
+  };
+
+  return (
+    <Container>
+      <Header>
+        <Title>SEO Audit</Title>
+        <ButtonsContainer>
+          {!showNewAuditForm && (
+            <PrimaryButton onClick={() => setShowNewAuditForm(true)}>
+              <FiPlus size={16} />
+              New Audit
+            </PrimaryButton>
+          )}
+          {selectedAudit && selectedAudit.status === 'completed' && (
+            <>
+              <Button onClick={handleExportToGoogleDocs}>
+                <FiDownload size={16} />
+                Export to Google Docs
+              </Button>
+              <Button onClick={handleDownloadAsHtml}>
+                <FiDownload size={16} />
+                Download HTML
+              </Button>
+            </>
+          )}
+        </ButtonsContainer>
+      </Header>
+
+      <ContentContainer>
+        <MainContent>
+          {/* New Audit Form */}
+          {showNewAuditForm && (
+            <AuditForm>
+              <FormTitle>Create New SEO Audit</FormTitle>
+              <FormGroup>
+                <Label htmlFor="url">Website URL</Label>
+                <Input
+                  id="url"
+                  type="text"
+                  placeholder="https://example.com"
+                  value={url}
+                  onChange={(e) => setUrl(e.target.value)}
+                />
+              </FormGroup>
+              {error && <ErrorMessage>{error}</ErrorMessage>}
+              <ButtonsContainer>
+                <PrimaryButton onClick={handleCreateAudit} disabled={isLoading}>
+                  {isLoading ? (
+                    <>
+                      <FiRefreshCw size={16} />
+                      Creating...
+                    </>
+                  ) : (
+                    <>
+                      <FiPlus size={16} />
+                      Create Audit
+                    </>
+                  )}
+                </PrimaryButton>
+                <Button onClick={() => setShowNewAuditForm(false)}>
+                  Cancel
+                </Button>
+              </ButtonsContainer>
+            </AuditForm>
+          )}
+
+          {/* Loading State */}
+          {isLoading && !showNewAuditForm && (
+            <LoadingSpinner>
+              <FiRefreshCw size={16} />
+              Loading SEO audit data...
+            </LoadingSpinner>
+          )}
+
+          {/* No Audits Message */}
+          {!isLoading && audits.length === 0 && !showNewAuditForm && (
+            <NoAuditsMessage>
+              <p>No SEO audits found for this client.</p>
+              <PrimaryButton onClick={() => setShowNewAuditForm(true)}>
+                <FiPlus size={16} />
+                Create Your First Audit
+              </PrimaryButton>
+            </NoAuditsMessage>
+          )}
+
+          {/* AI-Generated Report */}
+          {selectedAudit && selectedAudit.status === 'completed' && (
+            <AIReportContainer>
+              {(selectedAudit.report as any)?.geminiAudit && (
+                <div dangerouslySetInnerHTML={{ 
+                  __html: typeof (selectedAudit.report as any).geminiAudit === 'string' 
+                    ? (selectedAudit.report as any).geminiAudit 
+                    : JSON.stringify((selectedAudit.report as any).geminiAudit, null, 2)
+                }} />
+              )}
+            </AIReportContainer>
+          )}
+        </MainContent>
+      </ContentContainer>
+    </Container>
+  );
+};
+
+export default SEOAuditPage;

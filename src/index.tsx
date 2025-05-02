@@ -1,3 +1,4 @@
+import './process-shim'; // This needs to be first to ensure process is defined
 import React from 'react';
 import ReactDOM from 'react-dom/client';
 import './index.css';

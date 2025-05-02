@@ -10,8 +10,8 @@ const context7Integration = require('./server/context7Integration');
 const browserUseIntegration = require('./server/browserUseIntegration');
 const geminiImageGenerator = require('./server/geminiImageGenerator');
 // Import both crawlers to allow switching between them
-const { crawlWebsiteHandler: playwrightCrawlHandler } = require('./server/seoCrawler');
-const { crawlWebsiteHandler: axiosCrawlHandler } = require('./server/axiosCrawler');
+const axiosCrawler = require('./server/axiosCrawler');
+const playwrightCrawler = require('./server/playwrightCrawler');
 
 const app = express();
 const PORT = process.env.PORT || 3001;
@@ -33,12 +33,17 @@ app.use(express.json());
 // API routes
 app.use('/api', googleAuthHandler);
 
-// SEO Crawler routes - must be defined BEFORE the general seoProxy
-// Use Axios crawler by default (more reliable than Playwright)
-app.get('/api/seo/crawl', axiosCrawlHandler);
+// Health check endpoint for SEO service
+app.get('/api/seo/health', (req, res) => {
+  res.status(200).json({ status: 'ok', message: 'SEO service is running' });
+});
 
-// Keep the Playwright crawler as a fallback option
-app.get('/api/seo/crawl-playwright', playwrightCrawlHandler);
+// SEO Crawler routes - must be defined BEFORE the general seoProxy
+// Use Playwright crawler as the default crawler
+app.get('/api/seo/crawl', playwrightCrawler.crawlWebsiteHandler);
+
+// Keep the Axios crawler as a fallback option
+app.get('/api/seo/crawl-axios', axiosCrawler.crawlWebsiteHandler);
 
 // General SEO proxy for other SEO routes
 app.use('/api/seo', seoProxy);
@@ -63,6 +68,27 @@ app.post('/api/browser-use/generate-content', browserUseIntegration.generateCont
 
 // Gemini Image Generation route
 app.post('/api/generate-image', geminiImageGenerator.handleImageGeneration);
+
+// SEO Audit Prompt endpoint
+app.get('/api/seo/audit-prompt', (req, res) => {
+  try {
+    const fs = require('fs');
+    const path = require('path');
+    const promptPath = path.join(__dirname, 'prompt.json');
+    
+    if (fs.existsSync(promptPath)) {
+      // Read the file as plain text and set the content type explicitly
+      const promptContent = fs.readFileSync(promptPath, 'utf8');
+      res.setHeader('Content-Type', 'text/plain');
+      res.send(promptContent);
+    } else {
+      res.status(404).send('Prompt file not found');
+    }
+  } catch (error) {
+    console.error('Error reading prompt file:', error);
+    res.status(500).send('Error reading prompt file');
+  }
+});
 
 // SEO Crawler routes are defined above
 
