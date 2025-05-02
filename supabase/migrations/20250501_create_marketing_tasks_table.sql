@@ -199,7 +199,7 @@ VALUES (
     'Planned'
 );
 
--- Create index for faster queries
-CREATE INDEX idx_marketing_tasks_assigned_to ON public.marketing_tasks(assigned_to);
-CREATE INDEX idx_marketing_tasks_status ON public.marketing_tasks(status);
-CREATE INDEX idx_marketing_tasks_dates ON public.marketing_tasks(start_date, end_date);
+-- Create index for faster queries (if they don't already exist)
+CREATE INDEX IF NOT EXISTS idx_marketing_tasks_assigned_to ON public.marketing_tasks(assigned_to);
+CREATE INDEX IF NOT EXISTS idx_marketing_tasks_status ON public.marketing_tasks(status);
+CREATE INDEX IF NOT EXISTS idx_marketing_tasks_dates ON public.marketing_tasks(start_date, end_date);
