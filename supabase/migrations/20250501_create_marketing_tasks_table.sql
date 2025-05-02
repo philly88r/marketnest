@@ -21,32 +21,23 @@ CREATE POLICY marketing_tasks_select_policy ON public.marketing_tasks
 FOR SELECT
 USING (true);
 
--- Allow authenticated users with admin role to insert marketing tasks
+-- Allow all authenticated users to insert marketing tasks for now
+-- This can be restricted later when you implement a proper role system
 CREATE POLICY marketing_tasks_insert_policy ON public.marketing_tasks
 FOR INSERT
-WITH CHECK (
-  auth.uid()::text IN (
-    SELECT user_id::text FROM user_roles WHERE role = 'admin'
-  )
-);
+WITH CHECK (auth.role() = 'authenticated');
 
--- Allow authenticated users with admin role to update marketing tasks
+-- Allow all authenticated users to update marketing tasks for now
+-- This can be restricted later when you implement a proper role system
 CREATE POLICY marketing_tasks_update_policy ON public.marketing_tasks
 FOR UPDATE
-USING (
-  auth.uid()::text IN (
-    SELECT user_id::text FROM user_roles WHERE role = 'admin'
-  )
-);
+USING (auth.role() = 'authenticated');
 
--- Allow authenticated users with admin role to delete marketing tasks
+-- Allow all authenticated users to delete marketing tasks for now
+-- This can be restricted later when you implement a proper role system
 CREATE POLICY marketing_tasks_delete_policy ON public.marketing_tasks
 FOR DELETE
-USING (
-  auth.uid()::text IN (
-    SELECT user_id::text FROM user_roles WHERE role = 'admin'
-  )
-);
+USING (auth.role() = 'authenticated');
 
 -- Insert marketing tasks for May 2025
 
