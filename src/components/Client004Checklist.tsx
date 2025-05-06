@@ -474,6 +474,16 @@ const AltareChecklist: React.FC = () => {
         </StatsContainer>
       </Header>
       
+      <AddButtonContainer>
+        <AddButton 
+          onClick={(e) => openCreateModal(e)}
+          type="button"
+          aria-label="Add new checklist item"
+        >
+          <IconPlus /> Add Item
+        </AddButton>
+      </AddButtonContainer>
+      
       <ControlsContainer>
         <FilterTabs>
           <FilterTab 
@@ -496,25 +506,15 @@ const AltareChecklist: React.FC = () => {
           </FilterTab>
         </FilterTabs>
         
-        <ControlsRow>
-          <SearchContainer>
-            <SearchInput
-              type="text"
-              placeholder="Search items..."
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-            />
-            <SearchIcon><IconSearch /></SearchIcon>
-          </SearchContainer>
-          
-          <AddButton 
-            onClick={(e) => openCreateModal(e)}
-            type="button"
-            aria-label="Add new checklist item"
-          >
-            <IconPlus /> Add Item
-          </AddButton>
-        </ControlsRow>
+        <SearchContainer>
+          <SearchInput
+            type="text"
+            placeholder="Search items..."
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+          />
+          <SearchIcon><IconSearch /></SearchIcon>
+        </SearchContainer>
       </ControlsContainer>
 
       {isLoading ? (
@@ -834,19 +834,13 @@ const ControlsContainer = styled.div`
   }
 `;
 
-const ControlsRow = styled.div`
+const AddButtonContainer = styled.div`
   display: flex;
-  gap: 16px;
-  align-items: center;
+  justify-content: flex-end;
+  margin-bottom: 20px;
   
   @media (max-width: 768px) {
-    width: 100%;
-    justify-content: space-between;
-  }
-  
-  @media (max-width: 480px) {
-    flex-direction: column;
-    align-items: stretch;
+    justify-content: center;
   }
 `;
 
@@ -873,7 +867,7 @@ const FilterTab = styled.button<{ active: boolean }>`
 const SearchContainer = styled.div`
   position: relative;
   flex-grow: 1;
-  max-width: 400px;
+  max-width: 100%;
   
   @media (max-width: 480px) {
     width: 100%;
@@ -913,31 +907,39 @@ const AddButton = styled.button`
   color: #1a1a2e;
   border: none;
   border-radius: 8px;
-  padding: 10px 16px;
+  padding: 12px 20px;
   font-weight: bold;
+  font-size: 16px;
   display: flex;
   align-items: center;
   justify-content: center;
   gap: 8px;
   cursor: pointer;
   transition: all 0.2s ease;
-  min-width: 120px;
+  min-width: 150px;
+  box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+  position: relative;
+  z-index: 5;
   
   @media (max-width: 768px) {
     width: auto;
+    padding: 14px 24px;
+    font-size: 18px;
   }
   
   @media (max-width: 480px) {
-    width: 100%;
+    width: 80%;
   }
   
   &:hover {
     background: #0be0a5;
-    transform: translateY(-1px);
+    transform: translateY(-2px);
+    box-shadow: 0 6px 8px rgba(0, 0, 0, 0.15);
   }
   
   &:active {
     transform: translateY(0px);
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
   }
 `;
 
