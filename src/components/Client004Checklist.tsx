@@ -482,19 +482,21 @@ const AltareChecklist: React.FC = () => {
           </FilterTab>
         </FilterTabs>
         
-        <SearchContainer>
-          <SearchInput
-            type="text"
-            placeholder="Search items..."
-            value={searchQuery}
-            onChange={(e) => setSearchQuery(e.target.value)}
-          />
-          <SearchIcon><IconSearch /></SearchIcon>
-        </SearchContainer>
-        
-        <AddButton onClick={openCreateModal}>
-          <IconPlus /> Add Item
-        </AddButton>
+        <ControlsRow>
+          <SearchContainer>
+            <SearchInput
+              type="text"
+              placeholder="Search items..."
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+            />
+            <SearchIcon><IconSearch /></SearchIcon>
+          </SearchContainer>
+          
+          <AddButton onClick={openCreateModal}>
+            <IconPlus /> Add Item
+          </AddButton>
+        </ControlsRow>
       </ControlsContainer>
 
       {isLoading ? (
@@ -814,6 +816,22 @@ const ControlsContainer = styled.div`
   }
 `;
 
+const ControlsRow = styled.div`
+  display: flex;
+  gap: 16px;
+  align-items: center;
+  
+  @media (max-width: 768px) {
+    width: 100%;
+    justify-content: space-between;
+  }
+  
+  @media (max-width: 480px) {
+    flex-direction: column;
+    align-items: stretch;
+  }
+`;
+
 const FilterTabs = styled.div`
   display: flex;
   background: rgba(255, 255, 255, 0.05);
@@ -838,6 +856,10 @@ const SearchContainer = styled.div`
   position: relative;
   flex-grow: 1;
   max-width: 400px;
+  
+  @media (max-width: 480px) {
+    width: 100%;
+  }
 `;
 
 const SearchInput = styled.input`
@@ -877,9 +899,19 @@ const AddButton = styled.button`
   font-weight: bold;
   display: flex;
   align-items: center;
+  justify-content: center;
   gap: 8px;
   cursor: pointer;
   transition: all 0.2s ease;
+  min-width: 120px;
+  
+  @media (max-width: 768px) {
+    width: auto;
+  }
+  
+  @media (max-width: 480px) {
+    width: 100%;
+  }
   
   &:hover {
     background: #0be0a5;
