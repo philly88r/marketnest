@@ -1189,8 +1189,8 @@ const ClientDashboard: React.FC<ClientDashboardProps> = ({ clientId, onBack }) =
         return <TasksPage clientId={clientId} />;
         
       case 'checklist':
-        // Show the enhanced checklist for Altare, fallback to ClientChecklist for others
-        if (client?.name?.toLowerCase() === 'altare') {
+        // Show special checklist for Altare (client-004)
+        if (clientId === 'client-004') {
           return <Client004Checklist />;
         }
         return <ClientChecklist clientId={clientId} />;
