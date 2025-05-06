@@ -144,7 +144,14 @@ const AltareChecklist: React.FC = () => {
   };
 
   // Open modal for creating new item
-  const openCreateModal = () => {
+  const openCreateModal = (e?: React.MouseEvent) => {
+    // Prevent event propagation if event exists
+    if (e) {
+      e.preventDefault();
+      e.stopPropagation();
+    }
+    
+    console.log('Opening create modal');
     setModalItem(null);
     setForm({
       feature: '',
@@ -161,7 +168,14 @@ const AltareChecklist: React.FC = () => {
   };
 
   // Close modal
-  const closeModal = () => {
+  const closeModal = (e?: React.MouseEvent) => {
+    // Prevent event propagation if event exists
+    if (e) {
+      e.preventDefault();
+      e.stopPropagation();
+    }
+    
+    console.log('Closing modal');
     setModalOpen(false);
     setModalItem(null);
     setForm({});
@@ -493,7 +507,11 @@ const AltareChecklist: React.FC = () => {
             <SearchIcon><IconSearch /></SearchIcon>
           </SearchContainer>
           
-          <AddButton onClick={openCreateModal}>
+          <AddButton 
+            onClick={(e) => openCreateModal(e)}
+            type="button"
+            aria-label="Add new checklist item"
+          >
             <IconPlus /> Add Item
           </AddButton>
         </ControlsRow>
@@ -627,8 +645,8 @@ const AltareChecklist: React.FC = () => {
         </>
       )}
       
-      <StyledModal open={modalOpen} onClose={closeModal}>
-        <ModalContent onClick={e => e.stopPropagation()}>
+      <StyledModal open={modalOpen} onClose={(e) => closeModal(e)}>
+        <ModalContent onClick={e => e.stopPropagation()} data-testid="modal-content">
           <h3>{isNewItem ? 'Add New Checklist Item' : 'Edit Checklist Item'}</h3>
           
           <FormGroup>
@@ -1166,6 +1184,8 @@ const StyledModal = styled(Modal)`
     border-radius: 12px;
     max-width: 600px;
     width: 100%;
+    z-index: 1000;
+    position: relative;
   }
 `;
 
