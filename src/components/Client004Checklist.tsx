@@ -12,8 +12,9 @@ interface ChecklistItem {
   notes_from: string | null;
   assigned_to: string | null;
   complete: boolean;
-  priority?: 'low' | 'medium' | 'high';
-  order?: number;
+  // These fields are used in the UI but not stored in the database
+  priority?: 'low' | 'medium' | 'high'; // UI only
+  order?: number; // UI only
 }
 
 type FilterType = 'all' | 'completed' | 'pending';
@@ -159,8 +160,8 @@ const AltareChecklist: React.FC = () => {
       complete_by: null,
       notes_from: null,
       assigned_to: null,
-      complete: false,
-      priority: 'medium'
+      complete: false
+      // Removed priority as it's not in the database
     });
     setIsNewItem(true);
     setFormErrors({});
@@ -232,22 +233,26 @@ const AltareChecklist: React.FC = () => {
       if (isNewItem) {
         // Create new item
         console.log('Creating new item:', form);
+        // Create a clean version of the form data without UI-only fields
+        const { priority, ...cleanForm } = form;
+        
+        console.log('Clean form data for insert:', cleanForm);
         const { data, error: createError } = await supabase
           .from('client_004_checklist')
-          .insert([{
-            ...form,
-            // Add order as the last item
-            order: items.length > 0 ? Math.max(...items.map(i => i.order || 0)) + 1 : 1
-          }]);
+          .insert([cleanForm]);
           
         if (createError) throw createError;
         console.log('Item created successfully');
       } else if (modalItem) {
         // Update existing item
         console.log('Saving changes for item:', modalItem.id, form);
+        // Create a clean version of the form data without UI-only fields
+        const { priority, ...cleanForm } = form;
+        
+        console.log('Clean form data for update:', cleanForm);
         const { data, error: updateError } = await supabase
           .from('client_004_checklist')
-          .update(form)
+          .update(cleanForm)
           .eq('id', modalItem.id);
           
         if (updateError) throw updateError;
@@ -699,22 +704,6 @@ const AltareChecklist: React.FC = () => {
                 value={form.assigned_to || ''}
                 onChange={handleChange}
               />
-            </FormGroup>
-            
-            <FormGroup>
-              <FormLabel htmlFor="priority">
-                Priority
-              </FormLabel>
-              <FormSelect
-                id="priority"
-                name="priority"
-                value={form.priority || 'medium'}
-                onChange={handleChange}
-              >
-                <option value="low">Low</option>
-                <option value="medium">Medium</option>
-                <option value="high">High</option>
-              </FormSelect>
             </FormGroup>
           </TwoColumnLayout>
           
