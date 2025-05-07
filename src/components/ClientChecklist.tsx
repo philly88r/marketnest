@@ -99,16 +99,28 @@ const ClientChecklist: React.FC<ClientChecklistProps> = ({ clientId, projectId }
   // Handle toggling a checklist item
   const handleToggleItem = async (item: ChecklistItem) => {
     try {
+      // Optimistically update the UI first to avoid white screen if there's an error
+      setChecklist(prev => 
+        prev.map(i => i.id === item.id ? { ...i, is_completed: !i.is_completed } : i)
+      );
+      
+      // Then perform the actual update in the database
       const updatedItem = await updateChecklistItem(item.id, {
         is_completed: !item.is_completed
       });
       
+      // Update with the server response if successful
       setChecklist(prev => 
         prev.map(i => i.id === updatedItem.id ? updatedItem : i)
       );
     } catch (err) {
       console.error('Error updating checklist item:', err);
       setError('Failed to update checklist item. Please try again.');
+      
+      // Revert the optimistic update if there was an error
+      setChecklist(prev => 
+        prev.map(i => i.id === item.id ? { ...i, is_completed: item.is_completed } : i)
+      );
     }
   };
   
