@@ -837,6 +837,8 @@ const FilterTabs = styled.div`
   display: flex;
   gap: 16px;
   margin-bottom: 24px;
+  position: relative; /* Ensure stacking context */
+  z-index: 1; /* Lift above other elements */
 `;
 
 const FilterTab = styled.button<{ active: boolean }>`
