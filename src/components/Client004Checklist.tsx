@@ -835,21 +835,29 @@ const AddButtonContainer = styled.div`
 
 const FilterTabs = styled.div`
   display: flex;
-  background: rgba(255, 255, 255, 0.05);
-  border-radius: 8px;
-  overflow: hidden;
+  gap: 16px;
+  margin-bottom: 24px;
 `;
 
 const FilterTab = styled.button<{ active: boolean }>`
-  background: ${props => props.active ? 'rgba(13, 249, 182, 0.2)' : 'transparent'};
+  background: ${props => props.active ? '#0df9b6' : 'rgba(255, 255, 255, 0.1)'};
+  color: ${props => props.active ? '#1a1a2e' : '#fff'};
   border: none;
-  color: ${props => props.active ? '#0df9b6' : '#fff'};
-  padding: 8px 16px;
+  border-radius: 8px;
+  padding: 12px 20px;
+  font-weight: bold;
+  font-size: 16px;
   cursor: pointer;
   transition: all 0.2s ease;
+  white-space: nowrap;
   
-  &:hover {
-    background: ${props => props.active ? 'rgba(13, 249, 182, 0.2)' : 'rgba(255, 255, 255, 0.1)'};
+  &:hover:not(:disabled) {
+    background: ${props => props.active ? '#0be0a5' : 'rgba(255, 255, 255, 0.2)'};
+  }
+  
+  &:focus {
+    outline: none;
+    box-shadow: 0 0 0 2px rgba(13, 249, 182, 0.5);
   }
 `;
 
