@@ -863,7 +863,7 @@ const FilterTab = styled.button<{ active: boolean }>`
 
 const SearchContainer = styled.div`
   position: relative;
-  flex-grow: 1;
+  // flex-grow: 1;
   max-width: 100%;
   
   @media (max-width: 480px) {
