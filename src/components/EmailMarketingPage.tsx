@@ -432,11 +432,11 @@ const EmailMarketingPage: React.FC<EmailMarketingPageProps> = ({
             <Button onClick={() => setShowGenerateForm(true)}>
               <FiPlus /> Generate Templates
             </Button>
+            <Button onClick={handleGeneratePersonalTouch}>
+              <FiMail /> Personal Touch
+            </Button>
             <Button onClick={() => setShowCustomForm(true)}>
               <FiPenTool /> Write with AI
-            </Button>
-            <Button primary onClick={handleGeneratePersonalTouch}>
-              <FiMail /> Personal Touch
             </Button>
           </ActionButtons>
         </PageTitle>
