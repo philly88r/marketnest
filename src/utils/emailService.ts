@@ -86,8 +86,8 @@ export interface EmailGenerationOptions {
   clientId: string;
   clientName: string;
   industry: string;
-  purpose: 'promotional' | 'newsletter' | 'announcement' | 'seasonal' | 'landing-page';
-  tone: 'casual' | 'professional' | 'enthusiastic' | 'informative';
+  purpose: 'promotional' | 'newsletter' | 'announcement' | 'seasonal' | 'landing-page' | 'personal-touch';
+  tone: 'casual' | 'professional' | 'enthusiastic' | 'informative' | 'friendly';
   includePromotion?: boolean;
   promotionDetails?: string;
   includeProductHighlight?: boolean;
@@ -1037,6 +1037,129 @@ const parseAICustomEmailResponse = (
       created_at: new Date().toISOString(),
       status: 'draft',
       tags: ['error', 'custom'],
+      metrics: {
+        opens: 0,
+        clicks: 0,
+        conversions: 0
+      }
+    };
+  }
+};
+
+/**
+ * Generate a personal touch email template
+ * These are brief, casual check-in messages with a personal feel
+ */
+export const generatePersonalTouchTemplate = async (
+  options: EmailGenerationOptions
+): Promise<EmailTemplate> => {
+  try {
+    // Generate a unique ID for the template
+    const templateId = `email-${Date.now()}-${Math.floor(Math.random() * 1000)}`;
+    
+    // Generate the prompt for the AI
+    const prompt = generatePersonalTouchPrompt(options);
+    
+    // Call the AI API to generate email content
+    const aiResponse = await callGeminiAPI(prompt);
+    
+    // Parse the AI response into an email template
+    const template = parseAIPersonalTouchResponse(aiResponse, options.clientId, templateId);
+    
+    // Save the template to the database
+    const { error } = await supabase
+      .from('email_templates')
+      .insert(template);
+    
+    if (error) {
+      console.error('Error saving personal touch template:', error);
+    }
+    
+    return template;
+  } catch (error) {
+    console.error('Error generating personal touch template:', error);
+    throw error;
+  }
+};
+
+/**
+ * Generate a prompt for the AI to create a personal touch email
+ */
+const generatePersonalTouchPrompt = (options: EmailGenerationOptions): string => {
+  const { clientName, industry } = options;
+  
+  return `
+    Create a brief, personal check-in email for a client named ${clientName} in the ${industry} industry. 
+    This should be a very short, friendly message (1-2 sentences) that feels like a personal note from a business owner or account manager.
+    
+    Requirements:
+    1. Keep it brief and conversational - no more than 2-3 sentences
+    2. Make it feel authentic and personal, not corporate
+    3. Include a casual check-in about their well-being
+    4. Subtly mention your product/service without being salesy
+    5. End with an open-ended question to encourage response
+    6. Use a friendly, warm tone
+    7. Vary the approach - don't use the same template formula every time
+    8. Subject line should be casual and personal
+    
+    Format your response as a JSON object with the following structure:
+    {
+      "title": "Personal Check-in",
+      "subject": "Quick hello from [Your Name]",
+      "content": "<p>The email content goes here.</p>",
+      "tags": ["personal", "check-in"]
+    }
+  `;
+};
+
+/**
+ * Parse the AI response for a personal touch email template
+ */
+const parseAIPersonalTouchResponse = (
+  response: any, 
+  clientId: string,
+  templateId: string
+): EmailTemplate => {
+  try {
+    // Extract the JSON from the response
+    const jsonMatch = response.text.match(/\{[\s\S]*\}/g);
+    
+    if (!jsonMatch) {
+      throw new Error('Could not parse AI response');
+    }
+    
+    const jsonStr = jsonMatch[0];
+    const template = JSON.parse(jsonStr);
+    
+    // Map the parsed template to our EmailTemplate interface
+    return {
+      id: templateId,
+      client_id: clientId,
+      title: template.title || 'Personal Check-in',
+      subject: template.subject || 'Quick hello',
+      content: template.content || '<p>Hello! Just wanted to check in and see how you are doing. Let me know if you need anything!</p>',
+      created_at: new Date().toISOString(),
+      status: 'draft',
+      tags: template.tags || ['personal', 'check-in'],
+      metrics: {
+        opens: 0,
+        clicks: 0,
+        conversions: 0
+      }
+    };
+  } catch (error) {
+    console.error('Error parsing AI personal touch response:', error);
+    
+    // Return fallback template if parsing fails
+    return {
+      id: templateId,
+      client_id: clientId,
+      title: 'Personal Check-in',
+      subject: 'Quick hello',
+      content: '<p>Hello! Just wanted to check in and see how you are doing. Let me know if you need anything!</p>',
+      created_at: new Date().toISOString(),
+      status: 'draft',
+      tags: ['personal', 'check-in'],
       metrics: {
         opens: 0,
         clicks: 0,

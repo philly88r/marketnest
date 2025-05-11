@@ -566,6 +566,13 @@ const ClientDashboard: React.FC<ClientDashboardProps> = ({ clientId, onBack }) =
   const isEditingRef = useRef<boolean>(false);
   const navigate = useNavigate();
 
+  // Handle navigation to Email Marketing Hub when the email tab is selected
+  useEffect(() => {
+    if (activeTab === 'email') {
+      navigate(`/email-marketing?clientId=${clientId}`);
+    }
+  }, [activeTab, clientId, navigate]);
+
   // Function to fetch projects
   const fetchProjects = async () => {
     try {
@@ -1292,6 +1299,17 @@ const ClientDashboard: React.FC<ClientDashboardProps> = ({ clientId, onBack }) =
         
       case 'ai-tools':
         return <ClientDashboardAI />;
+        
+      case 'email':
+        // Navigate to Email Marketing Hub with the client ID
+        // We need to handle this outside the switch statement
+        // This case just returns a loading placeholder
+        return (
+          <div style={{ padding: '20px' }}>
+            <h3>Email Marketing Hub</h3>
+            <p>Loading email marketing tools...</p>
+          </div>
+        );
         
       default:
         return null;

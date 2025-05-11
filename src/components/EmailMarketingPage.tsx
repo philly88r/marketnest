@@ -4,6 +4,7 @@ import { FiMail, FiPlus, FiCheck, FiX, FiSend, FiCalendar, FiEdit, FiTrash2, FiC
 import { 
   generateEmailTemplates, 
   generateCustomEmailTemplate,
+  generatePersonalTouchTemplate,
   getEmailTemplatesByClientId, 
   updateEmailTemplateStatus,
   deleteEmailTemplate,
@@ -138,6 +139,29 @@ const EmailMarketingPage: React.FC<EmailMarketingPageProps> = ({
     } catch (err) {
       console.error('Error generating custom email template:', err);
       setError('Failed to generate custom email template. Please try again.');
+    } finally {
+      setIsLoading(false);
+    }
+  };
+  
+  // Handle generating personal touch template
+  const handleGeneratePersonalTouch = async () => {
+    setIsLoading(true);
+    setError(null);
+    
+    try {
+      const personalOptions: EmailGenerationOptions = {
+        ...generationOptions,
+        purpose: 'personal-touch' as 'personal-touch',
+        tone: 'friendly' as 'friendly'
+      };
+      
+      const newTemplate = await generatePersonalTouchTemplate(personalOptions);
+      setTemplates(prevTemplates => [newTemplate, ...prevTemplates]);
+      setSelectedTemplate(newTemplate);
+    } catch (err) {
+      console.error('Error generating personal touch template:', err);
+      setError('Failed to generate personal touch template. Please try again.');
     } finally {
       setIsLoading(false);
     }
@@ -410,6 +434,9 @@ const EmailMarketingPage: React.FC<EmailMarketingPageProps> = ({
             </Button>
             <Button onClick={() => setShowCustomForm(true)}>
               <FiPenTool /> Write with AI
+            </Button>
+            <Button primary onClick={handleGeneratePersonalTouch}>
+              <FiMail /> Personal Touch
             </Button>
           </ActionButtons>
         </PageTitle>
