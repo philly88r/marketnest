@@ -43,6 +43,7 @@ const EmailMarketingPage: React.FC<EmailMarketingPageProps> = ({
   const [showAIEditForm, setShowAIEditForm] = useState(false);
   const [aiEditPrompt, setAIEditPrompt] = useState('');
   const [isUpdatingWithAI, setIsUpdatingWithAI] = useState(false);
+  const [showBrandColorsModal, setShowBrandColorsModal] = useState(false);
   
   // Hide scroll indicator after 5 seconds
   useEffect(() => {
@@ -106,7 +107,13 @@ const EmailMarketingPage: React.FC<EmailMarketingPageProps> = ({
     setError(null);
     
     try {
-      const newTemplates = await generateEmailTemplates(generationOptions, 3);
+      // Include brand colors in the generation options
+      const optionsWithBranding = {
+        ...generationOptions,
+        brandColors: brandColors
+      };
+      
+      const newTemplates = await generateEmailTemplates(optionsWithBranding, 3);
       setTemplates(prevTemplates => [...newTemplates, ...prevTemplates]);
       setSelectedTemplate(newTemplates[0]);
       setShowGenerateForm(false);
@@ -128,7 +135,8 @@ const EmailMarketingPage: React.FC<EmailMarketingPageProps> = ({
     try {
       const customOptions = {
         ...generationOptions,
-        customContent
+        customContent,
+        brandColors: brandColors
       };
       
       const newTemplate = await generateCustomEmailTemplate(customOptions);
@@ -153,7 +161,8 @@ const EmailMarketingPage: React.FC<EmailMarketingPageProps> = ({
       const personalOptions: EmailGenerationOptions = {
         ...generationOptions,
         purpose: 'personal-touch' as 'personal-touch',
-        tone: 'friendly' as 'friendly'
+        tone: 'friendly' as 'friendly',
+        brandColors: brandColors
       };
       
       const newTemplate = await generatePersonalTouchTemplate(personalOptions);
@@ -438,6 +447,9 @@ const EmailMarketingPage: React.FC<EmailMarketingPageProps> = ({
             <Button onClick={() => setShowCustomForm(true)}>
               <FiPenTool /> Write with AI
             </Button>
+            <Button onClick={() => setShowBrandColorsModal(true)}>
+              <FiLayout /> Brand Colors
+            </Button>
           </ActionButtons>
         </PageTitle>
         
@@ -601,6 +613,115 @@ const EmailMarketingPage: React.FC<EmailMarketingPageProps> = ({
             <FiChevronDown className="bounce" /> Scroll down for more content <FiChevronDown className="bounce" />
           </ScrollIndicator>
         )}
+        {/* Brand Colors Modal */}
+        {showBrandColorsModal && (
+          <Modal>
+            <ModalContent>
+              <ModalHeader>
+                <h3>Brand Colors</h3>
+                <CloseButton onClick={() => setShowBrandColorsModal(false)}>
+                  <FiX size={24} />
+                </CloseButton>
+              </ModalHeader>
+              
+              <div>
+                <p>Customize the colors used in your email templates. These colors will be applied to headers, buttons, and other elements in your emails.</p>
+                
+                <FormGroup>
+                  <FormLabel>Primary Color (Headers)</FormLabel>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                    <input 
+                      type="color" 
+                      name="primaryColor" 
+                      value={brandColors.primary} 
+                      onChange={handleBrandColorChange} 
+                      style={{ width: '50px', height: '40px', border: 'none' }}
+                    />
+                    <EditInput 
+                      type="text" 
+                      name="primaryColor" 
+                      value={brandColors.primary} 
+                      onChange={handleBrandColorChange} 
+                      style={{ flexGrow: 1 }}
+                    />
+                  </div>
+                </FormGroup>
+                
+                <FormGroup>
+                  <FormLabel>Secondary Color (Accents)</FormLabel>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                    <input 
+                      type="color" 
+                      name="secondaryColor" 
+                      value={brandColors.secondary} 
+                      onChange={handleBrandColorChange} 
+                      style={{ width: '50px', height: '40px', border: 'none' }}
+                    />
+                    <EditInput 
+                      type="text" 
+                      name="secondaryColor" 
+                      value={brandColors.secondary} 
+                      onChange={handleBrandColorChange} 
+                      style={{ flexGrow: 1 }}
+                    />
+                  </div>
+                </FormGroup>
+                
+                <FormGroup>
+                  <FormLabel>Accent Color (Highlights)</FormLabel>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                    <input 
+                      type="color" 
+                      name="accentColor" 
+                      value={brandColors.accent} 
+                      onChange={handleBrandColorChange} 
+                      style={{ width: '50px', height: '40px', border: 'none' }}
+                    />
+                    <EditInput 
+                      type="text" 
+                      name="accentColor" 
+                      value={brandColors.accent} 
+                      onChange={handleBrandColorChange} 
+                      style={{ flexGrow: 1 }}
+                    />
+                  </div>
+                </FormGroup>
+                
+                <div style={{ marginTop: '20px', padding: '15px', background: 'rgba(0,0,0,0.2)', borderRadius: '8px' }}>
+                  <h4 style={{ marginTop: 0, marginBottom: '10px' }}>Preview</h4>
+                  <div style={{ 
+                    padding: '15px', 
+                    background: '#fff', 
+                    borderRadius: '4px',
+                    color: '#333'
+                  }}>
+                    <h3 style={{ color: brandColors.primary, margin: '0 0 10px 0' }}>Sample Header</h3>
+                    <p>This is how your email content will look with the selected colors.</p>
+                    <div style={{ 
+                      background: brandColors.secondary, 
+                      color: '#fff', 
+                      padding: '8px 12px',
+                      borderRadius: '4px',
+                      display: 'inline-block',
+                      marginTop: '10px'
+                    }}>
+                      Button Example
+                    </div>
+                    <p style={{ marginTop: '15px' }}>
+                      <span style={{ color: brandColors.accent, fontWeight: 'bold' }}>Highlighted text</span> will use your accent color.
+                    </p>
+                  </div>
+                </div>
+              </div>
+              
+              <ModalFooter>
+                <Button onClick={() => setShowBrandColorsModal(false)}>Close</Button>
+                <Button primary onClick={() => setShowBrandColorsModal(false)}>Apply Colors</Button>
+              </ModalFooter>
+            </ModalContent>
+          </Modal>
+        )}
+        
         {/* Add EmailDebugger for troubleshooting */}
         <EmailDebugger clientId={clientId} />
         

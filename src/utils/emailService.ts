@@ -1,6 +1,7 @@
 import { supabase } from './supabaseClient';
 import { callGeminiAPI } from './apiProxy';
 import { generateAIImage, ImageGenerationOptions } from './imageService';
+import { getTemplateByType, EmailTemplateType } from './emailTemplates';
 
 // Brand colors for Liberty Beans
 export const LIBERTY_BEANS_COLORS = {
@@ -99,6 +100,13 @@ export interface EmailGenerationOptions {
   landingPageType?: 'product' | 'service' | 'event' | 'lead-generation';
   title?: string; // Title for landing page
   description?: string; // Description for landing page
+  brandColors?: {
+    primary: string;
+    secondary: string;
+    light: string;
+    dark: string;
+    accent: string;
+  }; // Custom brand colors for email templates
 }
 
 /**
@@ -121,16 +129,12 @@ export const generateEmailTemplates = async (
     const aiResponse = await callGeminiAPI(prompt);
     
     // Parse the AI response into email templates
-    const templates = parseAIEmailResponse(aiResponse, options.clientId, templateIds);
+    const templates = parseAIEmailResponse(aiResponse, options);
     
-    // Apply Liberty Beans styling to all templates
-    const processedTemplates = templates.map(template => ({
-      ...template,
-      content: enforceLibertyBeansStyles(template.content)
-    }));
+    // Templates are already processed with brand styling through the template system
     
     // Save the templates to the database
-    for (const template of processedTemplates) {
+    for (const template of templates) {
       const { error } = await supabase
         .from('email_templates')
         .insert(template);
@@ -140,7 +144,7 @@ export const generateEmailTemplates = async (
       }
     }
     
-    return processedTemplates;
+    return templates;
   } catch (error) {
     console.error('Error generating email templates:', error);
     throw error;
@@ -164,10 +168,28 @@ export const generateCustomEmailTemplate = async (
     const aiResponse = await callGeminiAPI(prompt);
     
     // Parse the AI response
-    const template = parseAICustomEmailResponse(aiResponse, options.clientId, templateId);
+    const parsedTemplate = parseAICustomEmailResponse(aiResponse, options.clientId, templateId);
     
-    // Apply Liberty Beans styling to the template
-    template.content = enforceLibertyBeansStyles(template.content);
+    // Create template data for our responsive email template
+    const templateData = {
+      title: parsedTemplate.title,
+      content: parsedTemplate.content,
+      buttonText: 'Read More',
+      buttonUrl: '#'
+    };
+    
+    // Use the appropriate template based on the purpose
+    const emailContent = getTemplateByType(
+      options,
+      options.purpose as EmailTemplateType,
+      templateData
+    );
+    
+    // Update the template with the new content
+    const template = {
+      ...parsedTemplate,
+      content: emailContent
+    };
     
     // Save the template to the database
     const { error } = await supabase
@@ -412,10 +434,16 @@ Return the updated template with the same structure as a JSON object:
     const templateIds = [templateId];
     const templates = parseAIEmailResponse(aiResponse, currentTemplate.client_id, templateIds);
     
-    // Apply Liberty Beans styling to the template
+    // Apply brand styling to the template
     const processedTemplates = templates.map(template => ({
       ...template,
-      content: enforceLibertyBeansStyles(template.content)
+      content: applyBrandStyles(template.content, { 
+        clientId: currentTemplate.client_id,
+        clientName: '', // These fields are required by the type but not used in applyBrandStyles
+        industry: '',
+        purpose: 'promotional' as 'promotional',
+        tone: 'professional' as 'professional'
+      })
     }));
     
     // Save the templates to the database
@@ -681,8 +709,23 @@ export const generateLandingPage = async (
       }
     }
     
-    // Apply Liberty Beans styling to the template
-    template.content = enforceLibertyBeansStyles(template.content);
+    // Create template data for our responsive email template
+    const templateData = {
+      title: template.title,
+      content: template.content,
+      buttonText: 'Learn More',
+      buttonUrl: '#'
+    };
+    
+    // Use the appropriate template based on the purpose
+    const emailContent = getTemplateByType(
+      options,
+      'landing-page' as EmailTemplateType,
+      templateData
+    );
+    
+    // Update the template with the new content
+    template.content = emailContent;
     
     // Save the template to the database
     const { error } = await supabase
@@ -846,9 +889,18 @@ const parseAILandingPageResponse = (
  */
 const parseAIEmailResponse = (
   response: any, 
-  clientId: string,
-  templateIds: string[]
+  options: EmailGenerationOptions,
+  templateIds?: string[]
 ): EmailTemplate[] => {
+  // Generate template IDs if not provided
+  const ids = templateIds || [
+    `email-${Date.now()}-${Math.floor(Math.random() * 1000)}`,
+    `email-${Date.now()}-${Math.floor(Math.random() * 1000) + 1}`,
+    `email-${Date.now()}-${Math.floor(Math.random() * 1000) + 2}`
+  ];
+  
+  // Get client ID from options
+  const clientId = options.clientId;
   try {
     // Handle both response formats (object with text property or direct text string)
     const responseText = typeof response === 'string' ? response : response.text;
@@ -868,12 +920,28 @@ const parseAIEmailResponse = (
       if (singleJsonMatch) {
         // If we found a single object, wrap it in an array
         const template = JSON.parse(singleJsonMatch[0]);
+        
+        // Create template data for our responsive email template
+        const templateData = {
+          title: template.title || 'Email Template',
+          content: template.content || 'No content',
+          buttonText: 'Read More',
+          buttonUrl: '#'
+        };
+        
+        // Use the appropriate template based on the purpose
+        const emailContent = getTemplateByType(
+          options,
+          options.purpose as EmailTemplateType,
+          templateData
+        );
+        
         return [{
-          id: templateIds[0],
+          id: ids[0],
           client_id: clientId,
           title: template.title || 'Email Template',
           subject: template.subject || 'No subject',
-          content: template.content || 'No content',
+          content: emailContent,
           created_at: new Date().toISOString(),
           status: 'draft',
           tags: template.tags || [],
@@ -916,12 +984,27 @@ const parseAIEmailResponse = (
             }
           }
           
+          // Create template data for our responsive email template
+          const templateData = {
+            title,
+            content,
+            buttonText: 'Read More',
+            buttonUrl: '#'
+          };
+          
+          // Use the appropriate template based on the purpose
+          const emailContent = getTemplateByType(
+            options,
+            options.purpose as EmailTemplateType,
+            templateData
+          );
+          
           templates.push({
-            id: templateIds[i],
+            id: ids[i],
             client_id: clientId,
             title,
             subject,
-            content,
+            content: emailContent,
             created_at: new Date().toISOString(),
             status: 'draft',
             tags,
@@ -945,41 +1028,75 @@ const parseAIEmailResponse = (
     const jsonStr = jsonMatch[0];
     const templates = JSON.parse(jsonStr);
     
-    // Map the parsed templates to our EmailTemplate interface
-    return templates.map((template: any, index: number) => ({
-      id: templateIds[index],
-      client_id: clientId,
-      title: template.title || `Email Template ${index + 1}`,
-      subject: template.subject || 'No subject',
-      content: template.content || 'No content',
-      created_at: new Date().toISOString(),
-      status: 'draft',
-      tags: template.tags || [],
-      metrics: {
-        opens: 0,
-        clicks: 0,
-        conversions: 0
-      }
-    }));
+    // Map the parsed templates to our EmailTemplate interface using the new template system
+    return templates.map((template: any, index: number) => {
+      // Create template data for our responsive email template
+      const templateData = {
+        title: template.title || `Email Template ${index + 1}`,
+        content: template.content || 'No content',
+        buttonText: 'Read More',
+        buttonUrl: '#'
+      };
+      
+      // Use the appropriate template based on the purpose
+      const emailContent = getTemplateByType(
+        options,
+        options.purpose as EmailTemplateType,
+        templateData
+      );
+      
+      return {
+        id: ids[index],
+        client_id: clientId,
+        title: template.title || `Email Template ${index + 1}`,
+        subject: template.subject || 'No subject',
+        content: emailContent,
+        created_at: new Date().toISOString(),
+        status: 'draft',
+        tags: template.tags || [],
+        metrics: {
+          opens: 0,
+          clicks: 0,
+          conversions: 0
+        }
+      };
+    });
   } catch (error) {
     console.error('Error parsing AI email response:', error);
     
-    // Return empty templates if parsing fails
-    return templateIds.map((id, index) => ({
-      id,
-      client_id: clientId,
-      title: `Fallback Template ${index + 1}`,
-      subject: 'Weekly Coffee Update',
-      content: '<p>Error generating email content. Please try again.</p>',
-      created_at: new Date().toISOString(),
-      status: 'draft',
-      tags: ['error'],
-      metrics: {
-        opens: 0,
-        clicks: 0,
-        conversions: 0
-      }
-    }));
+    // Return fallback templates using our responsive template system
+    return ids.map((id, index) => {
+      // Create template data for our responsive email template
+      const templateData = {
+        title: `Fallback Template ${index + 1}`,
+        content: '<p>Error generating email content. Please try again.</p>',
+        buttonText: 'Try Again',
+        buttonUrl: '#'
+      };
+      
+      // Use the appropriate template based on the purpose
+      const emailContent = getTemplateByType(
+        options,
+        options.purpose as EmailTemplateType,
+        templateData
+      );
+      
+      return {
+        id,
+        client_id: clientId,
+        title: `Fallback Template ${index + 1}`,
+        subject: 'Weekly Update',
+        content: emailContent,
+        created_at: new Date().toISOString(),
+        status: 'draft',
+        tags: ['error'],
+        metrics: {
+          opens: 0,
+          clicks: 0,
+          conversions: 0
+        }
+      };
+    });
   }
 };
 
@@ -1064,7 +1181,27 @@ export const generatePersonalTouchTemplate = async (
     const aiResponse = await callGeminiAPI(prompt);
     
     // Parse the AI response into an email template
-    const template = parseAIPersonalTouchResponse(aiResponse, options.clientId, templateId);
+    const parsedTemplate = parseAIPersonalTouchResponse(aiResponse, options.clientId, templateId);
+    
+    // Create template data for our responsive email template
+    const templateData = {
+      greeting: 'Hello',
+      message: parsedTemplate.content,
+      signature: 'Your friends at ' + options.clientName
+    };
+    
+    // Use the personal touch template
+    const emailContent = getTemplateByType(
+      options,
+      'personal-touch' as EmailTemplateType,
+      templateData
+    );
+    
+    // Update the template with the new content
+    const template = {
+      ...parsedTemplate,
+      content: emailContent
+    };
     
     // Save the template to the database
     const { error } = await supabase
@@ -1170,15 +1307,20 @@ const parseAIPersonalTouchResponse = (
 };
 
 /**
- * Enforce Liberty Beans styling on email content
- * This ensures all headers use the correct colors and removes any gradient styling
+ * Apply custom brand styling to email content
+ * This ensures all headers use the correct brand colors and removes any gradient styling
  */
-const enforceLibertyBeansStyles = (content: string): string => {
+const applyBrandStyles = (content: string, options: EmailGenerationOptions): string => {
   if (!content) return content;
   
-  console.log('Enforcing Liberty Beans styles on email content');
+  // Get the brand colors, either from options or default to Liberty Beans
+  const brandColors = options.brandColors || getBrandColors(options.clientId);
+  const primaryColor = brandColors.primary;
+  const secondaryColor = brandColors.secondary;
   
-  // Replace any gradient styling with solid Liberty Beans colors
+  console.log(`Applying brand styling with primary color: ${primaryColor}`);
+  
+  // Replace any gradient styling with solid brand colors
   let processedContent = content;
   
   // Remove any background-image or gradient properties
@@ -1189,14 +1331,14 @@ const enforceLibertyBeansStyles = (content: string): string => {
   processedContent = processedContent.replace(/-webkit-background-clip\s*:\s*text\s*;/gi, '');
   processedContent = processedContent.replace(/-webkit-text-fill-color\s*:\s*transparent\s*;/gi, '');
   
-  // Add Liberty Beans colors to all heading elements
+  // Add brand colors to all heading elements
   const headingTags = ['h1', 'h2', 'h3', 'h4', 'h5', 'h6'];
   
   headingTags.forEach(tag => {
     // Find all instances of the tag
     const tagRegex = new RegExp(`<${tag}([^>]*)>`, 'gi');
     
-    // Replace with tag that has Liberty Beans styling
+    // Replace with tag that has brand styling
     processedContent = processedContent.replace(tagRegex, (match, attributes) => {
       // Check if style attribute exists
       if (attributes.includes('style="')) {
@@ -1204,34 +1346,64 @@ const enforceLibertyBeansStyles = (content: string): string => {
         return match.replace(/style="([^"]*)"/i, (styleMatch, styleContent) => {
           // Remove any existing color property
           const cleanedStyle = styleContent.replace(/color\s*:[^;]*;?/gi, '');
-          // Add Liberty Beans color
-          return `style="${cleanedStyle}; color: #0d233f;"`;
+          // Add brand color
+          return `style="${cleanedStyle}; color: ${primaryColor};"`;
         });
       } else {
         // Add style attribute with color property
-        return `<${tag}${attributes} style="color: #0d233f;">`;
+        return `<${tag}${attributes} style="color: ${primaryColor};">`;
       }
     });
   });
   
   // Also process span elements that might contain heading text
-  processedContent = processedContent.replace(/<span([^>]*)>([^<]*)<\/span>/gi, (match, attributes, content) => {
-    // If the span has font-weight: bold or similar properties, apply Liberty Beans styling
+  processedContent = processedContent.replace(/<span([^>]*)>([^<]*)<\/span>/gi, (match, attributes, spanContent) => {
+    // If the span has font-weight: bold or similar properties, apply brand styling
     if (attributes.includes('font-weight') || attributes.includes('strong') || attributes.includes('bold')) {
       if (attributes.includes('style="')) {
         return match.replace(/style="([^"]*)"/i, (styleMatch, styleContent) => {
           // Remove any existing color property
           const cleanedStyle = styleContent.replace(/color\s*:[^;]*;?/gi, '');
-          // Add Liberty Beans color
-          return `style="${cleanedStyle}; color: #0d233f;"`;
+          // Add brand color
+          return `style="${cleanedStyle}; color: ${primaryColor};"`;
         });
       } else {
-        return `<span${attributes} style="color: #0d233f;">${content}</span>`;
+        return `<span${attributes} style="color: ${primaryColor};">${spanContent}</span>`;
       }
     }
     return match;
   });
   
-  console.log('Liberty Beans styles enforced');
+  // Add brand color to buttons and links
+  processedContent = processedContent.replace(/<a([^>]*)>/gi, (match, attributes) => {
+    if (attributes.includes('style="')) {
+      return match.replace(/style="([^"]*)"/i, (styleMatch, styleContent) => {
+        // Remove any existing color property
+        const cleanedStyle = styleContent.replace(/color\s*:[^;]*;?/gi, '');
+        // Add brand color
+        return `style="${cleanedStyle}; color: ${secondaryColor};"`;
+      });
+    } else {
+      return `<a${attributes} style="color: ${secondaryColor};">`;
+    }
+  });
+  
+  // Style buttons with brand colors
+  processedContent = processedContent.replace(/<button([^>]*)>/gi, (match, attributes) => {
+    if (attributes.includes('style="')) {
+      return match.replace(/style="([^"]*)"/i, (styleMatch, styleContent) => {
+        // Remove any existing background-color and color properties
+        const cleanedStyle = styleContent
+          .replace(/background-color\s*:[^;]*;?/gi, '')
+          .replace(/color\s*:[^;]*;?/gi, '');
+        // Add brand colors
+        return `style="${cleanedStyle}; background-color: ${primaryColor}; color: ${brandColors.light};"`;
+      });
+    } else {
+      return `<button${attributes} style="background-color: ${primaryColor}; color: ${brandColors.light};">`;
+    }
+  });
+  
+  console.log('Brand styles applied successfully');
   return processedContent;
 };
