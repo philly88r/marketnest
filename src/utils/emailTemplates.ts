@@ -397,14 +397,23 @@ export const getNewsletterTemplate = (
   const baseTemplate = getBaseTemplate(options);
   
   let sectionsHtml = '';
-  sections.forEach(section => {
-    sectionsHtml += `
-      <h2 style="color: ${options.brandColors?.primary || '#0d233f'};">${section.title}</h2>
-      ${section.imageUrl ? `<img src="${section.imageUrl}" alt="${section.title}" style="max-width: 100%; height: auto; margin-bottom: 16px;">` : ''}
-      ${section.content}
+  if (sections && Array.isArray(sections)) {
+    sections.forEach(section => {
+      sectionsHtml += `
+        <h2 style="color: ${options.brandColors?.primary || '#0d233f'};">${section.title}</h2>
+        ${section.imageUrl ? `<img src="${section.imageUrl}" alt="${section.title}" style="max-width: 100%; height: auto; margin-bottom: 16px;">` : ''}
+        ${section.content}
+        <hr style="border: 0; border-bottom: 1px solid #eaebed; margin: 20px 0;">
+      `;
+    });
+  } else {
+    // Default section if none provided
+    sectionsHtml = `
+      <h2 style="color: ${options.brandColors?.primary || '#0d233f'};">Latest Updates</h2>
+      <p>Stay tuned for our latest updates and news.</p>
       <hr style="border: 0; border-bottom: 1px solid #eaebed; margin: 20px 0;">
     `;
-  });
+  }
   
   const emailContent = `
     <h1>${title}</h1>
@@ -447,13 +456,38 @@ export const getPromotionalTemplate = (
   const baseTemplate = getBaseTemplate(options);
   
   let productsHtml = '';
-  products.forEach(product => {
-    productsHtml += `
+  if (products && Array.isArray(products)) {
+    products.forEach(product => {
+      productsHtml += `
+        <div style="margin-bottom: 30px;">
+          <img src="${product.imageUrl}" alt="${product.name}" style="max-width: 100%; height: auto; margin-bottom: 16px;">
+          <h2 style="color: ${options.brandColors?.primary || '#0d233f'};">${product.name}</h2>
+          <p>${product.description}</p>
+          <p style="font-weight: bold; font-size: 18px; color: ${options.brandColors?.secondary || '#7f2628'};">${product.price}</p>
+          <table role="presentation" border="0" cellpadding="0" cellspacing="0" class="btn btn-primary">
+            <tbody>
+              <tr>
+                <td align="left">
+                  <table role="presentation" border="0" cellpadding="0" cellspacing="0">
+                    <tbody>
+                      <tr>
+                        <td> <a href="${product.buttonUrl}" target="_blank">${product.buttonText}</a> </td>
+                      </tr>
+                    </tbody>
+                  </table>
+                </td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      `;
+    });
+  } else {
+    // Default product if none provided
+    productsHtml = `
       <div style="margin-bottom: 30px;">
-        <img src="${product.imageUrl}" alt="${product.name}" style="max-width: 100%; height: auto; margin-bottom: 16px;">
-        <h2 style="color: ${options.brandColors?.primary || '#0d233f'};">${product.name}</h2>
-        <p>${product.description}</p>
-        <p style="font-weight: bold; font-size: 18px; color: ${options.brandColors?.secondary || '#7f2628'};">${product.price}</p>
+        <h2 style="color: ${options.brandColors?.primary || '#0d233f'};">Featured Product</h2>
+        <p>Check out our latest offerings and special deals.</p>
         <table role="presentation" border="0" cellpadding="0" cellspacing="0" class="btn btn-primary">
           <tbody>
             <tr>
@@ -461,7 +495,7 @@ export const getPromotionalTemplate = (
                 <table role="presentation" border="0" cellpadding="0" cellspacing="0">
                   <tbody>
                     <tr>
-                      <td> <a href="${product.buttonUrl}" target="_blank">${product.buttonText}</a> </td>
+                      <td> <a href="#" target="_blank">Shop Now</a> </td>
                     </tr>
                   </tbody>
                 </table>
@@ -471,7 +505,7 @@ export const getPromotionalTemplate = (
         </table>
       </div>
     `;
-  });
+  }
   
   let promoSection = '';
   if (promoCode) {
@@ -512,19 +546,43 @@ export const getWelcomeTemplate = (
   const baseTemplate = getBaseTemplate(options);
   
   let stepsHtml = '';
-  nextSteps.forEach((step, index) => {
-    stepsHtml += `
+  if (nextSteps && Array.isArray(nextSteps)) {
+    nextSteps.forEach((step, index) => {
+      stepsHtml += `
+        <div style="margin-bottom: 20px; display: flex; align-items: flex-start;">
+          <div style="background-color: ${options.brandColors?.primary || '#0d233f'}; color: white; border-radius: 50%; width: 30px; height: 30px; text-align: center; line-height: 30px; margin-right: 15px; flex-shrink: 0;">
+            ${index + 1}
+          </div>
+          <div>
+            <h3 style="margin-top: 0; color: ${options.brandColors?.primary || '#0d233f'};">${step.title}</h3>
+            <p>${step.description}</p>
+          </div>
+        </div>
+      `;
+    });
+  } else {
+    // Default steps if none provided
+    stepsHtml = `
       <div style="margin-bottom: 20px; display: flex; align-items: flex-start;">
         <div style="background-color: ${options.brandColors?.primary || '#0d233f'}; color: white; border-radius: 50%; width: 30px; height: 30px; text-align: center; line-height: 30px; margin-right: 15px; flex-shrink: 0;">
-          ${index + 1}
+          1
         </div>
         <div>
-          <h3 style="margin-top: 0; color: ${options.brandColors?.primary || '#0d233f'};">${step.title}</h3>
-          <p>${step.description}</p>
+          <h3 style="margin-top: 0; color: ${options.brandColors?.primary || '#0d233f'};">Explore Your Dashboard</h3>
+          <p>Get familiar with your new account and discover all the features available to you.</p>
+        </div>
+      </div>
+      <div style="margin-bottom: 20px; display: flex; align-items: flex-start;">
+        <div style="background-color: ${options.brandColors?.primary || '#0d233f'}; color: white; border-radius: 50%; width: 30px; height: 30px; text-align: center; line-height: 30px; margin-right: 15px; flex-shrink: 0;">
+          2
+        </div>
+        <div>
+          <h3 style="margin-top: 0; color: ${options.brandColors?.primary || '#0d233f'};">Complete Your Profile</h3>
+          <p>Update your profile information to get the most out of your experience.</p>
         </div>
       </div>
     `;
-  });
+  }
   
   const emailContent = `
     <h1>Welcome, ${userName}!</h1>
@@ -634,68 +692,91 @@ export const getPersonalTouchTemplate = (
 export const getTemplateByType = (
   options: EmailGenerationOptions,
   type: EmailTemplateType,
-  templateData: any
+  templateData: any = {}
 ): string => {
+  // Set default values for templateData if not provided
+  const data = {
+    title: templateData.title || 'Email from ' + options.clientName,
+    content: templateData.content || '<p>No content provided.</p>',
+    buttonText: templateData.buttonText || 'Learn More',
+    buttonUrl: templateData.buttonUrl || '#',
+    intro: templateData.intro || '<p>Here are our latest updates:</p>',
+    sections: templateData.sections || [],
+    products: templateData.products || [],
+    promoCode: templateData.promoCode || '',
+    expiryDate: templateData.expiryDate || '',
+    userName: templateData.userName || 'Valued Customer',
+    welcomeMessage: templateData.welcomeMessage || '<p>Thank you for joining us! We are excited to have you on board.</p>',
+    nextSteps: templateData.nextSteps || [],
+    announcement: templateData.announcement || 'We have an important announcement to share with you.',
+    details: templateData.details || '<p>More details will be provided soon.</p>',
+    imageUrl: templateData.imageUrl || '',
+    greeting: templateData.greeting || 'Hello',
+    message: templateData.message || '<p>Just wanted to check in and see how you are doing.</p>',
+    signature: templateData.signature || 'Your friends at ' + options.clientName
+  };
+  
   switch (type) {
     case 'simple':
       return getSimpleTemplate(
         options,
-        templateData.title,
-        templateData.content,
-        templateData.buttonText,
-        templateData.buttonUrl
+        data.title,
+        data.content,
+        data.buttonText,
+        data.buttonUrl
       );
     case 'newsletter':
       return getNewsletterTemplate(
         options,
-        templateData.title,
-        templateData.intro,
-        templateData.sections,
-        templateData.buttonText,
-        templateData.buttonUrl
+        data.title,
+        data.intro,
+        data.sections,
+        data.buttonText,
+        data.buttonUrl
       );
     case 'promotional':
       return getPromotionalTemplate(
         options,
-        templateData.title,
-        templateData.intro,
-        templateData.products,
-        templateData.promoCode,
-        templateData.expiryDate
+        data.title,
+        data.intro,
+        data.products,
+        data.promoCode,
+        data.expiryDate
       );
     case 'welcome':
       return getWelcomeTemplate(
         options,
-        templateData.userName,
-        templateData.welcomeMessage,
-        templateData.nextSteps,
-        templateData.buttonText,
-        templateData.buttonUrl
+        data.userName,
+        data.welcomeMessage,
+        data.nextSteps,
+        data.buttonText,
+        data.buttonUrl
       );
     case 'announcement':
       return getAnnouncementTemplate(
         options,
-        templateData.title,
-        templateData.announcement,
-        templateData.details,
-        templateData.imageUrl,
-        templateData.buttonText,
-        templateData.buttonUrl
+        data.title,
+        data.announcement,
+        data.details,
+        data.imageUrl,
+        data.buttonText,
+        data.buttonUrl
       );
     case 'personal-touch':
       return getPersonalTouchTemplate(
         options,
-        templateData.greeting,
-        templateData.message,
-        templateData.signature
+        data.greeting,
+        data.message,
+        data.signature
       );
     default:
+      // Default to simple template if type is not recognized
       return getSimpleTemplate(
         options,
-        templateData.title || 'Email from ' + options.clientName,
-        templateData.content || 'No content provided.',
-        templateData.buttonText || 'Learn More',
-        templateData.buttonUrl || '#'
+        data.title,
+        data.content,
+        data.buttonText,
+        data.buttonUrl
       );
   }
 };
