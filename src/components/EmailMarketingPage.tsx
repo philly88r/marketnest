@@ -14,6 +14,8 @@ import {
   EmailGenerationOptions,
   LIBERTY_BEANS_COLORS
 } from '../utils/emailService';
+import { getPreGeneratedTemplates, getTemplateCategories } from '../utils/preGeneratedTemplates';
+import { supabase } from '../utils/supabaseClient';
 import EmailDebugger from './EmailDebugger';
 
 interface EmailMarketingPageProps {
@@ -44,6 +46,9 @@ const EmailMarketingPage: React.FC<EmailMarketingPageProps> = ({
   const [aiEditPrompt, setAIEditPrompt] = useState('');
   const [isUpdatingWithAI, setIsUpdatingWithAI] = useState(false);
   const [showBrandColorsModal, setShowBrandColorsModal] = useState(false);
+  const [showPreGeneratedModal, setShowPreGeneratedModal] = useState(false);
+  const [templateCategories, setTemplateCategories] = useState(getTemplateCategories());
+  const [selectedCategory, setSelectedCategory] = useState('');
   
   // Hide scroll indicator after 5 seconds
   useEffect(() => {
@@ -76,21 +81,73 @@ const EmailMarketingPage: React.FC<EmailMarketingPageProps> = ({
       
       console.log('EmailMarketingPage: Loading templates for client:', clientId);
       
+      // Always get pre-generated templates first so we have them available
+      const preGeneratedTemplates = getPreGeneratedTemplates(clientId);
+      console.log('EmailMarketingPage: Pre-generated templates available:', preGeneratedTemplates.length);
+      
+      // Debug output of pre-generated templates
+      preGeneratedTemplates.forEach((template, index) => {
+        console.log(`Pre-generated template ${index + 1}:`, template.title);
+      });
+      
       try {
+        // Try to get templates from the database
         const emailTemplates = await getEmailTemplatesByClientId(clientId);
-        console.log('EmailMarketingPage: Received templates:', emailTemplates.length);
-        setTemplates(emailTemplates);
+        console.log('EmailMarketingPage: Received templates from database:', emailTemplates.length);
         
-        // Select the most recent template if available
-        if (emailTemplates.length > 0) {
+        // If no templates were found in the database, use pre-generated templates
+        if (emailTemplates.length === 0) {
+          console.log('EmailMarketingPage: No templates found in database, using pre-generated templates');
+          
+          if (preGeneratedTemplates.length > 0) {
+            console.log('EmailMarketingPage: Using pre-generated templates:', preGeneratedTemplates.length);
+            
+            // Use pre-generated templates directly
+            setTemplates(preGeneratedTemplates);
+            setSelectedTemplate(preGeneratedTemplates[0]);
+            
+            // Try to save the first pre-generated template to the database in the background
+            try {
+              const { data, error } = await supabase
+                .from('email_templates')
+                .insert(preGeneratedTemplates[0])
+                .select()
+                .single();
+              
+              if (error) {
+                console.error('Error saving pre-generated template to database:', error);
+              } else {
+                console.log('Successfully saved pre-generated template to database');
+              }
+            } catch (err) {
+              console.error('Exception saving pre-generated template to database:', err);
+            }
+          } else {
+            console.log('EmailMarketingPage: No pre-generated templates available');
+            setTemplates([]);
+            setSelectedTemplate(null);
+          }
+        } else {
+          // Use the templates from the database
+          console.log('EmailMarketingPage: Using templates from database');
+          setTemplates(emailTemplates);
+          
+          // Select the most recent template if available
           console.log('EmailMarketingPage: Setting selected template:', emailTemplates[0].title);
           setSelectedTemplate(emailTemplates[0]);
-        } else {
-          console.log('EmailMarketingPage: No templates found for client:', clientId);
         }
       } catch (err) {
-        console.error('Error loading email templates:', err);
-        setError('Failed to load email templates. Please try again.');
+        console.error('Error loading email templates from database:', err);
+        setError('Failed to load email templates from database. Using pre-generated templates instead.');
+        
+        // If there's an error with the database, use pre-generated templates as a fallback
+        if (preGeneratedTemplates.length > 0) {
+          console.log('EmailMarketingPage: Using pre-generated templates as fallback');
+          setTemplates(preGeneratedTemplates);
+          setSelectedTemplate(preGeneratedTemplates[0]);
+        } else {
+          console.log('EmailMarketingPage: No pre-generated templates available for fallback');
+        }
       } finally {
         setIsLoading(false);
       }
@@ -174,6 +231,52 @@ const EmailMarketingPage: React.FC<EmailMarketingPageProps> = ({
     } finally {
       setIsLoading(false);
     }
+  };
+  
+  // Handle loading pre-generated templates
+  const handleLoadPreGeneratedTemplates = () => {
+    setShowPreGeneratedModal(true);
+  };
+  
+  // Handle selecting a pre-generated template
+  const handleSelectPreGeneratedTemplate = async (template: EmailTemplate) => {
+    setIsLoading(true);
+    setError(null);
+    
+    try {
+      // Save the template to Supabase
+      const { data, error } = await supabase
+        .from('email_templates')
+        .insert(template)
+        .select()
+        .single();
+      
+      if (error) {
+        console.error('Error saving pre-generated template:', error);
+        throw error;
+      }
+      
+      // Add the template to the list with the database ID
+      const savedTemplate = data as EmailTemplate;
+      setTemplates(prevTemplates => [savedTemplate, ...prevTemplates]);
+      setSelectedTemplate(savedTemplate);
+      setShowPreGeneratedModal(false);
+    } catch (err) {
+      console.error('Error selecting pre-generated template:', err);
+      setError('Failed to save the template. Please try again.');
+      
+      // Still add the template to the UI even if saving fails
+      setTemplates(prevTemplates => [template, ...prevTemplates]);
+      setSelectedTemplate(template);
+      setShowPreGeneratedModal(false);
+    } finally {
+      setIsLoading(false);
+    }
+  };
+  
+  // Handle selecting a template category
+  const handleSelectCategory = (categoryId: string) => {
+    setSelectedCategory(categoryId);
   };
 
   // Handle approving an email template
@@ -431,6 +534,19 @@ const EmailMarketingPage: React.FC<EmailMarketingPageProps> = ({
     }
   };
 
+  // Debug function to show pre-generated templates
+  const debugPreGeneratedTemplates = () => {
+    const templates = getPreGeneratedTemplates(clientId);
+    console.log('Debug: Pre-generated templates:', templates);
+    alert(`Found ${templates.length} pre-generated templates. Check console for details.`);
+    
+    // If there are templates, add the first one to the list
+    if (templates.length > 0) {
+      setTemplates(prevTemplates => [templates[0], ...prevTemplates]);
+      setSelectedTemplate(templates[0]);
+    }
+  };
+  
   return (
     <GlobalStyle>
       <Container>
@@ -441,6 +557,9 @@ const EmailMarketingPage: React.FC<EmailMarketingPageProps> = ({
             <Button onClick={() => setShowGenerateForm(true)}>
               <FiPlus /> Generate Templates
             </Button>
+            <Button onClick={handleLoadPreGeneratedTemplates}>
+              <FiRefreshCw /> Pre-made Templates
+            </Button>
             <Button onClick={handleGeneratePersonalTouch}>
               <FiMail /> Personal Touch
             </Button>
@@ -450,6 +569,11 @@ const EmailMarketingPage: React.FC<EmailMarketingPageProps> = ({
             <Button onClick={() => setShowBrandColorsModal(true)}>
               <FiLayout /> Brand Colors
             </Button>
+            {process.env.NODE_ENV !== 'production' && (
+              <Button onClick={debugPreGeneratedTemplates} style={{ background: '#ff5722' }}>
+                <FiRefreshCw /> Debug Templates
+              </Button>
+            )}
           </ActionButtons>
         </PageTitle>
         
@@ -493,6 +617,32 @@ const EmailMarketingPage: React.FC<EmailMarketingPageProps> = ({
           </Sidebar>
           
           <MainContent>
+            {/* Debug section - only visible during development */}
+            {process.env.NODE_ENV !== 'production' && (
+              <div style={{ 
+                background: '#333', 
+                border: '1px solid #ff5722', 
+                borderRadius: '4px', 
+                padding: '10px', 
+                marginBottom: '15px' 
+              }}>
+                <h4 style={{ color: '#ff5722', marginTop: 0 }}>Debug Information</h4>
+                <p><strong>Client ID:</strong> {clientId}</p>
+                <p><strong>Templates Count:</strong> {templates.length}</p>
+                <p><strong>Selected Template:</strong> {selectedTemplate ? selectedTemplate.title : 'None'}</p>
+                <p><strong>Pre-generated Templates Available:</strong> {getPreGeneratedTemplates(clientId).length}</p>
+                <div>
+                  <h5 style={{ color: '#ff5722' }}>Pre-generated Template Titles:</h5>
+                  <ul>
+                    {getPreGeneratedTemplates(clientId).map((template, index) => (
+                      <li key={index}>{template.title}</li>
+                    ))}
+                  </ul>
+                </div>
+                {error && <p style={{ color: 'red' }}><strong>Error:</strong> {error}</p>}
+              </div>
+            )}
+            
             {isLoading && !selectedTemplate ? (
               <LoadingMessage>Loading...</LoadingMessage>
             ) : error && !selectedTemplate ? (
@@ -613,6 +763,63 @@ const EmailMarketingPage: React.FC<EmailMarketingPageProps> = ({
             <FiChevronDown className="bounce" /> Scroll down for more content <FiChevronDown className="bounce" />
           </ScrollIndicator>
         )}
+        {/* Pre-generated Templates Modal */}
+        {showPreGeneratedModal && (
+          <Modal>
+            <ModalContent style={{ maxWidth: '900px' }}>
+              <ModalHeader>
+                <h3>Pre-made Email Templates</h3>
+                <CloseButton onClick={() => setShowPreGeneratedModal(false)}>
+                  <FiX size={24} />
+                </CloseButton>
+              </ModalHeader>
+              
+              <div>
+                <p>Choose from our collection of professionally designed email templates. These templates are ready to use and can be customized to match your brand.</p>
+                
+                <div style={{ display: 'flex', marginBottom: '20px', borderBottom: '1px solid #eee', paddingBottom: '10px' }}>
+                  <CategoryButton 
+                    active={selectedCategory === ''}
+                    onClick={() => handleSelectCategory('')}
+                  >
+                    All Templates
+                  </CategoryButton>
+                  {templateCategories.map(category => (
+                    <CategoryButton 
+                      key={category.id}
+                      active={selectedCategory === category.id}
+                      onClick={() => handleSelectCategory(category.id)}
+                    >
+                      {category.name}
+                    </CategoryButton>
+                  ))}
+                </div>
+                
+                <TemplateGrid>
+                  {getPreGeneratedTemplates(clientId)
+                    .filter(template => selectedCategory === '' || template.tags.includes(selectedCategory))
+                    .map(template => (
+                      <TemplateCard key={template.id} onClick={() => handleSelectPreGeneratedTemplate(template)}>
+                        <TemplateCardTitle>{template.title}</TemplateCardTitle>
+                        <TemplateCardSubject>{template.subject}</TemplateCardSubject>
+                        <TemplateCardPreview dangerouslySetInnerHTML={{ __html: template.content.substring(0, 150) + '...' }} />
+                        <TemplateCardFooter>
+                          <TemplateCardTags>
+                            {template.tags.slice(0, 3).map(tag => (
+                              <TemplateCardTag key={tag}>{tag}</TemplateCardTag>
+                            ))}
+                          </TemplateCardTags>
+                          <TemplateCardButton>Use Template</TemplateCardButton>
+                        </TemplateCardFooter>
+                      </TemplateCard>
+                    ))
+                  }
+                </TemplateGrid>
+              </div>
+            </ModalContent>
+          </Modal>
+        )}
+        
         {/* Brand Colors Modal */}
         {showBrandColorsModal && (
           <Modal>
@@ -1475,6 +1682,106 @@ const LoadingMessage = styled.div`
   padding: 40px;
   color: #999;
   font-size: 16px;
+`;
+
+// Template grid and card components
+const TemplateGrid = styled.div`
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(250px, 1fr));
+  gap: 20px;
+  margin-top: 20px;
+`;
+
+const TemplateCard = styled.div`
+  border: 1px solid #444;
+  border-radius: 8px;
+  padding: 15px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  background: #333;
+  box-shadow: 0 2px 5px rgba(0,0,0,0.2);
+  
+  &:hover {
+    transform: translateY(-3px);
+    box-shadow: 0 5px 15px rgba(0,0,0,0.3);
+    border-color: ${LIBERTY_BEANS_COLORS.secondary};
+  }
+`;
+
+const TemplateCardTitle = styled.h4`
+  margin: 0 0 8px 0;
+  font-size: 16px;
+  font-weight: 600;
+  color: white;
+`;
+
+const TemplateCardSubject = styled.div`
+  font-size: 14px;
+  color: #aaa;
+  margin-bottom: 10px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+`;
+
+const TemplateCardPreview = styled.div`
+  font-size: 13px;
+  color: #bbb;
+  margin-bottom: 15px;
+  max-height: 80px;
+  overflow: hidden;
+  line-height: 1.4;
+`;
+
+const TemplateCardFooter = styled.div`
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-top: auto;
+`;
+
+const TemplateCardTags = styled.div`
+  display: flex;
+  gap: 5px;
+`;
+
+const TemplateCardTag = styled.span`
+  background: #444;
+  color: #ddd;
+  padding: 2px 6px;
+  border-radius: 4px;
+  font-size: 11px;
+`;
+
+const TemplateCardButton = styled.button`
+  background: ${LIBERTY_BEANS_COLORS.primary};
+  color: white;
+  border: none;
+  padding: 5px 10px;
+  border-radius: 4px;
+  font-size: 12px;
+  cursor: pointer;
+  transition: background 0.2s;
+  
+  &:hover {
+    background: ${LIBERTY_BEANS_COLORS.secondary};
+  }
+`;
+
+const CategoryButton = styled.button<{ active: boolean }>`
+  background: ${props => props.active ? LIBERTY_BEANS_COLORS.primary : 'transparent'};
+  color: ${props => props.active ? 'white' : '#aaa'};
+  border: ${props => props.active ? 'none' : '1px solid #444'};
+  padding: 8px 15px;
+  border-radius: 4px;
+  margin-right: 10px;
+  cursor: pointer;
+  transition: all 0.2s;
+  font-size: 14px;
+  
+  &:hover {
+    background: ${props => props.active ? LIBERTY_BEANS_COLORS.secondary : '#444'};
+  }
 `;
 
 export default EmailMarketingPage;

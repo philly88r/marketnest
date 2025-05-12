@@ -32,6 +32,43 @@ export const getBrandColors = (clientId: string) => {
   return CLIENT_BRAND_COLORS[clientId] || DEFAULT_BRAND_COLORS;
 };
 
+// Helper function to save a template to localStorage
+const saveTemplateToLocalStorage = (template: EmailTemplate) => {
+  try {
+    const clientId = template.client_id;
+    const key = `email_templates_${clientId}`;
+    
+    // Get existing templates
+    const existingTemplatesString = localStorage.getItem(key);
+    let existingTemplates: EmailTemplate[] = [];
+    
+    if (existingTemplatesString) {
+      try {
+        existingTemplates = JSON.parse(existingTemplatesString);
+      } catch (e) {
+        console.error('Error parsing existing templates from localStorage:', e);
+      }
+    }
+    
+    // Check if template already exists (by id)
+    const existingIndex = existingTemplates.findIndex(t => t.id === template.id);
+    
+    if (existingIndex >= 0) {
+      // Update existing template
+      existingTemplates[existingIndex] = template;
+    } else {
+      // Add new template to the beginning of the array
+      existingTemplates.unshift(template);
+    }
+    
+    // Save back to localStorage
+    localStorage.setItem(key, JSON.stringify(existingTemplates));
+    console.log(`Saved template to localStorage for client ${clientId}`);
+  } catch (e) {
+    console.error('Error saving template to localStorage:', e);
+  }
+};
+
 // Liberty Beans logo path
 export const LIBERTY_BEANS_LOGO = '/images/clients/liberty-beans-logo.png';
 
@@ -135,12 +172,25 @@ export const generateEmailTemplates = async (
     
     // Save the templates to the database
     for (const template of templates) {
-      const { error } = await supabase
-        .from('email_templates')
-        .insert(template);
-      
-      if (error) {
-        console.error('Error saving email template:', error);
+      try {
+        const { data, error } = await supabase
+          .from('email_templates')
+          .insert(template)
+          .select()
+          .single();
+        
+        if (error) {
+          console.error('Error saving email template to Supabase:', error);
+          // Save to localStorage as backup
+          saveTemplateToLocalStorage(template);
+        } else if (data) {
+          // Save the successfully saved template to localStorage
+          saveTemplateToLocalStorage(data);
+        }
+      } catch (err) {
+        console.error('Exception saving email template:', err);
+        // Save to localStorage as backup
+        saveTemplateToLocalStorage(template);
       }
     }
     
@@ -192,12 +242,26 @@ export const generateCustomEmailTemplate = async (
     };
     
     // Save the template to the database
-    const { error } = await supabase
-      .from('email_templates')
-      .insert(template);
-    
-    if (error) {
-      console.error('Error saving custom email template:', error);
+    try {
+      const { data, error } = await supabase
+        .from('email_templates')
+        .insert(template)
+        .select()
+        .single();
+      
+      if (error) {
+        console.error('Error saving custom email template to Supabase:', error);
+        // Save to localStorage as backup
+        saveTemplateToLocalStorage(template);
+      } else if (data) {
+        // Save the successfully saved template to localStorage
+        saveTemplateToLocalStorage(data);
+        return data;
+      }
+    } catch (err) {
+      console.error('Exception saving custom email template:', err);
+      // Save to localStorage as backup
+      saveTemplateToLocalStorage(template);
     }
     
     return template;
@@ -214,20 +278,62 @@ export const getEmailTemplatesByClientId = async (clientId: string): Promise<Ema
   try {
     console.log('Fetching email templates for client:', clientId);
     
-    // Direct query without auth checks for debugging
-    const { data, error } = await supabase
-      .from('email_templates')
-      .select('*')
-      .eq('client_id', clientId)
-      .order('created_at', { ascending: false });
+    // Try to get templates from localStorage first as a backup
+    const localTemplatesString = localStorage.getItem(`email_templates_${clientId}`);
+    let localTemplates: EmailTemplate[] = [];
     
-    if (error) {
-      console.error('Supabase error fetching templates:', error);
-      throw error;
+    if (localTemplatesString) {
+      try {
+        localTemplates = JSON.parse(localTemplatesString);
+        console.log(`Found ${localTemplates.length} templates in localStorage for client ${clientId}`);
+      } catch (e) {
+        console.error('Error parsing local templates:', e);
+      }
     }
     
-    console.log(`Found ${data?.length || 0} templates for client ${clientId}`);
-    return data || [];
+    // Try to get templates from Supabase
+    try {
+      const { data, error } = await supabase
+        .from('email_templates')
+        .select('*')
+        .eq('client_id', clientId)
+        .order('created_at', { ascending: false });
+      
+      if (error) {
+        console.error('Supabase error fetching templates:', error);
+        // If there's an error but we have local templates, return those
+        if (localTemplates.length > 0) {
+          return localTemplates;
+        }
+        throw error;
+      }
+      
+      console.log(`Found ${data?.length || 0} templates in Supabase for client ${clientId}`);
+      
+      // If we have data from Supabase, update localStorage
+      if (data && data.length > 0) {
+        localStorage.setItem(`email_templates_${clientId}`, JSON.stringify(data));
+        return data;
+      }
+      
+      // If no data from Supabase but we have local templates, return those
+      if (localTemplates.length > 0) {
+        return localTemplates;
+      }
+      
+      // If no templates found anywhere, return an empty array
+      return [];
+    } catch (err) {
+      console.error('Error accessing Supabase:', err);
+      
+      // If there's an error but we have local templates, return those
+      if (localTemplates.length > 0) {
+        return localTemplates;
+      }
+      
+      // If all else fails, return an empty array
+      return [];
+    }
     
     /* Commenting out auth checks temporarily for debugging
     // Get the current user from Supabase session
@@ -1204,12 +1310,26 @@ export const generatePersonalTouchTemplate = async (
     };
     
     // Save the template to the database
-    const { error } = await supabase
-      .from('email_templates')
-      .insert(template);
-    
-    if (error) {
-      console.error('Error saving personal touch template:', error);
+    try {
+      const { data, error } = await supabase
+        .from('email_templates')
+        .insert(template)
+        .select()
+        .single();
+      
+      if (error) {
+        console.error('Error saving personal touch template to Supabase:', error);
+        // Save to localStorage as backup
+        saveTemplateToLocalStorage(template);
+      } else if (data) {
+        // Save the successfully saved template to localStorage
+        saveTemplateToLocalStorage(data);
+        return data;
+      }
+    } catch (err) {
+      console.error('Exception saving personal touch template:', err);
+      // Save to localStorage as backup
+      saveTemplateToLocalStorage(template);
     }
     
     return template;
