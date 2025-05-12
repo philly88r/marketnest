@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import styled from 'styled-components';
 import { Link as RouterLink, useNavigate } from 'react-router-dom';
-import { isLoggedIn, isClient } from '../utils/authService';
+import { isLoggedIn, isClient, logout } from '../utils/authService';
 
 const HeaderContainer = styled.header`
   position: fixed;
@@ -115,35 +115,73 @@ const ClientPortalButton = styled.button`
   }
 `;
 
+const QuestionnaireButton = styled.button`
+  padding: 10px 20px;
+  background: linear-gradient(90deg, rgba(31, 83, 255, 0.2) 0%, rgba(255, 67, 163, 0.2) 100%);
+  border: 1px solid transparent;
+  border-image: linear-gradient(90deg, #1F53FF 0%, #FF43A3 100%);
+  border-image-slice: 1;
+  border-radius: 30px;
+  color: white;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  font-size: 15px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-left: 15px;
+  
+  &:hover {
+    background: linear-gradient(90deg, rgba(31, 83, 255, 0.3) 0%, rgba(255, 67, 163, 0.3) 100%);
+    transform: translateY(-2px);
+    box-shadow: 0 6px 15px rgba(31, 83, 255, 0.2);
+  }
+  
+  @media (max-width: 992px) {
+    margin-left: 10px;
+    padding: 8px 16px;
+    font-size: 14px;
+  }
+  
+  @media (max-width: 768px) {
+    display: none;
+  }
+`;
+
+const MobileMenuButton = styled.div`
+  display: none; 
+  flex-direction: column;
+  justify-content: space-around;
+  width: 30px;
+  height: 25px;
+  background: transparent;
+  border: none;
+  cursor: pointer;
+  padding: 0;
+  z-index: 101; 
+
+  span {
+    width: 30px;
+    height: 3px;
+    background: white;
+    border-radius: 10px;
+    transition: all 0.3s linear;
+    position: relative;
+    transform-origin: 1px;
+  }
+
+  @media (max-width: 1100px) { 
+    display: flex;
+  }
+`;
+
 const MobileMenuContainer = styled.div`
   display: none;
   
   @media (max-width: 768px) {
     display: flex;
     align-items: center;
-  }
-`;
-
-// Mobile menu button styling
-
-const MobileMenuButton = styled.div`
-  width: 30px;
-  height: 30px;
-  display: none;
-  flex-direction: column;
-  justify-content: space-between;
-  cursor: pointer;
-  
-  @media (max-width: 768px) {
-    display: flex;
-  }
-  
-  span {
-    width: 100%;
-    height: 3px;
-    background-color: white;
-    border-radius: 3px;
-    transition: all 0.3s ease;
   }
 `;
 
@@ -261,14 +299,20 @@ const MobileSubmenuItem = styled.div`
 
 const Header: React.FC = () => {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
-  // Always use the non-home page header style
   const [servicesDropdownOpen, setServicesDropdownOpen] = useState(false);
   const [softwareDropdownOpen, setSoftwareDropdownOpen] = useState(false);
   
   const navigate = useNavigate();
+  const clientPortalLink = isLoggedIn() && isClient() ? '/client-portal/client-001' : '/client-login';
+  
+  const handleQuestionnaireClick = () => {
+    navigate('/project-questionnaire');
+    if (mobileMenuOpen) {
+      setMobileMenuOpen(false);
+    }
+  };
+
   const handleLogout = async () => {
-    // Use the shared logout utility
-    const { logout } = await import('../utils/authService');
     await logout();
     navigate('/client-login');
   };
@@ -285,15 +329,6 @@ const Header: React.FC = () => {
     setSoftwareDropdownOpen(!softwareDropdownOpen);
   };
 
-  let clientPortalLink = '/client-login';
-  if (isLoggedIn() && isClient()) {
-    const clientUser = localStorage.getItem('client-user');
-    if (clientUser) {
-      const { id } = JSON.parse(clientUser);
-      clientPortalLink = `/client-portal/${id}`;
-    }
-  }
-
   return (
     <HeaderContainer>
       <RouterLink to="/">
@@ -307,10 +342,10 @@ const Header: React.FC = () => {
       
       <NavContainer>
           <RouterLink to="/" style={{ textDecoration: 'none' }}>
-            <RouterNavItem>Home</RouterNavItem>
+            <NavItem>Home</NavItem>
           </RouterLink>
           <RouterLink to="/about" style={{ textDecoration: 'none' }}>
-            <RouterNavItem>About</RouterNavItem>
+            <NavItem>About</NavItem>
           </RouterLink>
           <div style={{ position: 'relative' }}>
             <NavItem 
@@ -385,17 +420,38 @@ const Header: React.FC = () => {
             </NavItem>
           </div>
           <RouterLink to="/case-studies" style={{ textDecoration: 'none' }}>
-            <RouterNavItem>Case Studies</RouterNavItem>
+            <NavItem>Case Studies</NavItem>
           </RouterLink>
           <RouterLink to="/blog" style={{ textDecoration: 'none' }}>
-            <RouterNavItem>Blog</RouterNavItem>
+            <NavItem>Blog</NavItem>
           </RouterLink>
           <RouterLink to="/contact" style={{ textDecoration: 'none' }}>
-            <RouterNavItem>Contact</RouterNavItem>
+            <NavItem>Contact</NavItem>
           </RouterLink>
           <RouterLink to={clientPortalLink} style={{ textDecoration: 'none' }}>
-            <ClientPortalButton>Client Portal</ClientPortalButton>
+            <ClientPortalButton>
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                <path d="M12 12C14.7614 12 17 9.76142 17 7C17 4.23858 14.7614 2 12 2C9.23858 2 7 4.23858 7 7C7 9.76142 9.23858 12 12 12Z" stroke="#0df9b6" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+                <path d="M20.5899 22C20.5899 18.13 16.7399 15 11.9999 15C7.25991 15 3.40991 18.13 3.40991 22" stroke="#0df9b6" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+              </svg>
+              Client Portal
+            </ClientPortalButton>
           </RouterLink>
+          <QuestionnaireButton onClick={handleQuestionnaireClick}>
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+              <defs>
+                <linearGradient id="gradient" x1="3" y1="10.5" x2="21" y2="10.5" gradientUnits="userSpaceOnUse">
+                  <stop stopColor="#1F53FF"/>
+                  <stop offset="1" stopColor="#FF43A3"/>
+                </linearGradient>
+              </defs>
+              <path d="M11 4H4C3.44772 4 3 4.44772 3 5V19C3 19.5523 3.44772 20 4 20H20C20.5523 20 21 19.5523 21 19V12" stroke="url(#gradient)" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+              <path d="M9 12H12" stroke="url(#gradient)" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+              <path d="M9 16H16" stroke="url(#gradient)" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+              <path d="M18 7L21 4M21 4L18 1M21 4H15" stroke="url(#gradient)" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+            </svg>
+            Project Questionnaire
+          </QuestionnaireButton>
           {isLoggedIn() && isClient() && (
             <ClientPortalButton onClick={handleLogout} style={{ marginLeft: 24 }}>
               Logout
@@ -498,6 +554,18 @@ const Header: React.FC = () => {
           <RouterLink to={clientPortalLink} style={{ textDecoration: 'none' }} onClick={toggleMobileMenu}>
             <MobileNavItem style={{ color: '#0df9b6' }}>Client Portal</MobileNavItem>
           </RouterLink>
+          <MobileNavItem 
+            onClick={handleQuestionnaireClick}
+            style={{ 
+              background: 'linear-gradient(90deg, rgba(31, 83, 255, 0.2) 0%, rgba(255, 67, 163, 0.2) 100%)',
+              padding: '10px 20px',
+              borderRadius: '30px',
+              marginTop: '10px',
+              textAlign: 'center'
+            }}
+          >
+            Project Questionnaire
+          </MobileNavItem>
           {isLoggedIn() && isClient() && (
             <MobileNavItem onClick={handleLogout} style={{ color: '#0df9b6' }}>
               Logout

@@ -26,6 +26,7 @@ import CROPage from './pages/CROPage';
 import CaseStudiesPage from './pages/CaseStudiesPage';
 import BlogPage from './pages/BlogPage';
 import BlogPostPage from './pages/BlogPostPage';
+import ProjectQuestionnairePage from './pages/ProjectQuestionnairePage';
 import BusinessSoftwarePage from './pages/BusinessSoftwarePage';
 import AIAgentsPage from './pages/AIAgentsPage';
 import ClientPortalPage from './pages/ClientPortalPage';
@@ -153,6 +154,7 @@ function App() {
           <Route path="/email-marketing" element={<EmailMarketingHub />} />
           <Route path="/services/content-writing" element={<ContentWritingPage />} />
           <Route path="/image-generation" element={<ImageGenerationPage />} />
+          <Route path="/project-questionnaire" element={<ProjectQuestionnairePage />} />
           {/* Restrict landing page generator to admin access only */}
           <Route path="/landing-page-generator" element={<Navigate to="/admin-portal" replace />} />
           <Route path="/admin/landing-page-generator" element={<LandingPageGeneratorPage />} />
