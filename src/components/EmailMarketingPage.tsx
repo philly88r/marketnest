@@ -12,7 +12,8 @@ import {
   updateTemplateWithAI,
   EmailTemplate,
   EmailGenerationOptions,
-  LIBERTY_BEANS_COLORS
+  LIBERTY_BEANS_COLORS,
+  saveTemplateToLocalStorage
 } from '../utils/emailService';
 import { getPreGeneratedTemplates, getTemplateCategories } from '../utils/preGeneratedTemplates';
 import { supabase } from '../utils/supabaseClient';
@@ -30,6 +31,8 @@ const EmailMarketingPage: React.FC<EmailMarketingPageProps> = ({
   clientIndustry 
 }) => {
   const [templates, setTemplates] = useState<EmailTemplate[]>([]);
+  const [savedTemplates, setSavedTemplates] = useState<EmailTemplate[]>([]);
+  const [preGeneratedTemplates, setPreGeneratedTemplates] = useState<EmailTemplate[]>([]);
   const [selectedTemplate, setSelectedTemplate] = useState<EmailTemplate | null>(null);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -49,6 +52,7 @@ const EmailMarketingPage: React.FC<EmailMarketingPageProps> = ({
   const [showPreGeneratedModal, setShowPreGeneratedModal] = useState(false);
   const [templateCategories, setTemplateCategories] = useState(getTemplateCategories());
   const [selectedCategory, setSelectedCategory] = useState('');
+  const [activeTab, setActiveTab] = useState<'saved' | 'generated'>('saved');
   
   // Hide scroll indicator after 5 seconds
   useEffect(() => {
@@ -82,79 +86,60 @@ const EmailMarketingPage: React.FC<EmailMarketingPageProps> = ({
       console.log('EmailMarketingPage: Loading templates for client:', clientId);
       
       // Always get pre-generated templates first so we have them available
-      const preGeneratedTemplates = getPreGeneratedTemplates(clientId);
-      console.log('EmailMarketingPage: Pre-generated templates available:', preGeneratedTemplates.length);
+      const preGenTemplates = getPreGeneratedTemplates(clientId);
+      console.log('EmailMarketingPage: Pre-generated templates available:', preGenTemplates.length);
       
       // Debug output of pre-generated templates
-      preGeneratedTemplates.forEach((template, index) => {
+      preGenTemplates.forEach((template, index) => {
         console.log(`Pre-generated template ${index + 1}:`, template.title);
       });
+      
+      setPreGeneratedTemplates(preGenTemplates);
       
       try {
         // Try to get templates from the database
         const emailTemplates = await getEmailTemplatesByClientId(clientId);
         console.log('EmailMarketingPage: Received templates from database:', emailTemplates.length);
         
-        // If no templates were found in the database, use pre-generated templates
-        if (emailTemplates.length === 0) {
-          console.log('EmailMarketingPage: No templates found in database, using pre-generated templates');
-          
-          if (preGeneratedTemplates.length > 0) {
-            console.log('EmailMarketingPage: Using pre-generated templates:', preGeneratedTemplates.length);
-            
-            // Use pre-generated templates directly
-            setTemplates(preGeneratedTemplates);
-            setSelectedTemplate(preGeneratedTemplates[0]);
-            
-            // Try to save the first pre-generated template to the database in the background
-            try {
-              const { data, error } = await supabase
-                .from('email_templates')
-                .insert(preGeneratedTemplates[0])
-                .select()
-                .single();
-              
-              if (error) {
-                console.error('Error saving pre-generated template to database:', error);
-              } else {
-                console.log('Successfully saved pre-generated template to database');
-              }
-            } catch (err) {
-              console.error('Exception saving pre-generated template to database:', err);
-            }
+        // Store the saved templates separately
+        setSavedTemplates(emailTemplates);
+        
+        // Set the templates based on the active tab
+        if (activeTab === 'saved') {
+          if (emailTemplates.length === 0) {
+            console.log('EmailMarketingPage: No saved templates found, switching to generated tab');
+            setActiveTab('generated');
+            setTemplates(preGenTemplates);
           } else {
-            console.log('EmailMarketingPage: No pre-generated templates available');
-            setTemplates([]);
-            setSelectedTemplate(null);
+            console.log('EmailMarketingPage: Using saved templates from database');
+            setTemplates(emailTemplates);
           }
         } else {
-          // Use the templates from the database
-          console.log('EmailMarketingPage: Using templates from database');
-          setTemplates(emailTemplates);
-          
-          // Select the most recent template if available
-          console.log('EmailMarketingPage: Setting selected template:', emailTemplates[0].title);
-          setSelectedTemplate(emailTemplates[0]);
+          setTemplates(preGenTemplates);
         }
-      } catch (err) {
-        console.error('Error loading email templates from database:', err);
-        setError('Failed to load email templates from database. Using pre-generated templates instead.');
-        
-        // If there's an error with the database, use pre-generated templates as a fallback
-        if (preGeneratedTemplates.length > 0) {
-          console.log('EmailMarketingPage: Using pre-generated templates as fallback');
-          setTemplates(preGeneratedTemplates);
-          setSelectedTemplate(preGeneratedTemplates[0]);
-        } else {
-          console.log('EmailMarketingPage: No pre-generated templates available for fallback');
-        }
+      } catch (error) {
+        console.error('Error loading templates:', error);
+        setError('Failed to load email templates. Using pre-generated templates as fallback.');
+        setTemplates(preGenTemplates);
+        setActiveTab('generated');
       } finally {
         setIsLoading(false);
       }
     };
     
     loadTemplates();
-  }, [clientId]);
+  }, [clientId, activeTab]);
+  
+  // Handle tab change
+  const handleTabChange = (tab: 'saved' | 'generated') => {
+    setActiveTab(tab);
+    if (tab === 'saved') {
+      setTemplates(savedTemplates);
+    } else {
+      setTemplates(preGeneratedTemplates);
+    }
+    setSelectedTemplate(null);
+  };
 
   // Handle generating new email templates
   const handleGenerateTemplates = async (e: React.FormEvent) => {
@@ -239,41 +224,49 @@ const EmailMarketingPage: React.FC<EmailMarketingPageProps> = ({
   };
   
   // Handle selecting a pre-generated template
-  const handleSelectPreGeneratedTemplate = async (template: EmailTemplate) => {
-    setIsLoading(true);
-    setError(null);
+  const handleSelectPreGeneratedTemplate = (template: EmailTemplate) => {
+    console.log('Selected pre-generated template:', template.title);
     
-    try {
-      // Save the template to Supabase
-      const { data, error } = await supabase
-        .from('email_templates')
-        .insert(template)
-        .select()
-        .single();
-      
-      if (error) {
-        console.error('Error saving pre-generated template:', error);
-        throw error;
+    // Create a new template based on the pre-generated one
+    const newTemplate: EmailTemplate = {
+      ...template,
+      id: `email-${Date.now()}-${Math.floor(Math.random() * 1000)}`,
+      client_id: clientId,
+      created_at: new Date().toISOString(),
+      status: 'draft',
+      metrics: {
+        opens: 0,
+        clicks: 0,
+        conversions: 0
       }
-      
-      // Add the template to the list with the database ID
-      const savedTemplate = data as EmailTemplate;
-      setTemplates(prevTemplates => [savedTemplate, ...prevTemplates]);
-      setSelectedTemplate(savedTemplate);
-      setShowPreGeneratedModal(false);
-    } catch (err) {
-      console.error('Error selecting pre-generated template:', err);
-      setError('Failed to save the template. Please try again.');
-      
-      // Still add the template to the UI even if saving fails
-      setTemplates(prevTemplates => [template, ...prevTemplates]);
-      setSelectedTemplate(template);
-      setShowPreGeneratedModal(false);
-    } finally {
-      setIsLoading(false);
+    };
+    
+    // Add the new template to the templates list and saved templates list
+    setTemplates(prevTemplates => [newTemplate, ...prevTemplates]);
+    setSavedTemplates(prevTemplates => [newTemplate, ...prevTemplates]);
+    
+    // Select the new template
+    setSelectedTemplate(newTemplate);
+    
+    // Close the modal
+    setShowPreGeneratedModal(false);
+    
+    // Save the template to localStorage
+    saveTemplateToLocalStorage(newTemplate);
+    
+    // Try to save to Supabase if available
+    try {
+      supabase
+        .from('email_templates')
+        .insert([newTemplate])
+        .then(({ error }) => {
+          if (error) console.error('Error saving template to Supabase:', error);
+        });
+    } catch (e) {
+      console.error('Error accessing Supabase:', e);
     }
   };
-  
+
   // Handle selecting a template category
   const handleSelectCategory = (categoryId: string) => {
     setSelectedCategory(categoryId);
@@ -474,13 +467,60 @@ const EmailMarketingPage: React.FC<EmailMarketingPageProps> = ({
     setError(null);
     
     try {
+      // For pre-generated templates that haven't been saved yet, save them first
+      let templateToUpdate = selectedTemplate;
+      
+      // Check if this is a pre-generated template that hasn't been saved to Supabase
+      const isSavedTemplate = savedTemplates.some(t => t.id === selectedTemplate.id);
+      
+      if (!isSavedTemplate) {
+        // Create a new template based on the selected one
+        const newTemplate: EmailTemplate = {
+          ...selectedTemplate,
+          id: `email-${Date.now()}-${Math.floor(Math.random() * 1000)}`,
+          client_id: clientId,
+          created_at: new Date().toISOString(),
+          status: 'draft',
+          metrics: {
+            opens: 0,
+            clicks: 0,
+            conversions: 0
+          }
+        };
+        
+        // Save to Supabase
+        try {
+          const { data, error } = await supabase
+            .from('email_templates')
+            .insert([newTemplate])
+            .select();
+            
+          if (error) throw error;
+          if (data && data.length > 0) templateToUpdate = data[0];
+          else templateToUpdate = newTemplate;
+          
+          // Update saved templates list
+          setSavedTemplates(prev => [templateToUpdate, ...prev]);
+        } catch (e) {
+          console.error('Error saving template to Supabase:', e);
+          templateToUpdate = newTemplate;
+        }
+      }
+      
+      // Now update with AI
       const updatedTemplate = await updateTemplateWithAI(
-        selectedTemplate.id,
+        templateToUpdate.id,
         aiEditPrompt
       );
       
-      // Update the template in the list
+      // Update the template in both lists
       setTemplates(prevTemplates => 
+        prevTemplates.map(template => 
+          template.id === updatedTemplate.id ? updatedTemplate : template
+        )
+      );
+      
+      setSavedTemplates(prevTemplates => 
         prevTemplates.map(template => 
           template.id === updatedTemplate.id ? updatedTemplate : template
         )
@@ -489,8 +529,8 @@ const EmailMarketingPage: React.FC<EmailMarketingPageProps> = ({
       setSelectedTemplate(updatedTemplate);
       setShowAIEditForm(false);
       setAIEditPrompt('');
-    } catch (err) {
-      console.error('Error updating template with AI:', err);
+    } catch (error) {
+      console.error('Error updating template with AI:', error);
       setError('Failed to update template with AI. Please try again.');
     } finally {
       setIsUpdatingWithAI(false);
@@ -579,7 +619,25 @@ const EmailMarketingPage: React.FC<EmailMarketingPageProps> = ({
         
         <Content>
           <Sidebar>
-            <SidebarTitle>Email Templates</SidebarTitle>
+            <SidebarTabs>
+              <SidebarTab 
+                $active={activeTab === 'saved'} 
+                onClick={() => handleTabChange('saved')}
+              >
+                Saved Emails
+              </SidebarTab>
+              <SidebarTab 
+                $active={activeTab === 'generated'} 
+                onClick={() => handleTabChange('generated')}
+              >
+                Pre-made Templates
+              </SidebarTab>
+            </SidebarTabs>
+            
+            <SidebarTitle>
+              {activeTab === 'saved' ? 'Saved Email Templates' : 'Pre-made Templates'}
+            </SidebarTitle>
+            
             <TemplateList>
               {isLoading && templates.length === 0 ? (
                 <LoadingMessage>Loading templates...</LoadingMessage>
@@ -587,10 +645,16 @@ const EmailMarketingPage: React.FC<EmailMarketingPageProps> = ({
                 <ErrorMessage>{error}</ErrorMessage>
               ) : templates.length === 0 ? (
                 <NoTemplates>
-                  <p>No email templates found</p>
-                  <button onClick={() => setShowGenerateForm(true)}>
-                    <FiPlus /> Generate Templates
-                  </button>
+                  <p>No {activeTab === 'saved' ? 'saved' : 'pre-made'} templates found</p>
+                  {activeTab === 'saved' ? (
+                    <button onClick={() => setShowGenerateForm(true)}>
+                      <FiPlus /> Generate New Template
+                    </button>
+                  ) : (
+                    <button onClick={handleLoadPreGeneratedTemplates}>
+                      <FiRefreshCw /> Load Pre-made Templates
+                    </button>
+                  )}
                 </NoTemplates>
               ) : (
                 templates.map(template => (
@@ -606,8 +670,8 @@ const EmailMarketingPage: React.FC<EmailMarketingPageProps> = ({
                       </TemplateDate>
                     </TemplateInfo>
                     <TemplateStatus>
-                      <StatusBadge $status={template.status}>
-                        {template.status}
+                      <StatusBadge $status={template.status || 'template'}>
+                        {template.status || 'template'}
                       </StatusBadge>
                     </TemplateStatus>
                   </TemplateItem>
@@ -1811,6 +1875,81 @@ const CategoryButton = styled.button<{ active: boolean }>`
   
   &:hover {
     background: ${props => props.active ? LIBERTY_BEANS_COLORS.secondary : '#444'};
+  }
+`;
+
+// Additional styled components for metrics display
+const EmailMetricsContainer = styled.div`
+  margin-top: 30px;
+  padding: 20px;
+  background: rgba(0, 0, 0, 0.2);
+  border-radius: 8px;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+`;
+
+const MetricsTitle = styled.h4`
+  margin-top: 0;
+  margin-bottom: 15px;
+  font-size: 18px;
+  color: #fff;
+`;
+
+const MetricsGrid = styled.div`
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 15px;
+`;
+
+const MetricCard = styled.div`
+  background: rgba(255, 255, 255, 0.05);
+  border-radius: 8px;
+  padding: 15px;
+  text-align: center;
+  transition: transform 0.2s;
+  
+  &:hover {
+    transform: translateY(-3px);
+    background: rgba(255, 255, 255, 0.08);
+  }
+`;
+
+const MetricIcon = styled.div`
+  font-size: 24px;
+  color: ${LIBERTY_BEANS_COLORS.secondary};
+  margin-bottom: 10px;
+`;
+
+const MetricValue = styled.div`
+  font-size: 28px;
+  font-weight: 600;
+  color: #fff;
+  margin-bottom: 5px;
+`;
+
+const MetricLabel = styled.div`
+  font-size: 14px;
+  color: rgba(255, 255, 255, 0.7);
+`;
+
+// Additional styled components for tabs
+const SidebarTabs = styled.div`
+  display: flex;
+  margin-bottom: 15px;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+`;
+
+const SidebarTab = styled.div<{ $active: boolean }>`
+  padding: 10px 15px;
+  cursor: pointer;
+  font-size: 14px;
+  font-weight: ${props => props.$active ? '600' : '400'};
+  color: ${props => props.$active ? 'white' : 'rgba(255, 255, 255, 0.6)'};
+  border-bottom: 2px solid ${props => props.$active ? LIBERTY_BEANS_COLORS.secondary : 'transparent'};
+  transition: all 0.2s ease;
+  
+  &:hover {
+    color: white;
+    background: rgba(255, 255, 255, 0.05);
   }
 `;
 

@@ -33,7 +33,7 @@ export const getBrandColors = (clientId: string) => {
 };
 
 // Helper function to save a template to localStorage
-const saveTemplateToLocalStorage = (template: EmailTemplate) => {
+export const saveTemplateToLocalStorage = (template: EmailTemplate) => {
   try {
     const clientId = template.client_id;
     const key = `email_templates_${clientId}`;

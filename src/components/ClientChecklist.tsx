@@ -34,12 +34,22 @@ const ClientChecklist: React.FC<ClientChecklistProps> = ({ clientId, projectId }
       
       try {
         console.log('Fetching checklist items for client:', clientId);
-        const items = await getChecklistItemsByClientId(clientId, projectId || null);
-        console.log('Fetched checklist items:', items);
-        setChecklist(items);
+        try {
+          const items = await getChecklistItemsByClientId(clientId, projectId || null);
+          console.log('Fetched checklist items:', items);
+          setChecklist(items);
+        } catch (fetchErr) {
+          console.error('Error fetching checklist items:', fetchErr);
+          // Show error but don't crash the component
+          setError('Unable to load checklist items from the server. Please refresh to try again.');
+          // Set empty array to prevent undefined errors
+          setChecklist([]);
+        }
       } catch (err) {
-        console.error('Error loading checklist:', err);
-        setError('Failed to load checklist. Please try again.');
+        console.error('Unexpected error loading checklist:', err);
+        // Set empty array to prevent undefined errors
+        setChecklist([]);
+        setError('Failed to load checklist. Please refresh the page.');
       } finally {
         setIsLoading(false);
       }
@@ -56,82 +66,127 @@ const ClientChecklist: React.FC<ClientChecklistProps> = ({ clientId, projectId }
       const user = getCurrentUser();
       const userId = user?.id || 'anonymous';
       
-      console.log('Creating new checklist item with data:', {
+      // Create a temporary item with a temporary ID for optimistic UI update
+      const tempId = `temp-${Date.now()}`;
+      const tempItem: ChecklistItem = {
+        id: tempId,
         content: newItemText,
         is_completed: false,
         client_id: clientId,
         project_id: projectId || null,
         due_date: newItemDueDate || null,
         assigned_to: newItemAssignee || null,
-        created_by: userId
-      });
+        created_by: userId,
+        created_at: new Date().toISOString()
+      };
       
-      const newItem = await createChecklistItem({
-        content: newItemText,
-        is_completed: false,
-        client_id: clientId,
-        project_id: projectId || null,
-        due_date: newItemDueDate || null,
-        assigned_to: newItemAssignee || null,
-        created_by: userId
-      });
+      // Optimistically update the UI first
+      setChecklist(prev => [tempItem, ...prev]);
       
-      console.log('Successfully created checklist item:', newItem);
-      
-      // Update the local state with the new item
-      setChecklist(prev => {
-        const updated = [...prev, newItem];
-        console.log('Updated checklist state:', updated);
-        return updated;
-      });
-      
-      // Clear form fields
+      // Clear form fields immediately to improve UX
       setNewItemText('');
       setNewItemDueDate('');
       setNewItemAssignee('');
       setIsAddingItem(false);
+      
+      // Then perform the actual create in the database
+      try {
+        console.log('Creating new checklist item with data:', {
+          content: tempItem.content,
+          is_completed: tempItem.is_completed,
+          client_id: tempItem.client_id,
+          project_id: tempItem.project_id,
+          due_date: tempItem.due_date,
+          assigned_to: tempItem.assigned_to,
+          created_by: tempItem.created_by
+        });
+        
+        const newItem = await createChecklistItem({
+          content: tempItem.content,
+          is_completed: tempItem.is_completed,
+          client_id: tempItem.client_id,
+          project_id: tempItem.project_id,
+          due_date: tempItem.due_date,
+          assigned_to: tempItem.assigned_to,
+          created_by: tempItem.created_by
+        });
+        
+        console.log('Successfully created checklist item:', newItem);
+        
+        // Replace the temporary item with the real one from the server
+        setChecklist(prev => {
+          const updated = prev.map(item => 
+            item.id === tempId ? newItem : item
+          );
+          console.log('Updated checklist state:', updated);
+          return updated;
+        });
+      } catch (createErr) {
+        console.error('Error creating checklist item:', createErr);
+        // Keep the optimistic update in the UI to prevent blank screen
+        setError('Item may not have been saved to the server. Please refresh to verify.');
+      }
     } catch (err) {
-      console.error('Error adding checklist item:', err);
-      setError('Failed to add checklist item. Please try again.');
+      console.error('Unexpected error in handleAddItem:', err);
+      // Don't throw - this prevents blank screen
+      setError('An error occurred. Your changes may not be saved.');
     }
   };
   
   // Handle toggling a checklist item
   const handleToggleItem = async (item: ChecklistItem) => {
     try {
-      // Optimistically update the UI first to avoid white screen if there's an error
+      // Create a copy of the current checklist for potential rollback
+      const previousChecklist = [...checklist];
+      
+      // Optimistically update the UI first
       setChecklist(prev => 
         prev.map(i => i.id === item.id ? { ...i, is_completed: !i.is_completed } : i)
       );
       
       // Then perform the actual update in the database
-      const updatedItem = await updateChecklistItem(item.id, {
-        is_completed: !item.is_completed
-      });
-      
-      // Update with the server response if successful
-      setChecklist(prev => 
-        prev.map(i => i.id === updatedItem.id ? updatedItem : i)
-      );
+      try {
+        const updatedItem = await updateChecklistItem(item.id, {
+          is_completed: !item.is_completed
+        });
+        
+        // Update with the server response if successful
+        setChecklist(prev => 
+          prev.map(i => i.id === updatedItem.id ? updatedItem : i)
+        );
+      } catch (updateErr) {
+        console.error('Error updating checklist item:', updateErr);
+        // Keep the optimistic update in the UI to prevent blank screen
+        setError('Changes may not have been saved to the server. Please refresh to verify.');
+      }
     } catch (err) {
-      console.error('Error updating checklist item:', err);
-      setError('Failed to update checklist item. Please try again.');
-      
-      // Revert the optimistic update if there was an error
-      setChecklist(prev => 
-        prev.map(i => i.id === item.id ? { ...i, is_completed: item.is_completed } : i)
-      );
+      console.error('Unexpected error in handleToggleItem:', err);
+      // Don't throw or reset the UI - this prevents blank screen
+      setError('An error occurred. Your changes may not be saved.');
     }
   };
   
   // Handle deleting a checklist item
   const handleDeleteItem = async (itemId: string) => {
     try {
-      await deleteChecklistItem(itemId);
+      // Store the current checklist for potential rollback
+      const previousChecklist = [...checklist];
+      
+      // Optimistically update the UI first
       setChecklist(prev => prev.filter(item => item.id !== itemId));
+      
+      // Then perform the actual delete in the database
+      try {
+        await deleteChecklistItem(itemId);
+      } catch (deleteErr) {
+        console.error('Error deleting checklist item:', deleteErr);
+        // Keep the optimistic update in the UI to prevent blank screen
+        setError('Item may not have been deleted from the server. Please refresh to verify.');
+      }
     } catch (err) {
-      console.error('Error deleting checklist item:', err);
-      setError('Failed to delete checklist item. Please try again.');
+      console.error('Unexpected error in handleDeleteItem:', err);
+      // Don't throw - this prevents blank screen
+      setError('An error occurred. Your changes may not be saved.');
     }
   };
   
