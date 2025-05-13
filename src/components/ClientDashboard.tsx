@@ -10,6 +10,7 @@ import TasksPage from './TasksPage';
 import ProjectEditor from './ProjectEditor';
 import ClientChecklist from './ClientChecklist';
 import Client004Checklist from './Client004Checklist';
+import Client004WebsiteQuestionnaire from './Client004WebsiteQuestionnaire';
 import SEOAuditPage from './SEOAuditPage';
 import FundraiserPage from './FundraiserPage';
 import ClientDashboardAI from './ClientDashboardAI';
@@ -552,7 +553,7 @@ interface ClientDashboardProps {
 // Using Project and Task interfaces from projectService
 
 const ClientDashboard: React.FC<ClientDashboardProps> = ({ clientId, onBack }) => {
-  const [activeTab, setActiveTab] = useState<'overview' | 'projects' | 'files' | 'tasks' | 'checklist' | 'analytics' | 'fundraiser' | 'email' | 'seo' | 'keywords' | 'competitor-analysis' | 'landing-pages' | 'ai-tools'>('overview');
+  const [activeTab, setActiveTab] = useState<'overview' | 'projects' | 'files' | 'tasks' | 'checklist' | 'website-questionnaire' | 'analytics' | 'fundraiser' | 'email' | 'seo' | 'keywords' | 'competitor-analysis' | 'landing-pages' | 'ai-tools'>('overview');
   const [client, setClient] = useState<Client | null>(null);
   const [projects, setProjects] = useState<Project[]>([]);
   const [loading, setLoading] = useState<boolean>(true);
@@ -1202,6 +1203,13 @@ const ClientDashboard: React.FC<ClientDashboardProps> = ({ clientId, onBack }) =
         }
         return <ClientChecklist clientId={clientId} />;
         
+      case 'website-questionnaire':
+        // Only show website questionnaire for Altare (client-004)
+        if (clientId === 'client-004') {
+          return <Client004WebsiteQuestionnaire />;
+        }
+        return null;
+        
       case 'analytics':
         return (
           <AnalyticsContent>
@@ -1340,6 +1348,12 @@ const ClientDashboard: React.FC<ClientDashboardProps> = ({ clientId, onBack }) =
         <TabButton $active={activeTab === 'checklist'} onClick={() => setActiveTab('checklist')}>
           Checklist
         </TabButton>
+        {/* Only show Website Questionnaire tab for client-004 (Altare) */}
+        {client?.id === 'client-004' && (
+          <TabButton $active={activeTab === 'website-questionnaire'} onClick={() => setActiveTab('website-questionnaire')}>
+            Website Questionnaire
+          </TabButton>
+        )}
         <TabButton $active={activeTab === 'analytics'} onClick={() => setActiveTab('analytics')}>Analytics</TabButton>
         <TabButton $active={activeTab === 'email'} onClick={() => setActiveTab('email')}>
           Email Marketing

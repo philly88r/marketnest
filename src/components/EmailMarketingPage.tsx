@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import styled from 'styled-components';
-import { FiMail, FiPlus, FiCheck, FiX, FiSend, FiCalendar, FiEdit, FiTrash2, FiCopy, FiRefreshCw, FiPenTool, FiChevronDown, FiImage, FiLayout } from 'react-icons/fi';
+import { FiMail, FiPlus, FiCheck, FiX, FiSend, FiCalendar, FiEdit, FiTrash2, FiCopy, FiRefreshCw, FiPenTool, FiChevronDown, FiImage, FiLayout, FiEye, FiMousePointer, FiShoppingCart } from 'react-icons/fi';
 import { 
   generateEmailTemplates, 
   generateCustomEmailTemplate,
@@ -705,6 +705,36 @@ const EmailMarketingPage: React.FC<EmailMarketingPageProps> = ({
                     __html: fixImageUrl(selectedTemplate.content) 
                   }} 
                 />
+                
+                {/* Email Metrics Section */}
+                <EmailMetricsContainer>
+                  <MetricsTitle>Email Performance</MetricsTitle>
+                  <MetricsGrid>
+                    <MetricCard>
+                      <MetricIcon><FiEye /></MetricIcon>
+                      <MetricValue>
+                        {selectedTemplate.metrics?.opens || 0}
+                      </MetricValue>
+                      <MetricLabel>Opens</MetricLabel>
+                    </MetricCard>
+                    
+                    <MetricCard>
+                      <MetricIcon><FiMousePointer /></MetricIcon>
+                      <MetricValue>
+                        {selectedTemplate.metrics?.clicks || 0}
+                      </MetricValue>
+                      <MetricLabel>Clicks</MetricLabel>
+                    </MetricCard>
+                    
+                    <MetricCard>
+                      <MetricIcon><FiShoppingCart /></MetricIcon>
+                      <MetricValue>
+                        {selectedTemplate.metrics?.conversions || 0}
+                      </MetricValue>
+                      <MetricLabel>Conversions</MetricLabel>
+                    </MetricCard>
+                  </MetricsGrid>
+                </EmailMetricsContainer>
                 
                 <EmailActions>
                   <FooterButton onClick={() => handleUpdateStatus(selectedTemplate.id, 'scheduled')}>
@@ -1782,6 +1812,59 @@ const CategoryButton = styled.button<{ active: boolean }>`
   &:hover {
     background: ${props => props.active ? LIBERTY_BEANS_COLORS.secondary : '#444'};
   }
+`;
+
+// Additional styled components for metrics display
+const EmailMetricsContainer = styled.div`
+  margin-top: 30px;
+  padding: 20px;
+  background: rgba(0, 0, 0, 0.2);
+  border-radius: 8px;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+`;
+
+const MetricsTitle = styled.h4`
+  margin-top: 0;
+  margin-bottom: 15px;
+  font-size: 18px;
+  color: #fff;
+`;
+
+const MetricsGrid = styled.div`
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 15px;
+`;
+
+const MetricCard = styled.div`
+  background: rgba(255, 255, 255, 0.05);
+  border-radius: 8px;
+  padding: 15px;
+  text-align: center;
+  transition: transform 0.2s;
+  
+  &:hover {
+    transform: translateY(-3px);
+    background: rgba(255, 255, 255, 0.08);
+  }
+`;
+
+const MetricIcon = styled.div`
+  font-size: 24px;
+  color: ${LIBERTY_BEANS_COLORS.secondary};
+  margin-bottom: 10px;
+`;
+
+const MetricValue = styled.div`
+  font-size: 28px;
+  font-weight: 600;
+  color: #fff;
+  margin-bottom: 5px;
+`;
+
+const MetricLabel = styled.div`
+  font-size: 14px;
+  color: rgba(255, 255, 255, 0.7);
 `;
 
 export default EmailMarketingPage;

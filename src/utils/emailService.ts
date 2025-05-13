@@ -293,9 +293,10 @@ export const getEmailTemplatesByClientId = async (clientId: string): Promise<Ema
     
     // Try to get templates from Supabase
     try {
+      // Explicitly select all required columns including metrics
       const { data, error } = await supabase
         .from('email_templates')
-        .select('*')
+        .select('id, client_id, title, subject, content, created_at, status, scheduled_for, tags, metrics')
         .eq('client_id', clientId)
         .order('created_at', { ascending: false });
       
@@ -309,11 +310,41 @@ export const getEmailTemplatesByClientId = async (clientId: string): Promise<Ema
       }
       
       console.log(`Found ${data?.length || 0} templates in Supabase for client ${clientId}`);
+      console.log('Email template data sample:', data && data.length > 0 ? data[0] : 'No data');
+      
+      // Process the data to ensure metrics is properly formatted
+      const processedData = data?.map(template => {
+        // Ensure metrics is parsed if it's a string
+        if (template.metrics && typeof template.metrics === 'string') {
+          try {
+            template.metrics = JSON.parse(template.metrics);
+          } catch (e) {
+            console.error('Error parsing metrics JSON:', e);
+            template.metrics = { opens: 0, clicks: 0, conversions: 0 };
+          }
+        } else if (!template.metrics) {
+          template.metrics = { opens: 0, clicks: 0, conversions: 0 };
+        }
+        
+        // Ensure tags is an array
+        if (template.tags && typeof template.tags === 'string') {
+          try {
+            template.tags = JSON.parse(template.tags);
+          } catch (e) {
+            console.error('Error parsing tags JSON:', e);
+            template.tags = [];
+          }
+        } else if (!template.tags) {
+          template.tags = [];
+        }
+        
+        return template;
+      }) || [];
       
       // If we have data from Supabase, update localStorage
-      if (data && data.length > 0) {
-        localStorage.setItem(`email_templates_${clientId}`, JSON.stringify(data));
-        return data;
+      if (processedData && processedData.length > 0) {
+        localStorage.setItem(`email_templates_${clientId}`, JSON.stringify(processedData));
+        return processedData;
       }
       
       // If no data from Supabase but we have local templates, return those
