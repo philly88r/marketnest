@@ -94,33 +94,36 @@ const EmailMarketingPage: React.FC<EmailMarketingPageProps> = ({
         console.log(`Pre-generated template ${index + 1}:`, template.title);
       });
       
-      setPreGeneratedTemplates(preGenTemplates);
+      // Set pre-generated templates
+      setPreGeneratedTemplates([...preGenTemplates]);
       
       try {
         // Try to get templates from the database
         const emailTemplates = await getEmailTemplatesByClientId(clientId);
         console.log('EmailMarketingPage: Received templates from database:', emailTemplates.length);
+        console.log('EmailMarketingPage: Database templates:', emailTemplates);
         
         // Store the saved templates separately
-        setSavedTemplates(emailTemplates);
+        setSavedTemplates([...emailTemplates]);
         
         // Set the templates based on the active tab
         if (activeTab === 'saved') {
           if (emailTemplates.length === 0) {
             console.log('EmailMarketingPage: No saved templates found, switching to generated tab');
             setActiveTab('generated');
-            setTemplates(preGenTemplates);
+            setTemplates([...preGenTemplates]);
           } else {
             console.log('EmailMarketingPage: Using saved templates from database');
-            setTemplates(emailTemplates);
+            setTemplates([...emailTemplates]);
           }
         } else {
-          setTemplates(preGenTemplates);
+          setTemplates([...preGenTemplates]);
         }
       } catch (error) {
         console.error('Error loading templates:', error);
         setError('Failed to load email templates. Using pre-generated templates as fallback.');
-        setTemplates(preGenTemplates);
+        setSavedTemplates([]);
+        setTemplates([...preGenTemplates]);
         setActiveTab('generated');
       } finally {
         setIsLoading(false);
@@ -128,16 +131,24 @@ const EmailMarketingPage: React.FC<EmailMarketingPageProps> = ({
     };
     
     loadTemplates();
-  }, [clientId, activeTab]);
+  }, [clientId]); // Only depend on clientId to avoid infinite loops
   
   // Handle tab change
   const handleTabChange = (tab: 'saved' | 'generated') => {
+    console.log(`Switching to tab: ${tab}`);
+    console.log(`Saved templates count: ${savedTemplates.length}`);
+    console.log(`Pre-generated templates count: ${preGeneratedTemplates.length}`);
+    
     setActiveTab(tab);
+    
     if (tab === 'saved') {
-      setTemplates(savedTemplates);
+      console.log('Setting templates to saved templates');
+      setTemplates([...savedTemplates]); // Create a new array to ensure state update
     } else {
-      setTemplates(preGeneratedTemplates);
+      console.log('Setting templates to pre-generated templates');
+      setTemplates([...preGeneratedTemplates]); // Create a new array to ensure state update
     }
+    
     setSelectedTemplate(null);
   };
 
