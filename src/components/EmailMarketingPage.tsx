@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import styled from 'styled-components';
-import { FiMail, FiPlus, FiCheck, FiX, FiSend, FiCalendar, FiEdit, FiTrash2, FiCopy, FiRefreshCw, FiPenTool, FiChevronDown, FiImage, FiLayout, FiEye, FiMousePointer, FiShoppingCart } from 'react-icons/fi';
+import { FiMail, FiPenTool, FiLayout, FiSend, FiEdit, FiTrash2, FiCopy, FiCalendar, FiChevronDown, FiChevronUp, FiTag, FiX, FiCheck, FiPlus, FiInfo, FiFileText, FiImage, FiMousePointer, FiShoppingCart, FiRefreshCw, FiEye } from 'react-icons/fi';
 import { 
   generateEmailTemplates, 
   generateCustomEmailTemplate,
@@ -52,7 +52,7 @@ const EmailMarketingPage: React.FC<EmailMarketingPageProps> = ({
   const [showPreGeneratedModal, setShowPreGeneratedModal] = useState(false);
   const [templateCategories, setTemplateCategories] = useState(getTemplateCategories());
   const [selectedCategory, setSelectedCategory] = useState('');
-  const [activeTab, setActiveTab] = useState<'saved' | 'generated'>('saved');
+  const [currentView, setCurrentView] = useState<'saved' | 'generated'>('generated');
   
   // Hide scroll indicator after 5 seconds
   useEffect(() => {
@@ -137,11 +137,11 @@ const EmailMarketingPage: React.FC<EmailMarketingPageProps> = ({
         // Store the saved templates separately
         setSavedTemplates([...processedTemplates]);
         
-        // Set the templates based on the active tab
-        if (activeTab === 'saved') {
+        // Set the templates based on the current view
+        if (currentView === 'saved') {
           if (processedTemplates.length === 0) {
-            console.log('EmailMarketingPage: No saved templates found, switching to generated tab');
-            setActiveTab('generated');
+            console.log('EmailMarketingPage: No saved templates found, switching to generated view');
+            setCurrentView('generated');
             setTemplates([...preGenTemplates]);
           } else {
             console.log('EmailMarketingPage: Using saved templates from database');
@@ -155,7 +155,7 @@ const EmailMarketingPage: React.FC<EmailMarketingPageProps> = ({
         setError('Failed to load email templates. Using pre-generated templates as fallback.');
         setSavedTemplates([]);
         setTemplates([...preGenTemplates]);
-        setActiveTab('generated');
+        setCurrentView('generated');
       } finally {
         setIsLoading(false);
       }
@@ -164,72 +164,51 @@ const EmailMarketingPage: React.FC<EmailMarketingPageProps> = ({
     loadTemplates();
   }, [clientId]); // Only depend on clientId to avoid infinite loops
   
-  // Handle tab change - simplified version for reliability
-  const handleTabChange = (tab: 'saved' | 'generated') => {
-    console.log(`Switching to tab: ${tab}`);
-    setActiveTab(tab);
+  // Load saved templates from the database
+  const loadSavedTemplates = async () => {
+    console.log('Loading saved templates for client:', clientId);
     setSelectedTemplate(null);
     setError(null);
     setIsLoading(true);
+    setCurrentView('saved'); // Set current view to saved
     
-    // Immediately load the appropriate templates based on the tab
-    if (tab === 'saved') {
-      // Always fetch fresh data from the database for saved emails tab
-      getEmailTemplatesByClientId(clientId)
-        .then(emailTemplates => {
-          console.log('Fetched saved templates:', emailTemplates);
-          
-          // Process templates to ensure all fields are properly formatted
-          const processedTemplates = emailTemplates.map(template => {
-            let processedTemplate = {...template};
-            
-            // Ensure metrics is an object
-            if (!processedTemplate.metrics || typeof processedTemplate.metrics === 'string') {
-              try {
-                processedTemplate.metrics = typeof processedTemplate.metrics === 'string' 
-                  ? JSON.parse(processedTemplate.metrics) 
-                  : { opens: 0, clicks: 0, conversions: 0 };
-              } catch (e) {
-                console.error('Error parsing metrics:', e);
-                processedTemplate.metrics = { opens: 0, clicks: 0, conversions: 0 };
-              }
-            }
-            
-            // Ensure tags is an array
-            if (!processedTemplate.tags || typeof processedTemplate.tags === 'string') {
-              try {
-                processedTemplate.tags = typeof processedTemplate.tags === 'string' 
-                  ? JSON.parse(processedTemplate.tags) 
-                  : [];
-              } catch (e) {
-                console.error('Error parsing tags:', e);
-                processedTemplate.tags = [];
-              }
-            }
-            
-            return processedTemplate;
-          });
-          
-          console.log('Processed templates:', processedTemplates);
-          setSavedTemplates(processedTemplates);
-          setTemplates(processedTemplates);
-          
-          if (processedTemplates.length === 0) {
-            setError('No saved email templates found. Generate new templates to get started.');
-          }
-        })
-        .catch(error => {
-          console.error('Error fetching saved templates:', error);
-          setError('Failed to load saved templates. Please try again.');
-          setTemplates([]);
-        })
-        .finally(() => {
-          setIsLoading(false);
-        });
-    } else {
-      // Generated tab - use pre-generated templates
-      console.log('Setting templates to pre-generated templates');
+    try {
+      // Fetch saved templates from the database
+      const emailTemplates = await getEmailTemplatesByClientId(clientId);
+      console.log('Fetched saved templates:', emailTemplates);
+      
+      if (emailTemplates && Array.isArray(emailTemplates) && emailTemplates.length > 0) {
+        // Templates are already processed in the service
+        setSavedTemplates(emailTemplates);
+        setTemplates(emailTemplates);
+        console.log('Set saved templates:', emailTemplates.length);
+      } else {
+        console.log('No saved templates found');
+        setError('No saved email templates found. Generate new templates to get started.');
+      }
+    } catch (error) {
+      console.error('Error fetching saved templates:', error);
+      setError('Failed to load saved templates. Please try again.');
+    } finally {
+      setIsLoading(false);
+    }
+  };
+  
+  // Load pre-generated templates
+  const loadPreGeneratedTemplates = () => {
+    console.log('Loading pre-generated templates');
+    setSelectedTemplate(null);
+    setError(null);
+    setIsLoading(true);
+    setCurrentView('generated'); // Set current view to generated
+    
+    try {
+      console.log('Setting templates to pre-generated templates:', preGeneratedTemplates.length);
       setTemplates([...preGeneratedTemplates]);
+    } catch (error) {
+      console.error('Error loading pre-generated templates:', error);
+      setError('Failed to load pre-generated templates. Please try again.');
+    } finally {
       setIsLoading(false);
     }
   };
@@ -696,8 +675,11 @@ const EmailMarketingPage: React.FC<EmailMarketingPageProps> = ({
             <Button onClick={handleGeneratePersonalTouch}>
               <FiMail /> Personal Touch
             </Button>
-            <Button onClick={() => setShowCustomForm(true)}>
-              <FiPenTool /> Write with AI
+            <Button onClick={() => loadSavedTemplates()}>
+              <FiMail /> Saved Templates
+            </Button>
+            <Button onClick={() => loadPreGeneratedTemplates()}>
+              <FiFileText /> Pre-made Templates
             </Button>
             <Button onClick={() => setShowBrandColorsModal(true)}>
               <FiLayout /> Brand Colors
@@ -712,23 +694,10 @@ const EmailMarketingPage: React.FC<EmailMarketingPageProps> = ({
         
         <Content>
           <Sidebar>
-            <SidebarTabs>
-              <SidebarTab 
-                $active={activeTab === 'saved'} 
-                onClick={() => handleTabChange('saved')}
-              >
-                Saved Emails
-              </SidebarTab>
-              <SidebarTab 
-                $active={activeTab === 'generated'} 
-                onClick={() => handleTabChange('generated')}
-              >
-                Pre-made Templates
-              </SidebarTab>
-            </SidebarTabs>
+            {/* Removed tabs - using buttons instead */}
             
             <SidebarTitle>
-              {activeTab === 'saved' ? 'Saved Email Templates' : 'Pre-made Templates'}
+              {currentView === 'saved' ? 'Saved Email Templates' : 'Pre-made Templates'}
             </SidebarTitle>
             
             <TemplateList>
@@ -738,8 +707,8 @@ const EmailMarketingPage: React.FC<EmailMarketingPageProps> = ({
                 <ErrorMessage>{error}</ErrorMessage>
               ) : templates.length === 0 ? (
                 <NoTemplates>
-                  <p>No {activeTab === 'saved' ? 'saved' : 'pre-made'} templates found</p>
-                  {activeTab === 'saved' ? (
+                  <p>No {currentView === 'saved' ? 'saved' : 'pre-made'} templates found</p>
+                  {currentView === 'saved' ? (
                     <button onClick={() => setShowGenerateForm(true)}>
                       <FiPlus /> Generate New Template
                     </button>

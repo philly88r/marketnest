@@ -278,19 +278,6 @@ export const getEmailTemplatesByClientId = async (clientId: string): Promise<Ema
   try {
     console.log('Fetching email templates for client:', clientId);
     
-    // Try to get templates from localStorage first as a backup
-    const localTemplatesString = localStorage.getItem(`email_templates_${clientId}`);
-    let localTemplates: EmailTemplate[] = [];
-    
-    if (localTemplatesString) {
-      try {
-        localTemplates = JSON.parse(localTemplatesString);
-        console.log(`Found ${localTemplates.length} templates in localStorage for client ${clientId}`);
-      } catch (e) {
-        console.error('Error parsing local templates:', e);
-      }
-    }
-    
     // Try to get templates from Supabase
     try {
       // Explicitly select all required columns including metrics
@@ -302,67 +289,68 @@ export const getEmailTemplatesByClientId = async (clientId: string): Promise<Ema
       
       if (error) {
         console.error('Supabase error fetching templates:', error);
-        // If there's an error but we have local templates, return those
-        if (localTemplates.length > 0) {
-          return localTemplates;
-        }
         throw error;
       }
       
       console.log(`Found ${data?.length || 0} templates in Supabase for client ${clientId}`);
-      console.log('Email template data sample:', data && data.length > 0 ? data[0] : 'No data');
+      if (data && data.length > 0) {
+        console.log('Email template data sample:', data[0]);
+      } else {
+        console.log('No email templates found in database');
+      }
+      
+      // Create a deep copy of the data to avoid mutation issues
+      const templatesCopy = JSON.parse(JSON.stringify(data || []));
       
       // Process the data to ensure metrics is properly formatted
-      const processedData = data?.map(template => {
-        // Ensure metrics is parsed if it's a string
-        if (template.metrics && typeof template.metrics === 'string') {
+      const processedData = templatesCopy.map((template: any) => {
+        // Create a new object to avoid mutation issues
+        const processedTemplate: EmailTemplate = {
+          id: template.id || `email-${Date.now()}-${Math.floor(Math.random() * 1000)}`,
+          client_id: template.client_id || clientId,
+          title: template.title || 'Untitled Template',
+          subject: template.subject || '',
+          content: template.content || '',
+          created_at: template.created_at || new Date().toISOString(),
+          status: template.status || 'draft',
+          scheduled_for: template.scheduled_for || null,
+          tags: [],
+          metrics: { opens: 0, clicks: 0, conversions: 0 }
+        };
+        
+        // Process metrics
+        if (template.metrics) {
           try {
-            template.metrics = JSON.parse(template.metrics);
+            if (typeof template.metrics === 'string') {
+              processedTemplate.metrics = JSON.parse(template.metrics);
+            } else if (typeof template.metrics === 'object') {
+              processedTemplate.metrics = template.metrics;
+            }
           } catch (e) {
-            console.error('Error parsing metrics JSON:', e);
-            template.metrics = { opens: 0, clicks: 0, conversions: 0 };
+            console.error('Error parsing metrics:', e);
           }
-        } else if (!template.metrics) {
-          template.metrics = { opens: 0, clicks: 0, conversions: 0 };
         }
         
-        // Ensure tags is an array
-        if (template.tags && typeof template.tags === 'string') {
+        // Process tags
+        if (template.tags) {
           try {
-            template.tags = JSON.parse(template.tags);
+            if (typeof template.tags === 'string') {
+              processedTemplate.tags = JSON.parse(template.tags);
+            } else if (Array.isArray(template.tags)) {
+              processedTemplate.tags = template.tags;
+            }
           } catch (e) {
-            console.error('Error parsing tags JSON:', e);
-            template.tags = [];
+            console.error('Error parsing tags:', e);
           }
-        } else if (!template.tags) {
-          template.tags = [];
         }
         
-        return template;
-      }) || [];
+        return processedTemplate;
+      });
       
-      // If we have data from Supabase, update localStorage
-      if (processedData && processedData.length > 0) {
-        localStorage.setItem(`email_templates_${clientId}`, JSON.stringify(processedData));
-        return processedData;
-      }
-      
-      // If no data from Supabase but we have local templates, return those
-      if (localTemplates.length > 0) {
-        return localTemplates;
-      }
-      
-      // If no templates found anywhere, return an empty array
-      return [];
+      console.log('Processed templates:', processedData);
+      return processedData;
     } catch (err) {
       console.error('Error accessing Supabase:', err);
-      
-      // If there's an error but we have local templates, return those
-      if (localTemplates.length > 0) {
-        return localTemplates;
-      }
-      
-      // If all else fails, return an empty array
       return [];
     }
     
