@@ -103,18 +103,49 @@ const EmailMarketingPage: React.FC<EmailMarketingPageProps> = ({
         console.log('EmailMarketingPage: Received templates from database:', emailTemplates.length);
         console.log('EmailMarketingPage: Database templates:', emailTemplates);
         
+        // Process templates to ensure all fields are properly formatted
+        const processedTemplates = emailTemplates.map(template => {
+          // Ensure metrics is an object
+          if (!template.metrics || typeof template.metrics === 'string') {
+            try {
+              template.metrics = typeof template.metrics === 'string' 
+                ? JSON.parse(template.metrics) 
+                : { opens: 0, clicks: 0, conversions: 0 };
+            } catch (e) {
+              console.error('Error parsing metrics:', e);
+              template.metrics = { opens: 0, clicks: 0, conversions: 0 };
+            }
+          }
+          
+          // Ensure tags is an array
+          if (!template.tags || typeof template.tags === 'string') {
+            try {
+              template.tags = typeof template.tags === 'string' 
+                ? JSON.parse(template.tags) 
+                : [];
+            } catch (e) {
+              console.error('Error parsing tags:', e);
+              template.tags = [];
+            }
+          }
+          
+          return template;
+        });
+        
+        console.log('EmailMarketingPage: Processed templates:', processedTemplates);
+        
         // Store the saved templates separately
-        setSavedTemplates([...emailTemplates]);
+        setSavedTemplates([...processedTemplates]);
         
         // Set the templates based on the active tab
         if (activeTab === 'saved') {
-          if (emailTemplates.length === 0) {
+          if (processedTemplates.length === 0) {
             console.log('EmailMarketingPage: No saved templates found, switching to generated tab');
             setActiveTab('generated');
             setTemplates([...preGenTemplates]);
           } else {
             console.log('EmailMarketingPage: Using saved templates from database');
-            setTemplates([...emailTemplates]);
+            setTemplates([...processedTemplates]);
           }
         } else {
           setTemplates([...preGenTemplates]);
@@ -134,22 +165,80 @@ const EmailMarketingPage: React.FC<EmailMarketingPageProps> = ({
   }, [clientId]); // Only depend on clientId to avoid infinite loops
   
   // Handle tab change
-  const handleTabChange = (tab: 'saved' | 'generated') => {
+  const handleTabChange = async (tab: 'saved' | 'generated') => {
     console.log(`Switching to tab: ${tab}`);
     console.log(`Saved templates count: ${savedTemplates.length}`);
     console.log(`Pre-generated templates count: ${preGeneratedTemplates.length}`);
     
     setActiveTab(tab);
+    setSelectedTemplate(null);
     
     if (tab === 'saved') {
       console.log('Setting templates to saved templates');
-      setTemplates([...savedTemplates]); // Create a new array to ensure state update
+      
+      // If we don't have any saved templates, try to fetch them again
+      if (savedTemplates.length === 0) {
+        console.log('No saved templates found, fetching from database again');
+        setIsLoading(true);
+        
+        try {
+          const emailTemplates = await getEmailTemplatesByClientId(clientId);
+          console.log('Fetched templates:', emailTemplates);
+          
+          // Process templates to ensure all fields are properly formatted
+          const processedTemplates = emailTemplates.map(template => {
+            // Ensure metrics is an object
+            if (!template.metrics || typeof template.metrics === 'string') {
+              try {
+                template.metrics = typeof template.metrics === 'string' 
+                  ? JSON.parse(template.metrics) 
+                  : { opens: 0, clicks: 0, conversions: 0 };
+              } catch (e) {
+                console.error('Error parsing metrics:', e);
+                template.metrics = { opens: 0, clicks: 0, conversions: 0 };
+              }
+            }
+            
+            // Ensure tags is an array
+            if (!template.tags || typeof template.tags === 'string') {
+              try {
+                template.tags = typeof template.tags === 'string' 
+                  ? JSON.parse(template.tags) 
+                  : [];
+              } catch (e) {
+                console.error('Error parsing tags:', e);
+                template.tags = [];
+              }
+            }
+            
+            return template;
+          });
+          
+          setSavedTemplates(processedTemplates);
+          setTemplates(processedTemplates);
+          
+          if (processedTemplates.length === 0) {
+            // If still no saved templates, switch to generated tab
+            console.log('Still no saved templates, switching to generated tab');
+            setActiveTab('generated');
+            setTemplates([...preGeneratedTemplates]);
+          }
+        } catch (error) {
+          console.error('Error fetching saved templates:', error);
+          setError('Failed to load saved templates');
+          // Keep the saved tab active but show error message
+        } finally {
+          setIsLoading(false);
+        }
+      } else {
+        // We have saved templates, use them
+        setTemplates([...savedTemplates]);
+      }
     } else {
+      // Generated tab
       console.log('Setting templates to pre-generated templates');
-      setTemplates([...preGeneratedTemplates]); // Create a new array to ensure state update
+      setTemplates([...preGeneratedTemplates]);
     }
-    
-    setSelectedTemplate(null);
   };
 
   // Handle generating new email templates
