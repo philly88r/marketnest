@@ -164,80 +164,73 @@ const EmailMarketingPage: React.FC<EmailMarketingPageProps> = ({
     loadTemplates();
   }, [clientId]); // Only depend on clientId to avoid infinite loops
   
-  // Handle tab change
-  const handleTabChange = async (tab: 'saved' | 'generated') => {
+  // Handle tab change - simplified version for reliability
+  const handleTabChange = (tab: 'saved' | 'generated') => {
     console.log(`Switching to tab: ${tab}`);
-    console.log(`Saved templates count: ${savedTemplates.length}`);
-    console.log(`Pre-generated templates count: ${preGeneratedTemplates.length}`);
-    
     setActiveTab(tab);
     setSelectedTemplate(null);
+    setError(null);
+    setIsLoading(true);
     
+    // Immediately load the appropriate templates based on the tab
     if (tab === 'saved') {
-      console.log('Setting templates to saved templates');
-      
-      // If we don't have any saved templates, try to fetch them again
-      if (savedTemplates.length === 0) {
-        console.log('No saved templates found, fetching from database again');
-        setIsLoading(true);
-        
-        try {
-          const emailTemplates = await getEmailTemplatesByClientId(clientId);
-          console.log('Fetched templates:', emailTemplates);
+      // Always fetch fresh data from the database for saved emails tab
+      getEmailTemplatesByClientId(clientId)
+        .then(emailTemplates => {
+          console.log('Fetched saved templates:', emailTemplates);
           
           // Process templates to ensure all fields are properly formatted
           const processedTemplates = emailTemplates.map(template => {
+            let processedTemplate = {...template};
+            
             // Ensure metrics is an object
-            if (!template.metrics || typeof template.metrics === 'string') {
+            if (!processedTemplate.metrics || typeof processedTemplate.metrics === 'string') {
               try {
-                template.metrics = typeof template.metrics === 'string' 
-                  ? JSON.parse(template.metrics) 
+                processedTemplate.metrics = typeof processedTemplate.metrics === 'string' 
+                  ? JSON.parse(processedTemplate.metrics) 
                   : { opens: 0, clicks: 0, conversions: 0 };
               } catch (e) {
                 console.error('Error parsing metrics:', e);
-                template.metrics = { opens: 0, clicks: 0, conversions: 0 };
+                processedTemplate.metrics = { opens: 0, clicks: 0, conversions: 0 };
               }
             }
             
             // Ensure tags is an array
-            if (!template.tags || typeof template.tags === 'string') {
+            if (!processedTemplate.tags || typeof processedTemplate.tags === 'string') {
               try {
-                template.tags = typeof template.tags === 'string' 
-                  ? JSON.parse(template.tags) 
+                processedTemplate.tags = typeof processedTemplate.tags === 'string' 
+                  ? JSON.parse(processedTemplate.tags) 
                   : [];
               } catch (e) {
                 console.error('Error parsing tags:', e);
-                template.tags = [];
+                processedTemplate.tags = [];
               }
             }
             
-            return template;
+            return processedTemplate;
           });
           
+          console.log('Processed templates:', processedTemplates);
           setSavedTemplates(processedTemplates);
           setTemplates(processedTemplates);
           
           if (processedTemplates.length === 0) {
-            // If still no saved templates, switch to generated tab
-            console.log('Still no saved templates, switching to generated tab');
-            setActiveTab('generated');
-            setTemplates([...preGeneratedTemplates]);
+            setError('No saved email templates found. Generate new templates to get started.');
           }
-        } catch (error) {
+        })
+        .catch(error => {
           console.error('Error fetching saved templates:', error);
-          setError('Failed to load saved templates');
-          // Keep the saved tab active but show error message
-        } finally {
+          setError('Failed to load saved templates. Please try again.');
+          setTemplates([]);
+        })
+        .finally(() => {
           setIsLoading(false);
-        }
-      } else {
-        // We have saved templates, use them
-        setTemplates([...savedTemplates]);
-      }
+        });
     } else {
-      // Generated tab
+      // Generated tab - use pre-generated templates
       console.log('Setting templates to pre-generated templates');
       setTemplates([...preGeneratedTemplates]);
+      setIsLoading(false);
     }
   };
 
@@ -2038,7 +2031,7 @@ const SidebarTabs = styled.div`
   border-bottom: 1px solid rgba(255, 255, 255, 0.1);
 `;
 
-const SidebarTab = styled.div<{ $active: boolean }>`
+const SidebarTab = styled.button<{ $active: boolean }>`
   padding: 10px 15px;
   cursor: pointer;
   font-size: 14px;
@@ -2046,6 +2039,12 @@ const SidebarTab = styled.div<{ $active: boolean }>`
   color: ${props => props.$active ? 'white' : 'rgba(255, 255, 255, 0.6)'};
   border-bottom: 2px solid ${props => props.$active ? LIBERTY_BEANS_COLORS.secondary : 'transparent'};
   transition: all 0.2s ease;
+  background: transparent;
+  border-top: none;
+  border-left: none;
+  border-right: none;
+  width: 50%;
+  text-align: center;
   
   &:hover {
     color: white;
