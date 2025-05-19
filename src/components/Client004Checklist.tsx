@@ -34,6 +34,7 @@ const AltareChecklist: React.FC = () => {
   const [form, setForm] = useState<Partial<ChecklistItem>>({});
   const [isSaving, setIsSaving] = useState(false);
   const [formErrors, setFormErrors] = useState<Record<string, string>>({});
+  const [isDeleting, setIsDeleting] = useState(false);
 
   // Modal state
   const [modalOpen, setModalOpen] = useState(false);
@@ -234,13 +235,15 @@ const AltareChecklist: React.FC = () => {
         // Create new item
         console.log('Creating new item:', form);
         // Remove any undefined or empty string values and ensure required fields
+        // Explicitly omit the id field to let the database handle it
+        const { id, ...formData } = form;
         const cleanForm = {
-          feature: form.feature,
-          to_adjust: form.to_adjust || null,
-          complete_by: form.complete_by || null,
-          notes_from: form.notes_from || null,
-          assigned_to: form.assigned_to || null,
-          complete: form.complete || false
+          feature: formData.feature,
+          to_adjust: formData.to_adjust || null,
+          complete_by: formData.complete_by || null,
+          notes_from: formData.notes_from || null,
+          assigned_to: formData.assigned_to || null,
+          complete: formData.complete || false
         };
         
         console.log('Clean form data for insert:', cleanForm);
@@ -351,6 +354,31 @@ const AltareChecklist: React.FC = () => {
       setError(e.message || 'Unknown error');
     } finally {
       setIsLoading(false);
+    }
+  };
+
+  // Delete an item
+  const handleDelete = async (item: ChecklistItem) => {
+    if (!window.confirm('Are you sure you want to delete this item?')) return;
+    
+    setIsDeleting(true);
+    setError(null);
+    try {
+      console.log('Deleting item:', item.id);
+      const { error } = await supabase
+        .from('client_004_checklist')
+        .delete()
+        .eq('id', item.id);
+        
+      if (error) throw error;
+      
+      console.log('Item deleted successfully');
+      await fetchItems();
+    } catch (e: any) {
+      console.error('Error deleting checklist item:', e);
+      setError(e.message || 'Unknown error');
+    } finally {
+      setIsDeleting(false);
     }
   };
 
@@ -512,19 +540,19 @@ const AltareChecklist: React.FC = () => {
       <ControlsContainer>
         <FilterTabs>
           <FilterTab 
-            active={activeFilter === 'all'} 
+            $active={activeFilter === 'all'} 
             onClick={() => setActiveFilter('all')}
           >
             All ({items.length})
           </FilterTab>
           <FilterTab 
-            active={activeFilter === 'completed'} 
+            $active={activeFilter === 'completed'} 
             onClick={() => setActiveFilter('completed')}
           >
             Completed ({completedCount})
           </FilterTab>
           <FilterTab 
-            active={activeFilter === 'pending'} 
+            $active={activeFilter === 'pending'} 
             onClick={() => setActiveFilter('pending')}
           >
             Pending ({pendingCount})
@@ -563,14 +591,11 @@ const AltareChecklist: React.FC = () => {
         <>
           <CardList>
             {paginatedItems.map((item, idx) => (
-              <ItemCard 
-                key={item.id.toString()} 
-                complete={item.complete}
-              >
+              <ItemCard key={item.id} $complete={item.complete}>
                 <ItemHeader>
                   <ItemTitle>{item.feature}</ItemTitle>
                   <ToggleButton
-                    complete={item.complete}
+                    $complete={item.complete}
                     onClick={() => handleToggleComplete(item)}
                     title={item.complete ? 'Mark as incomplete' : 'Mark as complete'}
                   >
@@ -618,9 +643,12 @@ const AltareChecklist: React.FC = () => {
                 </ItemDetails>
                 
                 <ItemActions>
-                  <EditButton onClick={() => openEditModal(item)}>
+                  <EditButton onClick={() => openEditModal(item)} title="Edit item">
                     <IconEdit /> Edit
                   </EditButton>
+                  <DeleteButton onClick={() => handleDelete(item)} title="Delete item" disabled={isDeleting}>
+                    <IconTimes /> Delete
+                  </DeleteButton>
                   <OrderButtons>
                     <OrderButton 
                       disabled={idx === 0}
@@ -684,7 +712,7 @@ const AltareChecklist: React.FC = () => {
               name="feature"
               value={form.feature || ''}
               onChange={handleChange}
-              error={!!formErrors.feature}
+              $error={!!formErrors.feature}
             />
           </FormGroup>
           
@@ -861,9 +889,9 @@ const FilterTabs = styled.div`
   z-index: 1; /* Lift above other elements */
 `;
 
-const FilterTab = styled.button<{ active: boolean }>`
-  background: ${props => props.active ? '#0df9b6' : 'rgba(255, 255, 255, 0.1)'};
-  color: ${props => props.active ? '#1a1a2e' : '#fff'};
+const FilterTab = styled.button<{ $active: boolean }>`
+  background: ${props => props.$active ? '#0df9b6' : 'rgba(255, 255, 255, 0.1)'};
+  color: ${props => props.$active ? '#1a1a2e' : '#fff'};
   border: none;
   border-radius: 8px;
   padding: 12px 20px;
@@ -1011,7 +1039,7 @@ const CardList = styled.div`
   }
 `;
 
-const ItemCard = styled.div<{ complete: boolean }>`
+const ItemCard = styled.div<{ $complete: boolean }>`
   background: #16213e;
   border-radius: 8px;
   padding: 16px;
@@ -1019,8 +1047,9 @@ const ItemCard = styled.div<{ complete: boolean }>`
   flex-direction: column;
   gap: 12px;
   box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2);
-  border-left: 4px solid ${props => props.complete ? '#0df9b6' : '#718096'};
-  opacity: ${props => props.complete ? 0.7 : 1};
+  border-left: 4px solid ${props => props.$complete ? '#0df9b6' : '#718096'};
+  opacity: ${props => props.$complete ? 0.6 : 1};
+  text-decoration: ${props => props.$complete ? 'line-through' : 'none'};
   transition: all 0.2s ease;
   
   &:hover {
@@ -1042,15 +1071,15 @@ const ItemTitle = styled.h3`
   word-break: break-word;
 `;
 
-const ToggleButton = styled.button<{ complete: boolean }>`
+const ToggleButton = styled.button<{ $complete: boolean }>`
   width: 28px;
   height: 28px;
   border-radius: 50%;
   display: flex;
   align-items: center;
   justify-content: center;
-  background: ${props => props.complete ? '#0df9b6' : 'rgba(255, 255, 255, 0.1)'};
-  color: ${props => props.complete ? '#1a1a2e' : '#fff'};
+  background: ${props => props.$complete ? '#4CAF50' : '#1F53FF'};
+  color: ${props => props.$complete ? '#1a1a2e' : '#fff'};
   border: none;
   cursor: pointer;
   flex-shrink: 0;
@@ -1111,6 +1140,31 @@ const ItemActions = styled.div`
   margin-top: 8px;
   padding-top: 8px;
   border-top: 1px solid rgba(255, 255, 255, 0.1);
+`;
+
+const DeleteButton = styled.button`
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: #ff4d4f;
+  color: white;
+  border: none;
+  cursor: pointer;
+  flex-shrink: 0;
+  margin-left: 8px;
+  transition: all 0.2s ease;
+  
+  &:hover {
+    background: #ff7875;
+  }
+  
+  &:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+  }
 `;
 
 const EditButton = styled.button`
@@ -1240,11 +1294,11 @@ const ErrorText = styled.span`
   font-size: 12px;
 `;
 
-const FormInput = styled.input<{ error?: boolean }>`
+const FormInput = styled.input<{ $error: boolean }>`
   width: 100%;
   padding: 10px 12px;
   background: #fff;
-  border: 1px solid ${props => props.error ? '#ff3b30' : '#ddd'};
+  border: 1px solid ${props => props.$error ? '#ff3b30' : '#ddd'};
   border-radius: 4px;
   color: #333;
   font-size: 14px;
