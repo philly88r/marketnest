@@ -233,21 +233,38 @@ const AltareChecklist: React.FC = () => {
       if (isNewItem) {
         // Create new item
         console.log('Creating new item:', form);
-        // Create a clean version of the form data without UI-only fields
-        const { priority, ...cleanForm } = form;
+        // Remove any undefined or empty string values and ensure required fields
+        const cleanForm = {
+          feature: form.feature,
+          to_adjust: form.to_adjust || null,
+          complete_by: form.complete_by || null,
+          notes_from: form.notes_from || null,
+          assigned_to: form.assigned_to || null,
+          complete: form.complete || false
+        };
         
         console.log('Clean form data for insert:', cleanForm);
         const { data, error: createError } = await supabase
           .from('client_004_checklist')
           .insert([cleanForm]);
           
-        if (createError) throw createError;
-        console.log('Item created successfully');
+        if (createError) {
+          console.error('Error creating item:', createError);
+          throw createError;
+        }
+        console.log('Item created successfully, response:', data);
       } else if (modalItem) {
         // Update existing item
         console.log('Saving changes for item:', modalItem.id, form);
-        // Create a clean version of the form data without UI-only fields
-        const { priority, ...cleanForm } = form;
+        // Remove any undefined or empty string values and ensure required fields
+        const cleanForm = {
+          feature: form.feature,
+          to_adjust: form.to_adjust || null,
+          complete_by: form.complete_by || null,
+          notes_from: form.notes_from || null,
+          assigned_to: form.assigned_to || null,
+          complete: form.complete || false
+        };
         
         console.log('Clean form data for update:', cleanForm);
         const { data, error: updateError } = await supabase
@@ -255,8 +272,11 @@ const AltareChecklist: React.FC = () => {
           .update(cleanForm)
           .eq('id', modalItem.id);
           
-        if (updateError) throw updateError;
-        console.log('Item updated successfully');
+        if (updateError) {
+          console.error('Error updating item:', updateError);
+          throw updateError;
+        }
+        console.log('Item updated successfully, response:', data);
       }
       
       await fetchItems();
