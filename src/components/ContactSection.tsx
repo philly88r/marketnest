@@ -1,11 +1,46 @@
 import React, { useState } from 'react';
-import styled from 'styled-components';
+import styled, { css } from 'styled-components';
 import { motion, AnimatePresence } from 'framer-motion';
+
+type StyledProps = {
+  $hasError?: boolean;
+  disabled?: boolean;
+  $isSubmitting?: boolean;
+};
+
+const inputStyles = css<StyledProps>`
+  width: 100%;
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid ${({ $hasError }) => $hasError ? '#FF4343' : 'rgba(255, 255, 255, 0.1)'};
+  border-radius: 8px;
+  padding: 14px 16px;
+  color: #FFFFFF;
+  font-size: 16px;
+  font-family: 'Plus Jakarta Sans', sans-serif;
+  transition: all 0.3s ease;
+  
+  &:focus {
+    outline: none;
+    border-color: ${({ $hasError }) => $hasError ? '#FF4343' : 'rgba(255, 255, 255, 0.3)'};
+    background: rgba(255, 255, 255, 0.08);
+  }
+  
+  &::placeholder {
+    color: rgba(255, 255, 255, 0.4);
+  }
+  
+  @media (max-width: 768px) {
+    padding: 12px 14px;
+  }
+`;
 
 const ContactSectionContainer = styled.section`
   padding: 100px 200px;
   position: relative;
   overflow: hidden;
+  min-height: calc(100vh - 80px);
+  margin-top: 80px;
+  background: transparent;
   
   @media (max-width: 1200px) {
     padding: 80px 100px;
@@ -183,26 +218,9 @@ const RequiredStar = styled.span`
   margin-left: 4px;
 `;
 
-const FormInput = styled.input<{ $hasError?: boolean }>`
-  width: 100%;
-  background: rgba(255, 255, 255, 0.05);
-  border: 1px solid ${props => props.$hasError ? '#FF4343' : 'rgba(255, 255, 255, 0.1)'};
-  border-radius: 8px;
-  padding: 14px 16px;
-  color: white;
-  font-size: 16px;
-  font-family: 'Plus Jakarta Sans', sans-serif;
-  transition: all 0.3s ease;
-  
-  &:focus {
-    outline: none;
-    border-color: ${props => props.$hasError ? '#FF4343' : 'rgba(255, 255, 255, 0.3)'};
-    background: rgba(255, 255, 255, 0.08);
-  }
-  
-  &::placeholder {
-    color: rgba(255, 255, 255, 0.4);
-  }
+const FormInput = styled.input<StyledProps>`
+  ${inputStyles}
+  margin-top: 8px;
   
   @media (max-width: 768px) {
     padding: 12px 14px;
@@ -214,38 +232,27 @@ const ErrorMessage = styled(motion.div)`
   font-size: 12px;
   margin-top: 5px;
   font-family: 'Plus Jakarta Sans', sans-serif;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+
+  &::before {
+    content: '⚠';
+    font-size: 12px;
+  }
 `;
 
-const FormTextarea = styled.textarea<{ $hasError?: boolean }>`
-  width: 100%;
-  background: rgba(255, 255, 255, 0.05);
-  border: 1px solid ${props => props.$hasError ? '#FF4343' : 'rgba(255, 255, 255, 0.1)'};
-  border-radius: 8px;
-  padding: 14px 16px;
-  color: white;
-  font-size: 16px;
-  font-family: 'Plus Jakarta Sans', sans-serif;
+const FormTextarea = styled.textarea<StyledProps>`
+  ${inputStyles}
   min-height: 150px;
   resize: vertical;
-  transition: all 0.3s ease;
-  
-  &:focus {
-    outline: none;
-    border-color: ${props => props.$hasError ? '#FF4343' : 'rgba(255, 255, 255, 0.3)'};
-    background: rgba(255, 255, 255, 0.08);
-  }
-  
-  &::placeholder {
-    color: rgba(255, 255, 255, 0.4);
-  }
   
   @media (max-width: 768px) {
-    padding: 12px 14px;
     min-height: 120px;
   }
 `;
 
-const SubmitButton = styled(motion.button)<{ $isSubmitting?: boolean }>`
+const SubmitButton = styled(motion.button)<StyledProps>`
   width: 100%;
   padding: 16px;
   border-radius: 8px;
@@ -255,8 +262,8 @@ const SubmitButton = styled(motion.button)<{ $isSubmitting?: boolean }>`
   font-weight: 600;
   border: none;
   cursor: pointer;
-  opacity: ${props => props.disabled ? 0.7 : 1};
-  pointer-events: ${props => props.disabled ? 'none' : 'auto'};
+  opacity: ${({ disabled }) => disabled ? 0.7 : 1};
+  pointer-events: ${({ disabled }) => disabled ? 'none' : 'auto'};
   margin-top: 10px;
   margin-bottom: 0;
   transition: all 0.2s ease;
@@ -269,7 +276,7 @@ const LoadingSpinner = styled(motion.div)`
   height: 20px;
   border: 2px solid rgba(255, 255, 255, 0.3);
   border-radius: 50%;
-  border-top-color: white;
+  border-top-color: #FFFFFF;
   margin-right: 8px;
   animation: spin 1s ease-in-out infinite;
   
@@ -360,7 +367,7 @@ const ContactSection: React.FC = () => {
     return Object.keys(newErrors).length === 0;
   };
   
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     
     if (validateForm()) {
